@@ -30,10 +30,12 @@ func NewApp() *MelloApp {
 func (app *MelloApp) Start() {
 	var endRunning = make(chan bool, 1)
 	app.loadDefaultComps()
-	go app.enablePortListen()
+	go app.rpcListen()
+	// enable port listener
 	if app.CurSvrConfig.IsFrontend {
-		go app.enableClientPortListen()
+		go app.handlerListen()
 	}
+	// main goroutine
 	app.listenChan()
 	<-endRunning
 	Info(fmt.Sprintf("Server: %s is stopping..."))
@@ -48,17 +50,12 @@ func (app *MelloApp) Start() {
 }
 
 // Enable current server backend listener
-func (app *MelloApp) enablePortListen() {
-	Info(fmt.Sprintf("enable port listener(%s)", app.CurSvrConfig.String()))
-	addr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", app.CurSvrConfig.Host, app.CurSvrConfig.Port))
+func (app *MelloApp) rpcListen() {
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", app.CurSvrConfig.Host, app.CurSvrConfig.Port))
 	if err != nil {
 		Error(err.Error())
 	}
-	listener, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		Error(err.Error())
-	}
-	Info(fmt.Sprintf("listen at %s:%d successfully(%s)",
+	Info(fmt.Sprintf("rpc listen at %s:%d successfully(%s)",
 		app.CurSvrConfig.Host,
 		app.CurSvrConfig.Port,
 		app.CurSvrConfig.String()))
@@ -73,24 +70,18 @@ func (app *MelloApp) enablePortListen() {
 	}
 }
 
-func (app *MelloApp) enableClientPortListen() {
+func (app *MelloApp) handlerListen() {
 	// create local listener
-	Info(fmt.Sprintf("enable clientPort listener(%s)", app.CurSvrConfig.String()))
-	addr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", app.CurSvrConfig.Host, app.CurSvrConfig.ClientPort))
-	if err != nil {
-		Error(err.Error())
-	}
-	listener, err := net.ListenTCP("tcp", addr)
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", app.CurSvrConfig.Host, app.CurSvrConfig.ClientPort))
 	if err != nil {
 		Error(err.Error())
 	}
 	defer listener.Close()
-	Info(fmt.Sprintf("listen at %s:%d successfully(%s)",
+	Info(fmt.Sprintf("handler listen at %s:%d successfully(%s)",
 		app.CurSvrConfig.Host,
 		app.CurSvrConfig.ClientPort,
 		app.CurSvrConfig.String()))
-
-	Rpc.Request("master.Manager.Test")
+	
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
