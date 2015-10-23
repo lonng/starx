@@ -15,7 +15,7 @@ const (
 	RPC_STATUS_INITED
 )
 
-type MelloRpc struct {
+type RpcService struct {
 	Name           string
 	ClientTypeMaps map[string][]*rpc.Client
 	ClientIdMaps   map[string]*rpc.Client
@@ -27,8 +27,8 @@ type RpcComponent interface {
 	Setup()
 }
 
-func NewRpc() *MelloRpc {
-	return &MelloRpc{
+func NewRpc() *RpcService {
+	return &RpcService{
 		Name:           "RpcComponent",
 		ClientTypeMaps: make(map[string][]*rpc.Client),
 		ClientIdMaps:   make(map[string]*rpc.Client),
@@ -36,17 +36,17 @@ func NewRpc() *MelloRpc {
 		Status:         RPC_STATUS_UNINIT}
 }
 
-func (this *MelloRpc) Register(comp RpcComponent) {
+func (this *RpcService) Register(comp RpcComponent) {
 	comp.Setup()
 	rpc.Register(comp)
 }
 
-func (this *MelloRpc) Handle(conn net.Conn) {
+func (this *RpcService) Handle(conn net.Conn) {
 	defer conn.Close()
 	rpc.ServeConn(conn)
 }
 
-func (this *MelloRpc) Request(route string) {
+func (this *RpcService) Request(route string) {
 	routeArgs := strings.Split(route, ".")
 	if len(routeArgs) != 3 {
 		Error(fmt.Sprintf("wrong route: `%s`", route))
@@ -63,7 +63,7 @@ func (this *MelloRpc) Request(route string) {
 	}
 }
 
-func (this *MelloRpc) CloseClient(svrId string) {
+func (this *RpcService) CloseClient(svrId string) {
 	// TODO:
 	if client, ok := this.ClientIdMaps[svrId]; ok {
 		// delete client from `Rpc.ClientIdMaps`
@@ -103,7 +103,7 @@ func (this *MelloRpc) CloseClient(svrId string) {
 	this.dumpClientIdMaps()
 }
 
-func (this *MelloRpc) AddClient(svr *ServerConfig) {
+func (this *RpcService) AddClient(svr *ServerConfig) {
 	client, err := rpc.Dial("tcp4", fmt.Sprintf("%s:%d", svr.Host, svr.Port))
 	if err != nil {
 		Info(fmt.Sprintf("ServerId: %s establish rpc client failed.", svr.Id))
@@ -116,7 +116,7 @@ func (this *MelloRpc) AddClient(svr *ServerConfig) {
 	this.dumpClientIdMaps()
 }
 
-func (this *MelloRpc) Close() {
+func (this *RpcService) Close() {
 	// close rpc clients
 	Info("close all of socket connections")
 	for svrId, _ := range this.ClientIdMaps {
@@ -127,7 +127,7 @@ func (this *MelloRpc) Close() {
 // TODO: add another argment session, to select a exact server when the
 // server type has more than one server
 // all established `rpc.Client` will be disconnected in `App.Stop()`
-func (this *MelloRpc) getClientByType(svrType string) (*rpc.Client, error) {
+func (this *RpcService) getClientByType(svrType string) (*rpc.Client, error) {
 	if svrType == App.CurSvrConfig.Type {
 		return nil, errors.New(fmt.Sprintf("current server has the same type(Type: %s)", svrType))
 	}
@@ -150,7 +150,7 @@ func (this *MelloRpc) getClientByType(svrType string) (*rpc.Client, error) {
 	return this.ClientTypeMaps[svrType][0], nil
 }
 
-func (this *MelloRpc) getClientById(svrId string) (*rpc.Client, error) {
+func (this *RpcService) getClientById(svrId string) (*rpc.Client, error) {
 	if this.Status == RPC_STATUS_UNINIT {
 		this.initClient()
 	}
@@ -162,7 +162,7 @@ func (this *MelloRpc) getClientById(svrId string) (*rpc.Client, error) {
 }
 
 // establish all server in `App.ServerIdMaps` rpc client
-func (this *MelloRpc) initClient() {
+func (this *RpcService) initClient() {
 	for _, svrPtr := range SvrIdMaps {
 		if svrPtr.Id != App.CurSvrConfig.Id {
 			this.AddClient(svrPtr)
@@ -171,7 +171,7 @@ func (this *MelloRpc) initClient() {
 	this.Status = RPC_STATUS_INITED
 }
 
-func (this *MelloRpc) dumpClientTypeMaps() {
+func (this *RpcService) dumpClientTypeMaps() {
 	for t, cs := range this.ClientTypeMaps {
 		if len(cs) == 0 {
 			delete(this.ClientTypeMaps, t)
@@ -181,7 +181,7 @@ func (this *MelloRpc) dumpClientTypeMaps() {
 	}
 }
 
-func (this *MelloRpc) dumpClientIdMaps() {
+func (this *RpcService) dumpClientIdMaps() {
 	for id, _ := range this.ClientIdMaps {
 		Info(fmt.Sprintf("Rpc.ClientIdMaps[%s] is contained in", id))
 	}

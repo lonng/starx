@@ -28,8 +28,8 @@ var (
 	SvrTypeMaps      map[string][]*ServerConfig // all servers type maps
 	SvrIdMaps        map[string]*ServerConfig   // all servers id maps
 	Settings         map[string][]func()
-	Rpc              *MelloRpc                // rpc proxy
-	Handler          *MelloHandler            // hander
+	Rpc              *RpcService                // rpc proxy
+	Handler          *HandlerService            // hander
 	TimerManager     Timer                    // timer component
 	Route            map[string]func() string // server route function
 	SessionService   *MelloSessionService     // session service component

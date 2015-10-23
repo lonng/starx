@@ -6,7 +6,7 @@ import (
 	"net"
 )
 
-type MelloHandler struct{}
+type HandlerService struct{}
 
 type HandlerComponent interface {
 	Setup()
@@ -23,18 +23,18 @@ func (this *Message) String() string {
 		this.Body)
 }
 
-func NewHandler() *MelloHandler {
-	return &MelloHandler{}
+func NewHandler() *HandlerService {
+	return &HandlerService{}
 }
 
-func (handler *MelloHandler) Handle(conn net.Conn) {
+func (handler *HandlerService) Handle(conn net.Conn) {
 	defer conn.Close()
 	if buf, err := ioutil.ReadAll(conn); err != nil {
 		Info(fmt.Sprintf("Data: (%s)", buf))
 	}
 }
 
-func (handler *MelloHandler) Register(rcvr HandlerComponent) {
+func (handler *HandlerService) Register(rcvr HandlerComponent) {
 	Info(fmt.Sprintf("Register Handler: %s", rcvr))
 	rcvr.Setup()
 }
