@@ -3,6 +3,7 @@ package mello
 import (
 	"fmt"
 	"net"
+	"time"
 )
 
 type MessageType int
@@ -77,11 +78,12 @@ func (app *MelloApp) handlerListen() {
 		Error(err.Error())
 	}
 	defer listener.Close()
+	
 	Info(fmt.Sprintf("handler listen at %s:%d successfully(%s)",
 		app.CurSvrConfig.Host,
 		app.CurSvrConfig.ClientPort,
 		app.CurSvrConfig.String()))
-	
+	time.AfterFunc(10 * time.Second, func(){Rpc.Request("auth.AuthRemote.Test")})
 	for {
 		conn, err := listener.Accept()
 		if err != nil {

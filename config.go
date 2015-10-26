@@ -23,13 +23,13 @@ var (
 	ServerConfigPath string
 	MasterConfigPath string
 	StartTime        time.Time
-	SvrConfigs       []*ServerConfig            // all servers config
-	SvrTypes         []string                   // all server type
-	SvrTypeMaps      map[string][]*ServerConfig // all servers type maps
-	SvrIdMaps        map[string]*ServerConfig   // all servers id maps
+	SvrConfigs       []*ServerConfig          // all servers config
+	SvrTypes         []string                 // all server type
+	SvrTypeMaps      map[string][]string      // all servers type maps
+	SvrIdMaps        map[string]*ServerConfig // all servers id maps
 	Settings         map[string][]func()
-	Rpc              *RpcService                // rpc proxy
-	Handler          *HandlerService            // hander
+	Rpc              *RpcService              // rpc proxy
+	Handler          *HandlerService          // hander
 	TimerManager     Timer                    // timer component
 	Route            map[string]func() string // server route function
 	SessionService   *MelloSessionService     // session service component
@@ -75,8 +75,8 @@ func dumpSvrTypeMaps() {
 		if len(svrs) == 0 {
 			continue
 		}
-		for _, svr := range svrs {
-			Info(fmt.Sprintf("%s(%s)", svr.Type, svr.String()))
+		for _, svrId := range svrs {
+			Info(svrId)
 		}
 	}
 }
@@ -104,7 +104,7 @@ func addServer(server ServerConfig) {
 		SvrTypes = append(SvrTypes, svr.Type)
 	}
 	SvrIdMaps[svr.Id] = svr
-	SvrTypeMaps[svr.Type] = append(SvrTypeMaps[svr.Type], svr)
+	SvrTypeMaps[svr.Type] = append(SvrTypeMaps[svr.Type], svr.Id)
 }
 
 func removeServer(svrId string) {
@@ -126,9 +126,9 @@ func removeServer(svrId string) {
 			if len(svrs) == 1 { // array only one element, remove it directly
 				delete(SvrTypeMaps, typ)
 			} else {
-				var tempSvrs []*ServerConfig
-				for idx, svr := range svrs {
-					if svr.Id == svrId {
+				var tempSvrs []string
+				for idx, id := range svrs {
+					if id == svrId {
 						tempSvrs = append(tempSvrs, svrs[:idx]...)
 						tempSvrs = append(tempSvrs, svrs[(idx+1):]...)
 						break
@@ -147,7 +147,7 @@ func removeServer(svrId string) {
 
 func init() {
 	App = NewApp()
-	SvrTypeMaps = make(map[string][]*ServerConfig)
+	SvrTypeMaps = make(map[string][]string)
 	SvrIdMaps = make(map[string]*ServerConfig)
 	Settings = make(map[string][]func())
 	Log = log.New(os.Stdout, "", log.LstdFlags)
@@ -177,7 +177,7 @@ func init() {
 		} else {
 			ServerConfigPath = filepath.Join(workPath, "conf", "servers.json")
 		}
-		
+
 		if utils.FileExists(MasterConfigPath) {
 			os.Chdir(AppPath)
 		} else {
@@ -203,7 +203,7 @@ func ParseConfig() {
 				Error(err.Error())
 			}
 		}
-		
+
 		master.Type = "master"
 		master.IsMaster = true
 		App.Master = &master
@@ -233,6 +233,7 @@ func ParseConfig() {
 				addServer(svr)
 			}
 		}
+		dumpSvrTypeMaps()
 	}
 
 	if App.Master == nil {
