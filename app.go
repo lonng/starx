@@ -31,10 +31,12 @@ func NewApp() *MelloApp {
 func (app *MelloApp) Start() {
 	var endRunning = make(chan bool, 1)
 	app.loadDefaultComps()
-	go app.rpcListen()
+	
 	// enable port listener
 	if app.CurSvrConfig.IsFrontend {
 		go app.handlerListen()
+	} else {
+		go app.rpcListen()
 	}
 	// main goroutine
 	app.listenChan()
@@ -56,7 +58,7 @@ func (app *MelloApp) rpcListen() {
 	if err != nil {
 		Error(err.Error())
 	}
-	Info(fmt.Sprintf("rpc listen at %s:%d successfully(%s)",
+	Info(fmt.Sprintf("listen at %s:%d(%s)",
 		app.CurSvrConfig.Host,
 		app.CurSvrConfig.Port,
 		app.CurSvrConfig.String()))
@@ -73,17 +75,17 @@ func (app *MelloApp) rpcListen() {
 
 func (app *MelloApp) handlerListen() {
 	// create local listener
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", app.CurSvrConfig.Host, app.CurSvrConfig.ClientPort))
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", app.CurSvrConfig.Host, app.CurSvrConfig.Port))
 	if err != nil {
 		Error(err.Error())
 	}
 	defer listener.Close()
 	
-	Info(fmt.Sprintf("handler listen at %s:%d successfully(%s)",
+	Info(fmt.Sprintf("listen at %s:%d(%s)",
 		app.CurSvrConfig.Host,
-		app.CurSvrConfig.ClientPort,
+		app.CurSvrConfig.Port,
 		app.CurSvrConfig.String()))
-	time.AfterFunc(10 * time.Second, func(){Rpc.Request("auth.AuthRemote.Test")})
+	time.AfterFunc(10 * time.Second, func(){Rpc.Request("chat.AuthRemote.Test")})
 	for {
 		conn, err := listener.Accept()
 		if err != nil {

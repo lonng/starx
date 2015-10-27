@@ -46,6 +46,7 @@ func (this *RpcService) Handle(conn net.Conn) {
 }
 
 func (this *RpcService) Request(route string) {
+	Info(route)
 	routeArgs := strings.Split(route, ".")
 	if len(routeArgs) != 3 {
 		Error(fmt.Sprintf("wrong route: `%s`", route))
@@ -56,9 +57,11 @@ func (this *RpcService) Request(route string) {
 		return
 	}
 	req := "hello"
-	e := client.Call(routeArgs[1] + "." + routeArgs[2], &req, nil)
+	var rep int
+	e := client.Call(routeArgs[1] + "." + routeArgs[2], &req, &rep)
+	Info(fmt.Sprint("reply value: %d", rep))
 	if e != nil {
-		Error(e.Error())
+		Info(e.Error())
 	}
 }
 
@@ -89,8 +92,10 @@ func (this *RpcService) getClientByType(svrType string) (*rpc.Client, error) {
 	if svrType == App.CurSvrConfig.Type {
 		return nil, errors.New(fmt.Sprintf("current server has the same type(Type: %s)", svrType))
 	}
-
 	svrIds := SvrTypeMaps[svrType]
+	for _, id := range svrIds {
+		Info(id)
+	}
 	if nums := len(svrIds); nums > 0 {
 		if fn := Route[svrType]; fn != nil {
 			return this.getClientById(fn())
@@ -100,8 +105,6 @@ func (this *RpcService) getClientByType(svrType string) (*rpc.Client, error) {
 			return this.getClientById(svrIds[idx])
 		}
 	}
-
-	
 	return nil, errors.New("not found rpc client")
 }
 
@@ -111,6 +114,12 @@ func (this *RpcService) getClientById(svrId string) (*rpc.Client, error) {
 		return client, nil
 	}
 	if svr, ok := SvrIdMaps[svrId]; ok && svr != nil {
+		if svr.Id == App.CurSvrConfig.Id {
+			return nil, errors.New(svr.Id + " is current server")
+		}
+		if svr.IsFrontend {
+			return nil, errors.New(svr.Id + " is frontend server, can handle rpc request")
+		}
 		client, err := rpc.Dial("tcp4", fmt.Sprintf("%s:%d", svr.Host, svr.Port))
 		if err != nil {
 			return nil, err
