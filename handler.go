@@ -2,7 +2,6 @@ package mello
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 )
 
@@ -29,8 +28,15 @@ func NewHandler() *HandlerService {
 
 func (handler *HandlerService) Handle(conn net.Conn) {
 	defer conn.Close()
-	if buf, err := ioutil.ReadAll(conn); err != nil {
-		Info(fmt.Sprintf("Data: (%s)", buf))
+	Info(conn.RemoteAddr().String())
+	buf := make([]byte, 512)
+	for {
+		n, err := conn.Read(buf)
+		if err != nil {
+			Info("read hanlder message error " + err.Error())
+			break
+		}
+		fmt.Println(string(buf[:n]))
 	}
 }
 

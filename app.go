@@ -16,15 +16,15 @@ const (
 type MelloApp struct {
 	Master        *ServerConfig     // master server config
 	CurSvrConfig  *ServerConfig     // current server info
-	SvrRemoveChan chan string       // remove server channel
-	SvrAddChan    chan ServerConfig // add server channel
+	RemoveChan chan string       // remove server channel
+	RegisterChan    chan ServerConfig // add server channel
 	MessageChan   chan Message      // message channel
 }
 
 func NewApp() *MelloApp {
 	return &MelloApp{
-		SvrRemoveChan: make(chan string, 10),
-		SvrAddChan:    make(chan ServerConfig, 10),
+		RemoveChan: make(chan string, 10),
+		RegisterChan:    make(chan ServerConfig, 10),
 		MessageChan:   make(chan Message, 10000)}
 }
 
@@ -44,8 +44,8 @@ func (app *MelloApp) Start() {
 	Info(fmt.Sprintf("Server: %s is stopping..."))
 	// close all channels
 	close(app.MessageChan)
-	close(app.SvrAddChan)
-	close(app.SvrRemoveChan)
+	close(app.RegisterChan)
+	close(app.RemoveChan)
 	close(endRunning)
 
 	// close all of components
@@ -98,9 +98,9 @@ func (app *MelloApp) handlerListen() {
 func (app *MelloApp) listenChan() {
 	for {
 		select {
-		case svr := <-app.SvrAddChan:
-			addServer(svr)
-		case svrId := <-app.SvrRemoveChan:
+		case svr := <-app.RegisterChan:
+			registerServer(svr)
+		case svrId := <-app.RemoveChan:
 			removeServer(svrId)
 		case msg := <-app.MessageChan:
 			app.handleMessage(msg)

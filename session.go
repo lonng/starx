@@ -10,6 +10,10 @@ type Session struct {
 	RawConn net.Conn
 }
 
+func NewSession(rawConn net.Conn) *Session {
+	return &Session{RawConn: rawConn}
+}
+
 func (session *Session) Bind(uid int64) {
 	if session.Uid > 0 {
 
@@ -17,11 +21,11 @@ func (session *Session) Bind(uid int64) {
 	session.Uid = uid
 }
 
-type MelloSessionService struct {
+type SessionService struct {
 	Sessions       []*Session         // all sessions
 	SessionUidMaps map[int64]*Session // uid map sesseion
 }
 
-func NewSesseionService() *MelloSessionService {
-	return &MelloSessionService{}
+func NewSesseionService() *SessionService {
+	return &SessionService{}
 }

@@ -3,9 +3,9 @@ package mello
 type Channel struct {
 }
 
-type MelloChannelServive struct {
+type ChannelServive struct {
 }
 
-func NewChannelServive() *MelloChannelServive {
-	return &MelloChannelServive{}
+func NewChannelServive() *ChannelServive {
+	return &ChannelServive{}
 }

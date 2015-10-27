@@ -46,7 +46,6 @@ func (this *RpcService) Handle(conn net.Conn) {
 }
 
 func (this *RpcService) Request(route string) {
-	Info(route)
 	routeArgs := strings.Split(route, ".")
 	if len(routeArgs) != 3 {
 		Error(fmt.Sprintf("wrong route: `%s`", route))
@@ -93,9 +92,6 @@ func (this *RpcService) getClientByType(svrType string) (*rpc.Client, error) {
 		return nil, errors.New(fmt.Sprintf("current server has the same type(Type: %s)", svrType))
 	}
 	svrIds := SvrTypeMaps[svrType]
-	for _, id := range svrIds {
-		Info(id)
-	}
 	if nums := len(svrIds); nums > 0 {
 		if fn := Route[svrType]; fn != nil {
 			return this.getClientById(fn())
@@ -111,6 +107,7 @@ func (this *RpcService) getClientByType(svrType string) (*rpc.Client, error) {
 func (this *RpcService) getClientById(svrId string) (*rpc.Client, error) {
 	client := this.ClientIdMaps[svrId]
 	if client != nil {
+		Info("already exists")
 		return client, nil
 	}
 	if svr, ok := SvrIdMaps[svrId]; ok && svr != nil {

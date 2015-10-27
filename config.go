@@ -32,8 +32,8 @@ var (
 	Handler          *HandlerService          // hander
 	TimerManager     Timer                    // timer component
 	Route            map[string]func() string // server route function
-	SessionService   *MelloSessionService     // session service component
-	ChannelServive   *MelloChannelServive     // channel service component
+	sessionService   *SessionService     // session service component
+	shannelServive   *ChannelServive     // channel service component
 )
 
 type ServerConfig struct {
@@ -79,7 +79,7 @@ func dumpSvrTypeMaps() {
 	}
 }
 
-func addServer(server ServerConfig) {
+func registerServer(server ServerConfig) {
 	// server exists
 	if _, ok := SvrIdMaps[server.Id]; ok {
 		Info(fmt.Sprintf("serverId: %s already existed(%s)", server.Id, server.String()))
@@ -152,8 +152,8 @@ func init() {
 	Rpc = NewRpc()
 	Handler = NewHandler()
 	Route = make(map[string]func() string)
-	SessionService = NewSesseionService()
-	ChannelServive = NewChannelServive()
+	sessionService = NewSesseionService()
+	shannelServive = NewChannelServive()
 
 	workPath, _ = os.Getwd()
 	workPath, _ = filepath.Abs(workPath)
@@ -205,7 +205,7 @@ func ParseConfig() {
 		master.Type = "master"
 		master.IsMaster = true
 		App.Master = &master
-		addServer(master)
+		registerServer(master)
 	}
 
 	// initialize servers config
@@ -228,7 +228,7 @@ func ParseConfig() {
 		for svrType, svrs := range servers {
 			for _, svr := range svrs {
 				svr.Type = svrType
-				addServer(svr)
+				registerServer(svr)
 			}
 		}
 		dumpSvrTypeMaps()
