@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"mello/rpc"
 	"net"
-	"time"
 	"strings"
+	"time"
 )
 
 type RpcStatus int32
@@ -57,7 +57,7 @@ func (this *RpcService) Request(route string) {
 	}
 	req := "hello"
 	var rep int
-	e := client.Call(routeArgs[1] + "." + routeArgs[2], &req, &rep)
+	e := client.Call(routeArgs[1]+"."+routeArgs[2], &req, &rep)
 	Info(fmt.Sprint("reply value: %d", rep))
 	if e != nil {
 		Info(e.Error())
@@ -95,7 +95,7 @@ func (this *RpcService) getClientByType(svrType string) (*rpc.Client, error) {
 	if nums := len(svrIds); nums > 0 {
 		if fn := Route[svrType]; fn != nil {
 			return this.getClientById(fn())
-		}else {
+		} else {
 			curTime := time.Now().Unix()
 			idx := curTime % int64(nums)
 			return this.getClientById(svrIds[idx])

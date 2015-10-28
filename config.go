@@ -32,8 +32,8 @@ var (
 	Handler          *HandlerService          // hander
 	TimerManager     Timer                    // timer component
 	Route            map[string]func() string // server route function
-	sessionService   *SessionService     // session service component
-	shannelServive   *ChannelServive     // channel service component
+	sessionService   *SessionService          // session service component
+	shannelServive   *ChannelServive          // channel service component
 )
 
 type ServerConfig struct {

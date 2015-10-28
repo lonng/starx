@@ -21,7 +21,7 @@ func (this *Manager) RemoveServer(svrId *string, replay *int) error {
 
 func (this *Manager) AddServer(svr *ServerConfig, replay *int) error {
 	Info(App.CurSvrConfig.String())
-	App.RegisterChan <- *svr
+	App.RegisterChan <- svr
 	return nil
 }
 
