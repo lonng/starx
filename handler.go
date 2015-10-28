@@ -5,17 +5,6 @@ import (
 	"net"
 )
 
-type ProtocolType byte
-
-const (
-	_ ProtocolType = iota
-	Handshake
-	HandshakeACK
-	Heartbeat
-	TransData
-	ConnectionClose
-)
-
 type HandlerService struct{}
 
 type HandlerComponent interface {

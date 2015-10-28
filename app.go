@@ -34,13 +34,10 @@ func (app *MelloApp) Start() {
 	app.loadDefaultComps()
 
 	// enable port listener
-	if app.CurSvrConfig.IsFrontend {
-		go app.handlerListen()
-	} else {
-		go app.rpcListen()
-	}
+	go app.listenPort()
 	// main goroutine
 	app.listenChan()
+
 	<-endRunning
 	Info(fmt.Sprintf("Server: %s is stopping..."))
 	// close all channels
@@ -54,7 +51,7 @@ func (app *MelloApp) Start() {
 }
 
 // Enable current server backend listener
-func (app *MelloApp) rpcListen() {
+func (app *MelloApp) listenPort() {
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", app.CurSvrConfig.Host, app.CurSvrConfig.Port))
 	if err != nil {
 		Error(err.Error())
@@ -70,28 +67,11 @@ func (app *MelloApp) rpcListen() {
 		if err != nil {
 			continue
 		}
-		go Rpc.Handle(conn)
-	}
-}
-
-func (app *MelloApp) handlerListen() {
-	// create local listener
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", app.CurSvrConfig.Host, app.CurSvrConfig.Port))
-	if err != nil {
-		Error(err.Error())
-	}
-	defer listener.Close()
-
-	Info(fmt.Sprintf("listen at %s:%d(%s)",
-		app.CurSvrConfig.Host,
-		app.CurSvrConfig.Port,
-		app.CurSvrConfig.String()))
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			continue
+		if app.CurSvrConfig.IsFrontend {
+			go Handler.Handle(conn)
+		} else {
+			go Rpc.Handle(conn)
 		}
-		go Handler.Handle(conn)
 	}
 }
 
