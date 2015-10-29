@@ -1,4 +1,4 @@
-package mello
+package starx
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"mello/utils"
+	"starx/utils"
 	"os"
 	"path/filepath"
 	"time"
@@ -15,7 +15,7 @@ import (
 var VERSION = "0.0.1"
 
 var (
-	App              *MelloApp // mello application
+	App              *StarxApp // starx application
 	AppName          string
 	AppPath          string
 	workPath         string

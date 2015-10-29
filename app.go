@@ -1,4 +1,4 @@
-package mello
+package starx
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ const (
 	MessageToGate
 )
 
-type MelloApp struct {
+type StarxApp struct {
 	Master       *ServerConfig      // master server config
 	CurSvrConfig *ServerConfig      // current server info
 	RemoveChan   chan string        // remove server channel
@@ -21,15 +21,15 @@ type MelloApp struct {
 	PackageChan  chan *Package      // package channel
 }
 
-func NewApp() *MelloApp {
-	return &MelloApp{
+func NewApp() *StarxApp {
+	return &StarxApp{
 		RemoveChan:   make(chan string, 10),
 		RegisterChan: make(chan *ServerConfig, 10),
 		MessageChan:  make(chan *Message, 10000),
 		PackageChan:  make(chan *Package, 1000)}
 }
 
-func (app *MelloApp) Start() {
+func (app *StarxApp) Start() {
 	var endRunning = make(chan bool, 1)
 	app.loadDefaultComps()
 
@@ -51,7 +51,7 @@ func (app *MelloApp) Start() {
 }
 
 // Enable current server backend listener
-func (app *MelloApp) listenPort() {
+func (app *StarxApp) listenPort() {
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", app.CurSvrConfig.Host, app.CurSvrConfig.Port))
 	if err != nil {
 		Error(err.Error())
@@ -75,7 +75,7 @@ func (app *MelloApp) listenPort() {
 	}
 }
 
-func (app *MelloApp) listenChan() {
+func (app *StarxApp) listenChan() {
 	for {
 		select {
 		case svr := <-app.RegisterChan:
@@ -90,14 +90,14 @@ func (app *MelloApp) listenChan() {
 	}
 }
 
-func (app *MelloApp) handleMessage(msg *Message) {
+func (app *StarxApp) handleMessage(msg *Message) {
 	Info(msg.String())
 }
 
-func (app *MelloApp) handlePackage(pkg *Package) {
+func (app *StarxApp) handlePackage(pkg *Package) {
 	fmt.Println(fmt.Sprintf("type: %d, length: %d, data: %s", pkg.Type, pkg.Length, string(pkg.Body)))
 }
 
-func (app *MelloApp) loadDefaultComps() {
+func (app *StarxApp) loadDefaultComps() {
 	Rpc.Register(new(Manager))
 }

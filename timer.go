@@ -1,4 +1,4 @@
-package mello
+package starx
 
 import (
 	"time"
@@ -9,7 +9,7 @@ type Timer struct {
 	Tickers []*time.Ticker
 }
 
-func NewTimer(app *MelloApp) Timer {
+func NewTimer(app *StarxApp) Timer {
 	return Timer{Name: "TimerComponent"}
 }
 

@@ -1,4 +1,4 @@
-package mello
+package starx
 
 func Packet(t ProtocolType, data []byte) []byte {
 	var buf []byte

@@ -1,9 +1,9 @@
-package mello
+package starx
 
 import (
 	"errors"
 	"fmt"
-	"mello/rpc"
+	"starx/rpc"
 	"net"
 	"strings"
 	"time"

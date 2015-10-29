@@ -1,4 +1,4 @@
-package mello
+package starx
 
 type Channel struct {
 }
