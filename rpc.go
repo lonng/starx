@@ -3,10 +3,10 @@ package starx
 import (
 	"errors"
 	"fmt"
-	"starx/rpc"
+	"math/rand"
 	"net"
+	"starx/rpc"
 	"strings"
-	"time"
 )
 
 type RpcStatus int32
@@ -69,10 +69,10 @@ func (this *RpcService) CloseClient(svrId string) {
 		delete(this.ClientIdMaps, svrId)
 		client.Close()
 	} else {
-		Info(fmt.Sprintf("serverId: %s not found in rpc list", svrId))
+		Info(fmt.Sprintf("%s not found in rpc client list", svrId))
 	}
 
-	Info(fmt.Sprintf("ServerId: %s rpc client has removed.", svrId))
+	Info(fmt.Sprintf("%s rpc client has been removed.", svrId))
 	this.dumpClientIdMaps()
 }
 
@@ -94,16 +94,23 @@ func (this *RpcService) getClientByType(svrType string) (*rpc.Client, error) {
 	svrIds := SvrTypeMaps[svrType]
 	if nums := len(svrIds); nums > 0 {
 		if fn := Route[svrType]; fn != nil {
+			// try to get user-define route function
 			return this.getClientById(fn())
 		} else {
-			curTime := time.Now().Unix()
-			idx := curTime % int64(nums)
-			return this.getClientById(svrIds[idx])
+			// if can not abtain user-define route function,
+			// select a random server establish rpc connection
+			random := rand.Intn(nums)
+			return this.getClientById(svrIds[random])
 		}
 	}
 	return nil, errors.New("not found rpc client")
 }
 
+// Get rpc client by server id(`connector-server-1`), return correspond rpc
+// client if remote server connection has established already, or try to
+// connect remote server when remote server network connectoin has not made
+// by now, and return a nil value when server id not found or target machine
+// refuse it.
 func (this *RpcService) getClientById(svrId string) (*rpc.Client, error) {
 	client := this.ClientIdMaps[svrId]
 	if client != nil {
@@ -122,15 +129,16 @@ func (this *RpcService) getClientById(svrId string) (*rpc.Client, error) {
 			return nil, err
 		}
 		this.ClientIdMaps[svr.Id] = client
-		Info(fmt.Sprintf("ServerId: %s establish rpc client successful.", svr.Id))
+		Info(fmt.Sprintf("%s establish rpc client successful.", svr.Id))
 		this.dumpClientIdMaps()
 		return client, nil
 	}
-	return nil, errors.New(fmt.Sprintf("serverId does not exists(Id: %s)", svrId))
+	return nil, errors.New(fmt.Sprintf("server id does not exists(Id: %s)", svrId))
 }
 
+// Dump all clients that has established netword connection with remote server
 func (this *RpcService) dumpClientIdMaps() {
 	for id, _ := range this.ClientIdMaps {
-		Info(fmt.Sprintf("Rpc.ClientIdMaps[%s] is contained in", id))
+		Info(fmt.Sprintf("[%s] is contained in rpc client list", id))
 	}
 }
