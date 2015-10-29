@@ -30,6 +30,7 @@ var (
 	Settings          map[string][]func()
 	Rpc               *RpcService              // rpc proxy
 	Handler           *HandlerService          // hander
+	Net               *NetService              // net service
 	TimerManager      Timer                    // timer component
 	Route             map[string]func() string // server route function
 	sessionService    *SessionService          // session service component
@@ -152,6 +153,7 @@ func init() {
 	Log = log.New(os.Stdout, "", log.LstdFlags)
 	Rpc = NewRpc()
 	Handler = NewHandler()
+	Net = NewNetService()
 	Route = make(map[string]func() string)
 	sessionService = NewSesseionService()
 	channelServive = NewChannelServive()
