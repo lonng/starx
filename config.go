@@ -15,25 +15,26 @@ import (
 var VERSION = "0.0.1"
 
 var (
-	App              *StarxApp // starx application
-	AppName          string
-	AppPath          string
-	workPath         string
-	AppConfigPath    string
-	ServerConfigPath string
-	MasterConfigPath string
-	StartTime        time.Time
-	SvrConfigs       []*ServerConfig          // all servers config
-	SvrTypes         []string                 // all server type
-	SvrTypeMaps      map[string][]string      // all servers type maps
-	SvrIdMaps        map[string]*ServerConfig // all servers id maps
-	Settings         map[string][]func()
-	Rpc              *RpcService              // rpc proxy
-	Handler          *HandlerService          // hander
-	TimerManager     Timer                    // timer component
-	Route            map[string]func() string // server route function
-	sessionService   *SessionService          // session service component
-	shannelServive   *ChannelServive          // channel service component
+	App               *StarxApp // starx application
+	AppName           string
+	AppPath           string
+	workPath          string
+	AppConfigPath     string
+	ServerConfigPath  string
+	MasterConfigPath  string
+	StartTime         time.Time
+	SvrConfigs        []*ServerConfig          // all servers config
+	SvrTypes          []string                 // all server type
+	SvrTypeMaps       map[string][]string      // all servers type maps
+	SvrIdMaps         map[string]*ServerConfig // all servers id maps
+	Settings          map[string][]func()
+	Rpc               *RpcService              // rpc proxy
+	Handler           *HandlerService          // hander
+	TimerManager      Timer                    // timer component
+	Route             map[string]func() string // server route function
+	sessionService    *SessionService          // session service component
+	channelServive    *ChannelServive          // channel service component
+	connectionService *ConnectionService       // connection service component
 )
 
 type ServerConfig struct {
@@ -153,7 +154,8 @@ func init() {
 	Handler = NewHandler()
 	Route = make(map[string]func() string)
 	sessionService = NewSesseionService()
-	shannelServive = NewChannelServive()
+	channelServive = NewChannelServive()
+	connectionService = NewConnectionService()
 
 	workPath, _ = os.Getwd()
 	workPath, _ = filepath.Abs(workPath)
