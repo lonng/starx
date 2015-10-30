@@ -18,7 +18,7 @@ type StarxApp struct {
 	RemoveChan   chan string        // remove server channel
 	RegisterChan chan *ServerConfig // add server channel
 	MessageChan  chan *Message      // message channel
-	PackageChan  chan *Package      // package channel
+	PacketChan  chan *Packet       // package channel
 }
 
 func NewApp() *StarxApp {
@@ -26,7 +26,7 @@ func NewApp() *StarxApp {
 		RemoveChan:   make(chan string, 10),
 		RegisterChan: make(chan *ServerConfig, 10),
 		MessageChan:  make(chan *Message, 10000),
-		PackageChan:  make(chan *Package, 1000)}
+		PacketChan:  make(chan *Packet, 1000)}
 }
 
 func (app *StarxApp) Start() {
@@ -84,8 +84,8 @@ func (app *StarxApp) listenChan() {
 			removeServer(svrId)
 		case msg := <-app.MessageChan:
 			app.handleMessage(msg)
-		case pkg := <-app.PackageChan:
-			app.handlePackage(pkg)
+		case pkg := <-app.PacketChan:
+			app.handlePacket(pkg)
 		}
 	}
 }
@@ -94,8 +94,9 @@ func (app *StarxApp) handleMessage(msg *Message) {
 	Info(msg.String())
 }
 
-func (app *StarxApp) handlePackage(pkg *Package) {
-	fmt.Println(fmt.Sprintf("type: %d, length: %d, data: %s", pkg.Type, pkg.Length, string(pkg.Body)))
+func (app *StarxApp) handlePacket(pkg *Packet) {
+	fmt.Println(pkg.String())
+	Net.Broadcast(Package(TransData, []byte("message broadcast from " + app.CurSvrConfig.Id)))
 }
 
 func (app *StarxApp) loadDefaultComps() {

@@ -9,7 +9,7 @@ type Timer struct {
 	Tickers []*time.Ticker
 }
 
-func NewTimer(app *StarxApp) Timer {
+func NewTimer() Timer {
 	return Timer{Name: "TimerComponent"}
 }
 

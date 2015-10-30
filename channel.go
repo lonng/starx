@@ -37,7 +37,7 @@ func (c *Channel) IsContain(uid int) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 

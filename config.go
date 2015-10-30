@@ -155,6 +155,7 @@ func init() {
 	Handler = NewHandler()
 	Net = NewNetService()
 	Route = make(map[string]func() string)
+	TimerManager = NewTimer()
 	sessionService = NewSesseionService()
 	channelServive = NewChannelServive()
 	connectionService = NewConnectionService()

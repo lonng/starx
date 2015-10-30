@@ -23,10 +23,6 @@ type RpcService struct {
 	Status       RpcStatus
 }
 
-type RpcComponent interface {
-	Setup()
-}
-
 func NewRpc() *RpcService {
 	return &RpcService{
 		Name:         "RpcComponent",
