@@ -18,7 +18,7 @@ type StarxApp struct {
 	RemoveChan   chan string        // remove server channel
 	RegisterChan chan *ServerConfig // add server channel
 	MessageChan  chan *Message      // message channel
-	PacketChan  chan *Packet       // package channel
+	PacketChan   chan *Packet       // package channel
 }
 
 func NewApp() *StarxApp {
@@ -26,7 +26,7 @@ func NewApp() *StarxApp {
 		RemoveChan:   make(chan string, 10),
 		RegisterChan: make(chan *ServerConfig, 10),
 		MessageChan:  make(chan *Message, 10000),
-		PacketChan:  make(chan *Packet, 1000)}
+		PacketChan:   make(chan *Packet, 1000)}
 }
 
 func (app *StarxApp) Start() {
@@ -96,7 +96,7 @@ func (app *StarxApp) handleMessage(msg *Message) {
 
 func (app *StarxApp) handlePacket(pkg *Packet) {
 	fmt.Println(pkg.String())
-	Net.Broadcast(Package(TransData, []byte("message broadcast from " + app.CurSvrConfig.Id)))
+	Net.Broadcast(Package(TransData, []byte("message broadcast from "+app.CurSvrConfig.Id)))
 }
 
 func (app *StarxApp) loadDefaultComps() {

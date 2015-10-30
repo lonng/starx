@@ -32,7 +32,7 @@ func (net *NetService) Multicast(uids []int, data []byte) {
 }
 
 func (net *NetService) Broadcast(data []byte) {
-	for addr, session := range sessionService.sessionAddrMaps {
+	for _, session := range sessionService.sessionAddrMaps {
 		_, err := session.RawConn.Write(data)
 		if err != nil {
 			Info(err.Error())

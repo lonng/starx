@@ -4,8 +4,23 @@ import (
 	"fmt"
 )
 
+type PacketType byte
+
+const (
+	_ PacketType = iota
+	Handshake
+	HandshakeACK
+	Heartbeat
+	TransData
+	ConnectionClose
+)
+
+const (
+	headLength = 4
+)
+
 type Packet struct {
-	Type   ProtocolType
+	Type   PacketType
 	Length int
 	Body   []byte
 }
@@ -14,7 +29,7 @@ func NewPacket() *Packet {
 	return &Packet{}
 }
 
-func Package(t ProtocolType, data []byte) []byte {
+func Package(t PacketType, data []byte) []byte {
 	var buf []byte
 	return append(append(append(buf, byte(t)), intToBytes(len(data))...), data...)
 }
@@ -24,33 +39,36 @@ func (p *Packet) String() string {
 }
 
 func UnPackage(data []byte) []byte {
-	t := ProtocolType(data[0])
-	length := bytesToInt(data[1:3])
+	t := PacketType(data[0])
+	length := bytesToInt(data[1:headLength])
 	// 包未传输完成
-	if length > (len(data) - 3) {
+	if length > (len(data) - headLength) {
 		return data
 	}
 	p := NewPacket()
 	p.Type = t
 	p.Length = length
-	p.Body = data[3:(length + 3)]
+	p.Body = data[headLength:(length + headLength)]
 	// 将包放入处理队列
 	App.PacketChan <- p
 	// 返回截断的包
-	return data[(length + 3):]
+	return data[(length + headLength):]
 }
 
 // bigend byte
 func bytesToInt(b []byte) int {
-	var result int
-	for i, v := range b {
-		result = result<<(uint(i)*8) + int(v)
+	result := 0
+	for _, v := range b {
+		result = result<<8 + int(v)
 	}
 	return result
 }
 
-// bigend
+// bigend, return 3 byte
 func intToBytes(n int) []byte {
 	var buf []byte
-	return append(append(buf, byte((n>>8)&0xFF)), byte(n&0xFF))
+	buf = append(buf, byte((n >> 16)&0xFF))
+	buf = append(buf, byte((n >> 8)&0xFF))
+	buf = append(buf, byte(n&0xFF))
+	return buf
 }
