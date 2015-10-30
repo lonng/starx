@@ -8,11 +8,11 @@ type PacketType byte
 
 const (
 	_ PacketType = iota
-	Handshake
-	HandshakeACK
-	Heartbeat
-	TransData
-	ConnectionClose
+	PACKET_HANDSHAKE
+	PACKET_HANDSHAKE_ACK
+	PACKET_HEARTBEAT
+	PACKET_DATA
+	PACKET_KICK
 )
 
 const (
@@ -38,21 +38,20 @@ func (p *Packet) String() string {
 	return fmt.Sprintf("type: %d, length: %d, data: %s", p.Type, p.Length, string(p.Body))
 }
 
-func UnPackage(data []byte) []byte {
+func UnPackage(data []byte) (*Packet, []byte) {
 	t := PacketType(data[0])
 	length := bytesToInt(data[1:headLength])
 	// 包未传输完成
 	if length > (len(data) - headLength) {
-		return data
+		return nil, data
 	}
 	p := NewPacket()
 	p.Type = t
 	p.Length = length
 	p.Body = data[headLength:(length + headLength)]
-	// 将包放入处理队列
-	App.PacketChan <- p
-	// 返回截断的包
-	return data[(length + headLength):]
+
+	// 返回包，和截断的数据
+	return p, data[(length + headLength):]
 }
 
 // bigend byte
@@ -67,8 +66,8 @@ func bytesToInt(b []byte) int {
 // bigend, return 3 byte
 func intToBytes(n int) []byte {
 	var buf []byte
-	buf = append(buf, byte((n >> 16)&0xFF))
-	buf = append(buf, byte((n >> 8)&0xFF))
+	buf = append(buf, byte((n>>16)&0xFF))
+	buf = append(buf, byte((n>>8)&0xFF))
 	buf = append(buf, byte(n&0xFF))
 	return buf
 }

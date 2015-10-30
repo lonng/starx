@@ -31,7 +31,7 @@ func (handler *HandlerService) Handle(conn net.Conn) {
 			sessionService.dumpSessions()
 			break
 		}
-		tmp = UnPackage(append(tmp, buf[:n]...))
+		p, tmp := UnPackage(append(tmp, buf[:n]...))
 	}
 }
 

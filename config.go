@@ -36,6 +36,7 @@ var (
 	sessionService    *SessionService          // session service component
 	channelServive    *ChannelServive          // channel service component
 	connectionService *ConnectionService       // connection service component
+	protocolState     ProtocolState            // current protocol state
 )
 
 type ServerConfig struct {
@@ -159,6 +160,7 @@ func init() {
 	sessionService = NewSesseionService()
 	channelServive = NewChannelServive()
 	connectionService = NewConnectionService()
+	protocolState = PROTOCOL_START
 
 	workPath, _ = os.Getwd()
 	workPath, _ = filepath.Abs(workPath)

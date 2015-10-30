@@ -96,7 +96,7 @@ func (app *StarxApp) handleMessage(msg *Message) {
 
 func (app *StarxApp) handlePacket(pkg *Packet) {
 	fmt.Println(pkg.String())
-	Net.Broadcast(Package(TransData, []byte("message broadcast from "+app.CurSvrConfig.Id)))
+	Net.Broadcast(Package(PACKET_HANDSHAKE, []byte("message broadcast from "+app.CurSvrConfig.Id)))
 }
 
 func (app *StarxApp) loadDefaultComps() {
