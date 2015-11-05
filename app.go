@@ -5,13 +5,6 @@ import (
 	"net"
 )
 
-type MessageType int
-
-const (
-	MessageToClient MessageType = iota
-	MessageToGate
-)
-
 type StarxApp struct {
 	Master       *ServerConfig      // master server config
 	CurSvrConfig *ServerConfig      // current server info
@@ -35,11 +28,12 @@ func (app *StarxApp) Start() {
 
 	// enable port listener
 	go app.listenPort()
+	go heartbeatService.start()
 	// main goroutine
 	app.listenChan()
 
 	<-endRunning
-	Info(fmt.Sprintf("Server: %s is stopping..."))
+	Info("server: " + app.CurSvrConfig.Id + " is stopping...")
 	// close all channels
 	close(app.MessageChan)
 	close(app.RegisterChan)
@@ -83,20 +77,13 @@ func (app *StarxApp) listenChan() {
 		case svrId := <-app.RemoveChan:
 			removeServer(svrId)
 		case msg := <-app.MessageChan:
-			app.handleMessage(msg)
-		case pkg := <-app.PacketChan:
-			app.handlePacket(pkg)
+			handleMessage(msg)
 		}
 	}
 }
 
-func (app *StarxApp) handleMessage(msg *Message) {
+func handleMessage(msg *Message) {
 	Info(msg.String())
-}
-
-func (app *StarxApp) handlePacket(pkg *Packet) {
-	fmt.Println(pkg.String())
-	Net.Broadcast(Package(PACKET_HANDSHAKE, []byte("message broadcast from "+app.CurSvrConfig.Id)))
 }
 
 func (app *StarxApp) loadDefaultComps() {

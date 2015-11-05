@@ -4,18 +4,33 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"time"
+)
+
+type SessionStatus byte
+
+const (
+	_ SessionStatus = iota
+	SS_START
+	SS_HANDSHAKING
+	SS_WORKING
+	SS_CLOSED
 )
 
 type Session struct {
-	Id      int
-	Uid     int
-	RawConn net.Conn
+	Id       int
+	Uid      int
+	RawConn  net.Conn
+	status   SessionStatus
+	lastTime int64
 }
 
 func NewSession(rawConn net.Conn) *Session {
 	return &Session{
-		Id:      connectionService.getNewSessionUUID(),
-		RawConn: rawConn}
+		Id:       connectionService.getNewSessionUUID(),
+		RawConn:  rawConn,
+		status:   SS_START,
+		lastTime: time.Now().Unix()}
 }
 
 func (session *Session) Bind(uid int) {
@@ -34,6 +49,10 @@ func (session *Session) String() string {
 		session.RawConn.RemoteAddr().String())
 }
 
+func (session *Session) heartbeat() {
+	session.lastTime = time.Now().Unix()
+}
+
 type SessionService struct {
 	sum             sync.RWMutex     // protect SessionUidMaps
 	SessionUidMaps  map[int]*Session // uid map sesseion
@@ -47,22 +66,24 @@ func NewSesseionService() *SessionService {
 		sessionAddrMaps: make(map[string]*Session)}
 }
 
-func (s *SessionService) RegisterSession(session *Session) {
-	if _, exists := s.getSessionByAddr(session.RawConn.RemoteAddr().String()); exists {
+func (s *SessionService) RegisterSession(conn net.Conn) *Session {
+	if session, exists := s.getSessionByAddr(conn.RemoteAddr().String()); exists {
 		Info("session has exists already")
-		return
+		return session
 	}
+	session := NewSession(conn)
 	s.sam.Lock()
 	s.sessionAddrMaps[session.RawConn.RemoteAddr().String()] = session
 	s.sam.Unlock()
 	connectionService.incrementConnCount()
+	return session
 }
 
-func (s *SessionService) RemoveSession(addr string) {
+func (s *SessionService) RemoveSession(session *Session) {
+	addr := session.RawConn.RemoteAddr().String()
 	if session, exists := s.getSessionByAddr(addr); exists {
 		s.sum.Lock()
 		s.sam.Lock()
-
 		if session.Uid > 0 {
 			delete(s.SessionUidMaps, session.Uid)
 		}

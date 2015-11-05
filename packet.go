@@ -20,25 +20,27 @@ const (
 )
 
 type Packet struct {
-	Type   PacketType
-	Length int
-	Body   []byte
+	Type    PacketType
+	Length  int
+	Body    []byte
+	session *Session
 }
 
 func NewPacket() *Packet {
 	return &Packet{}
 }
 
-func Package(t PacketType, data []byte) []byte {
+func pack(t PacketType, data []byte) []byte {
 	var buf []byte
 	return append(append(append(buf, byte(t)), intToBytes(len(data))...), data...)
 }
 
 func (p *Packet) String() string {
-	return fmt.Sprintf("type: %d, length: %d, data: %s", p.Type, p.Length, string(p.Body))
+	return fmt.Sprintf("[PACKET]Type: %d, Length: %d, Data: %s", p.Type, p.Length, string(p.Body))
 }
 
-func UnPackage(data []byte) (*Packet, []byte) {
+// 返回包和截断的数据
+func unpack(data []byte) (*Packet, []byte) {
 	t := PacketType(data[0])
 	length := bytesToInt(data[1:headLength])
 	// 包未传输完成
@@ -49,8 +51,6 @@ func UnPackage(data []byte) (*Packet, []byte) {
 	p.Type = t
 	p.Length = length
 	p.Body = data[headLength:(length + headLength)]
-
-	// 返回包，和截断的数据
 	return p, data[(length + headLength):]
 }
 

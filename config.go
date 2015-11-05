@@ -23,20 +23,22 @@ var (
 	ServerConfigPath  string
 	MasterConfigPath  string
 	StartTime         time.Time
-	SvrConfigs        []*ServerConfig          // all servers config
-	SvrTypes          []string                 // all server type
-	SvrTypeMaps       map[string][]string      // all servers type maps
-	SvrIdMaps         map[string]*ServerConfig // all servers id maps
-	Settings          map[string][]func()
-	Rpc               *RpcService              // rpc proxy
-	Handler           *HandlerService          // hander
-	Net               *NetService              // net service
-	TimerManager      Timer                    // timer component
-	Route             map[string]func() string // server route function
-	sessionService    *SessionService          // session service component
-	channelServive    *ChannelServive          // channel service component
-	connectionService *ConnectionService       // connection service component
-	protocolState     ProtocolState            // current protocol state
+	SvrConfigs        []*ServerConfig                            // all servers config
+	SvrTypes          []string                                   // all server type
+	SvrTypeMaps       map[string][]string                        // all servers type maps
+	SvrIdMaps         map[string]*ServerConfig                   // all servers id maps
+	Settings          map[string][]func()                        // all settiings
+	Rpc               *RpcService                                // rpc proxy
+	Handler           *HandlerService                            // hander
+	Net               *NetService                                // net service
+	TimerManager      Timer                                      // timer component
+	Route             map[string]func() string                   // server route function
+	sessionService    *SessionService                            // session service component
+	channelServive    *ChannelServive                            // channel service component
+	connectionService *ConnectionService                         // connection service component
+	protocolState     ProtocolState                              // current protocol state
+	heartbeatInternal time.Duration            = time.Second * 3 // beatheart time internal, second unit
+	heartbeatService  *HeartbeatService                          // beatheart service
 )
 
 type ServerConfig struct {
@@ -161,6 +163,7 @@ func init() {
 	channelServive = NewChannelServive()
 	connectionService = NewConnectionService()
 	protocolState = PROTOCOL_START
+	heartbeatService = NewHeartbeatService()
 
 	workPath, _ = os.Getwd()
 	workPath, _ = filepath.Abs(workPath)
