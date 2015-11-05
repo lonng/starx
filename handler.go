@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"time"
 )
 
 type HandlerService struct{}
@@ -57,11 +58,58 @@ func (handler *HandlerService) Handle(conn net.Conn) {
 					msg := decodeMessage(pkg.Body)
 					if msg != nil {
 						App.MessageChan <- msg
+						if msg.Type == MT_REQUEST {
+							time.AfterFunc(time.Second*5, func() {
+								Net.SendToSession(session, encodeMessage(&Message{Type: MT_RESPONSE, ID: msg.ID, Body: []byte(`{"code": "test message"}`)}))
+							})
+						} else {
+							time.AfterFunc(time.Second*5, func() {
+								Net.SendToSession(session, encodeMessage(&Message{Type: MT_PUSH, Route: "mailSystem.New", Body: []byte(`{"code": "test message"}`)}))
+							})
+						}
 					}
 				}
 			}
 		}
 	}
+}
+
+func encodeMessage(m *Message) []byte {
+	temp := make([]byte, 0)
+	flag := byte(m.Type) << 1
+	if m.isCompress {
+		flag |= 0x01
+	}
+	temp = append(temp, flag)
+	// response message
+	if m.Type == MT_RESPONSE {
+		if m.ID > 0 {
+			n := m.ID
+			for {
+				b := byte(n % 128)
+				n >>= 7
+				if n != 0 {
+					temp = append(temp, b+128)
+				} else {
+					temp = append(temp, b)
+					break
+				}
+			}
+			fmt.Println("%+v", temp)
+		}
+	} else if m.Type == MT_PUSH {
+		if m.isCompress {
+			temp = append(temp, byte((m.RouteCode>>8)&0xFF))
+			temp = append(temp, byte(m.RouteCode&0xFF))
+		} else {
+			temp = append(temp, byte(len(m.Route)))
+			temp = append(temp, []byte(m.Route)...)
+		}
+	} else {
+		Error("wrong message type")
+	}
+	temp = append(temp, m.Body...)
+	return temp
 }
 
 func decodeMessage(data []byte) *Message {
@@ -100,7 +148,6 @@ func decodeMessage(data []byte) *Message {
 		msg.Route = string(data[offset:(offset + int(rl))])
 		offset += int(rl)
 	}
-
 	msg.Body = data[offset:]
 	return msg
 }

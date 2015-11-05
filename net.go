@@ -25,6 +25,10 @@ func (net *NetService) Send(uid int, data []byte) {
 	}
 }
 
+func (net *NetService) SendToSession(session *Session, data []byte) {
+	session.RawConn.Write(pack(PACKET_DATA, data))
+}
+
 func (net *NetService) Multicast(uids []int, data []byte) {
 	for _, uid := range uids {
 		net.Send(uid, data)
