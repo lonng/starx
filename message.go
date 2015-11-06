@@ -21,9 +21,9 @@ const (
 
 type Message struct {
 	Type       MessageType
-	ID         int
+	ID         uint
 	Route      string
-	RouteCode  int
+	RouteCode  uint
 	isCompress bool
 	Body       []byte
 }

@@ -1,5 +1,9 @@
 package starx
 
+type Component interface {
+	Setup()
+}
+
 type HandlerComponent interface {
 	Setup()
 }

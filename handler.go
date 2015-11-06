@@ -4,13 +4,38 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"time"
+	"reflect"
+	"strings"
+	"errors"
+	"sync"
+	"unicode"
+	"unicode/utf8"
 )
 
-type HandlerService struct{}
+type methodType struct {
+	sync.Mutex // protects counters
+	method     reflect.Method
+	Arg1Type   reflect.Type
+	Arg2Type   reflect.Type
+	numCalls   uint
+}
+
+type service struct {
+	name   string                 // name of service
+	rcvr   reflect.Value          // receiver of methods for the service
+	typ    reflect.Type           // type of the receiver
+	method map[string]*methodType // registered methods
+}
+
+type HandlerService struct {
+	serviceMap   map[string]*service
+	routeMap     map[string]uint
+	routeCodeMap map[uint]string
+}
 
 func NewHandler() *HandlerService {
-	return &HandlerService{}
+	return &HandlerService{
+		serviceMap: make(map[string]*service)}
 }
 
 func (handler *HandlerService) Handle(conn net.Conn) {
@@ -57,16 +82,7 @@ func (handler *HandlerService) Handle(conn net.Conn) {
 					session.heartbeat()
 					msg := decodeMessage(pkg.Body)
 					if msg != nil {
-						App.MessageChan <- msg
-						if msg.Type == MT_REQUEST {
-							time.AfterFunc(time.Second*5, func() {
-								Net.SendToSession(session, encodeMessage(&Message{Type: MT_RESPONSE, ID: msg.ID, Body: []byte(`{"code": "test message"}`)}))
-							})
-						} else {
-							time.AfterFunc(time.Second*5, func() {
-								Net.SendToSession(session, encodeMessage(&Message{Type: MT_PUSH, Route: "mailSystem.New", Body: []byte(`{"code": "test message"}`)}))
-							})
-						}
+						handler.processMessage(session, msg)
 					}
 				}
 			}
@@ -83,20 +99,18 @@ func encodeMessage(m *Message) []byte {
 	temp = append(temp, flag)
 	// response message
 	if m.Type == MT_RESPONSE {
-		if m.ID > 0 {
-			n := m.ID
-			for {
-				b := byte(n % 128)
-				n >>= 7
-				if n != 0 {
-					temp = append(temp, b+128)
-				} else {
-					temp = append(temp, b)
-					break
-				}
+		n := m.ID
+		for {
+			b := byte(n % 128)
+			n >>= 7
+			if n != 0 {
+				temp = append(temp, b+128)
+			} else {
+				temp = append(temp, b)
+				break
 			}
-			fmt.Println("%+v", temp)
 		}
+		fmt.Println("%+v", temp)
 	} else if m.Type == MT_PUSH {
 		if m.isCompress {
 			temp = append(temp, byte((m.RouteCode>>8)&0xFF))
@@ -124,12 +138,12 @@ func decodeMessage(data []byte) *Message {
 	offset := 1
 	msg.Type = MessageType((flag >> 1) & MSG_TYPE_MASK)
 	if msg.Type == MT_REQUEST {
-		id := 0
+		id := uint(0)
 		// little end byte order
 		// WARNING: must can be stored in 64 bits integer
 		for i := offset; i < len(data); i++ {
 			b := data[i]
-			id += (int(b&0x7F) << uint(7*(i-offset)))
+			id += (uint(b&0x7F) << uint(7*(i-offset)))
 			if b < 128 {
 				offset = i + 1
 				break
@@ -139,7 +153,7 @@ func decodeMessage(data []byte) *Message {
 	}
 	if flag&MSG_ROUTE_COMPRESS_MASK == 1 {
 		msg.isCompress = true
-		msg.RouteCode = bytesToInt(data[offset:(offset + 2)])
+		msg.RouteCode = uint(bytesToInt(data[offset:(offset + 2)]))
 		offset += 2
 	} else {
 		msg.isCompress = false
@@ -152,7 +166,173 @@ func decodeMessage(data []byte) *Message {
 	return msg
 }
 
+func (handler *HandlerService) processMessage(session *Session, msg *Message) {
+	ri, err := decodeRouteInfo(msg.Route)
+	if err != nil {
+		return
+	}
+	if ri.server == App.CurSvrConfig.Type {
+		handler.localProcess(session, ri, msg)
+	} else {
+		handler.remoteProcess(session, ri, msg)
+	}
+}
+
+func decodeRouteInfo(route string) (*routeInfo, error) {
+	parts := strings.Split(route, ".")
+	if len(parts) != 3 {
+		return nil, errors.New("invalid route")
+	}
+	return newRouteInfo(parts[0], parts[1], parts[2]), nil
+}
+
+// TODO: implement request protocol
+func (handler *HandlerService) localProcess(session *Session, ri *routeInfo, msg *Message) {
+	if msg.Type == MT_REQUEST {
+		// TODO
+	} else if msg.Type == MT_NOTIFY {
+		if s, present := handler.serviceMap[ri.service]; present {
+			if m, ok := s.method[ri.method]; ok {
+				m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(msg.Body)})
+			}else {
+				Info("method: " + ri.method + " not found")
+			}
+		}else {
+			Info("service: " + ri.service + " not found")
+		}
+	} else {
+		Info("unrecognize message type")
+	}
+}
+
+// TODO: implemention
+func (handler *HandlerService) remoteProcess(session *Session, ri *routeInfo, msg *Message) {
+}
+
+// Register publishes in the service the set of methods of the
+// receiver value that satisfy the following conditions:
+//	- exported method of exported type
+//	- two arguments, both of exported type
+//	- the first argument is *starx.Session
+//	- the second argument is []byte
 func (handler *HandlerService) Register(rcvr HandlerComponent) {
-	Info(fmt.Sprintf("Register Handler: %s", rcvr))
 	rcvr.Setup()
+	handler.register(rcvr)
+}
+
+// Is this an exported - upper case - name?
+func isExported(name string) bool {
+	rune, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(rune)
+}
+
+// Is this type exported or a builtin?
+func isExportedOrBuiltinType(t reflect.Type) bool {
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	// PkgPath will be non-empty even for an exported type,
+	// so we need to check the type name as well.
+	return isExported(t.Name()) || t.PkgPath() == ""
+}
+
+func (handler *HandlerService) register(rcvr HandlerComponent) {
+	if handler.serviceMap == nil {
+		handler.serviceMap = make(map[string]*service)
+	}
+	s := new(service)
+	s.typ = reflect.TypeOf(rcvr)
+	s.rcvr = reflect.ValueOf(rcvr)
+	sname := reflect.Indirect(s.rcvr).Type().Name()
+	if sname == "" {
+		s := "handler.Register: no service name for type " + s.typ.String()
+		Info(s)
+		return
+	}
+	if !isExported(sname) {
+		s := "handler.Register: type " + sname + " is not exported"
+		Info(s)
+		return
+	}
+	if _, present := handler.serviceMap[sname]; present {
+		Info("handler: service already defined: " + sname)
+		return
+	}
+	s.name = sname
+
+	// Install the methods
+	s.method = suitableMethods(s.typ, true)
+
+	if len(s.method) == 0 {
+		str := ""
+
+		// To help the user, see if a pointer receiver would work.
+		method := suitableMethods(reflect.PtrTo(s.typ), false)
+		if len(method) != 0 {
+			str = "handler.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
+		} else {
+			str = "handler.Register: type " + sname + " has no exported methods of suitable type"
+		}
+		Info(str)
+	}
+	handler.serviceMap[s.name] = s
+	handler.dumpServiceMap()
+}
+
+// suitableMethods returns suitable methods of typ, it will report
+// error using log if reportErr is true.
+func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
+	methods := make(map[string]*methodType)
+	for m := 0; m < typ.NumMethod(); m++ {
+		method := typ.Method(m)
+		mtype := method.Type
+		mname := method.Name
+		// Method must be exported.
+		if method.PkgPath != "" {
+			continue
+		}
+		// Method needs three ins: receiver, *Session, []byte.
+		if mtype.NumIn() != 3 {
+			continue
+		}
+		// First arg need not be *Session.
+		argType := mtype.In(1)
+		if !isExportedOrBuiltinType(argType) {
+			if reportErr {
+				fmt.Println(mname, "argument type not exported:", argType)
+			}
+			continue
+		}
+		if argType.Kind() != reflect.Ptr || argType.Elem().Name() != "Session" {
+			if reportErr {
+				fmt.Println("method", mname, " first argument must be a Session pointer:", argType)
+			}
+			continue
+		}
+		// Second arg must be a pointer.
+		replyType := mtype.In(2)
+		if replyType.Kind() != reflect.Slice {
+			if reportErr {
+				fmt.Println("method", mname, "reply type not a pointer:", replyType)
+			}
+			continue
+		}
+		// Reply type must be exported.
+		if !isExportedOrBuiltinType(replyType) {
+			if reportErr {
+				fmt.Println("method", mname, "reply type not exported:", replyType)
+			}
+			continue
+		}
+		methods[mname] = &methodType{method: method, Arg1Type: argType, Arg2Type: replyType}
+	}
+	return methods
+}
+
+func (handler *HandlerService) dumpServiceMap() {
+	for sname, s := range handler.serviceMap {
+		for mname, _ := range s.method {
+			Info(fmt.Sprintf("registered service: %s.%s", sname, mname))
+		}
+	}
 }
