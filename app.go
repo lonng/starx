@@ -57,7 +57,7 @@ func (app *_app) listenPort() {
 			continue
 		}
 		if app.CurSvrConfig.IsFrontend {
-			go Handler.Handle(conn)
+			go handler.handle(conn)
 		} else {
 			go Rpc.Handle(conn)
 		}

@@ -23,7 +23,7 @@ type RpcService struct {
 	Status       RpcStatus
 }
 
-func NewRpc() *RpcService {
+func newRpc() *RpcService {
 	return &RpcService{
 		Name:         "RpcComponent",
 		ClientIdMaps: make(map[string]*rpc.Client),

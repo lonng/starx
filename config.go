@@ -29,11 +29,10 @@ var (
 	SvrIdMaps         map[string]*ServerConfig                   // all servers id maps
 	Settings          map[string][]func()                        // all settiings
 	Rpc               *RpcService                                // rpc proxy
-	Handler           *HandlerService                            // hander
-	Net               *NetService                                // net service
+	handler           *handlerService                            // hander
+	Net               *netService                                // net service
 	TimerManager      Timer                                      // timer component
 	Route             map[string]func() string                   // server route function
-	sessionService    *SessionService                            // session service component
 	channelServive    *ChannelServive                            // channel service component
 	connectionService *ConnectionService                         // connection service component
 	protocolState     ProtocolState                              // current protocol state
@@ -154,9 +153,9 @@ func init() {
 	SvrIdMaps = make(map[string]*ServerConfig)
 	Settings = make(map[string][]func())
 	Log = log.New(os.Stdout, "", log.LstdFlags)
-	Rpc = NewRpc()
-	Handler = NewHandler()
-	Net = NewNetService()
+	Rpc = newRpc()
+	handler = newHandler()
+	Net = newNetService()
 	Route = make(map[string]func() string)
 	TimerManager = NewTimer()
 	sessionService = NewSesseionService()

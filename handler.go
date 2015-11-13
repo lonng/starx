@@ -33,21 +33,21 @@ type service struct {
 	method map[string]*methodType // registered methods
 }
 
-type HandlerService struct {
+type handlerService struct {
 	serviceMap   map[string]*service
 	routeMap     map[string]uint
 	routeCodeMap map[uint]string
 }
 
-func NewHandler() *HandlerService {
-	return &HandlerService{
+func newHandler() *handlerService {
+	return &handlerService{
 		serviceMap: make(map[string]*service)}
 }
 
 // Handle network connection
 // Read data from Socket file descriptor and decode it, handle message in
 // individual logic routine
-func (handler *HandlerService) Handle(conn net.Conn) {
+func (handler *handlerService) handle(conn net.Conn) {
 	defer conn.Close()
 	// message buffer
 	packetChan := make(chan *unhandledPacket, packetBufferSize)
@@ -59,8 +59,8 @@ func (handler *HandlerService) Handle(conn net.Conn) {
 		}
 	}()
 	// register new session when new connection connected in
-	session := sessionService.RegisterSession(conn)
-	sessionService.dumpSessions() // TODO delete this line
+	session := Net.createFrontendSession(conn)
+	Net.dumpFrontendSessions()
 	tmp := make([]byte, 512)      // save truncated data
 	buf := make([]byte, 512)
 	for {
@@ -68,8 +68,8 @@ func (handler *HandlerService) Handle(conn net.Conn) {
 		if err != nil {
 			Info("session closed(" + err.Error() + ")")
 			session.status = SS_CLOSED
-			sessionService.RemoveSession(session)
-			sessionService.dumpSessions()
+			Net.closeSession(session)
+			Net.dumpFrontendSessions()
 			break
 		}
 		tmp = append(tmp, buf[:n]...)
@@ -84,7 +84,7 @@ func (handler *HandlerService) Handle(conn net.Conn) {
 	}
 }
 
-func (handler *HandlerService) processPacket(session *Session, pkg *Packet) {
+func (handler *handlerService) processPacket(session *Session, pkg *Packet) {
 	switch pkg.Type {
 	case PACKET_HANDSHAKE:
 		{
@@ -94,7 +94,7 @@ func (handler *HandlerService) processPacket(session *Session, pkg *Packet) {
 			if err != nil {
 				Info(err.Error())
 			}
-			session.RawConn.Write(pack(PACKET_HANDSHAKE, data))
+			session.Send(pack(PACKET_HANDSHAKE, data))
 		}
 	case PACKET_HANDSHAKE_ACK:
 		{
@@ -190,7 +190,7 @@ func decodeMessage(data []byte) *Message {
 	return msg
 }
 
-func (handler *HandlerService) processMessage(session *Session, msg *Message) {
+func (handler *handlerService) processMessage(session *Session, msg *Message) {
 	ri, err := decodeRouteInfo(msg.Route)
 	if err != nil {
 		return
@@ -211,7 +211,7 @@ func decodeRouteInfo(route string) (*routeInfo, error) {
 }
 
 // TODO: implement request protocol
-func (handler *HandlerService) localProcess(session *Session, ri *routeInfo, msg *Message) {
+func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg *Message) {
 	if msg.Type == MT_REQUEST {
 		session.reqId = msg.ID
 	} else if msg.Type == MT_NOTIFY {
@@ -232,7 +232,7 @@ func (handler *HandlerService) localProcess(session *Session, ri *routeInfo, msg
 }
 
 // TODO: implemention
-func (handler *HandlerService) remoteProcess(session *Session, ri *routeInfo, msg *Message) {
+func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, msg *Message) {
 }
 
 // Register publishes in the service the set of methods of the
@@ -241,9 +241,9 @@ func (handler *HandlerService) remoteProcess(session *Session, ri *routeInfo, ms
 //	- two arguments, both of exported type
 //	- the first argument is *starx.Session
 //	- the second argument is []byte
-func (handler *HandlerService) Register(rcvr HandlerComponent) {
+func (handler *handlerService) register(rcvr HandlerComponent) {
 	rcvr.Setup()
-	handler.register(rcvr)
+	handler._register(rcvr)
 }
 
 // Is this an exported - upper case - name?
@@ -262,7 +262,7 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
 	return isExported(t.Name()) || t.PkgPath() == ""
 }
 
-func (handler *HandlerService) register(rcvr HandlerComponent) {
+func (handler *handlerService) _register(rcvr HandlerComponent) {
 	if handler.serviceMap == nil {
 		handler.serviceMap = make(map[string]*service)
 	}
@@ -355,7 +355,7 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 	return methods
 }
 
-func (handler *HandlerService) dumpServiceMap() {
+func (handler *handlerService) dumpServiceMap() {
 	for sname, s := range handler.serviceMap {
 		for mname, _ := range s.method {
 			Info(fmt.Sprintf("registered service: %s.%s", sname, mname))

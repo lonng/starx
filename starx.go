@@ -45,7 +45,7 @@ func loadSettings() {
 
 func Register(comp Component) {
 	if App.CurSvrConfig.IsFrontend {
-		Handler.Register(comp)
+		handler.register(comp)
 	} else {
 		Rpc.Register(comp)
 	}
