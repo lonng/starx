@@ -39,7 +39,9 @@ func (p *Packet) String() string {
 	return fmt.Sprintf("[PACKET]Type: %d, Length: %d, Data: %s", p.Type, p.Length, string(p.Body))
 }
 
-// 返回包和截断的数据
+// Unpackage data to packet
+// If packet has not been received completely, return nil and incomplete data,
+//
 func unpack(data []byte) (*Packet, []byte) {
 	t := PacketType(data[0])
 	length := bytesToInt(data[1:headLength])

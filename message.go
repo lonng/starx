@@ -28,6 +28,11 @@ type Message struct {
 	Body       []byte
 }
 
+type unhandledMessage struct {
+	session *Session
+	message *Message
+}
+
 func NewMessage() *Message {
 	return &Message{}
 }

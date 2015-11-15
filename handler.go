@@ -2,14 +2,20 @@ package starx
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"reflect"
 	"strings"
-	"errors"
 	"sync"
 	"unicode"
 	"unicode/utf8"
+)
+
+// Unhandled message buffer size
+// Every connection has an individual message channel buffer
+const (
+	messageBufferSize = 256
 )
 
 type methodType struct {
@@ -38,11 +44,25 @@ func NewHandler() *HandlerService {
 		serviceMap: make(map[string]*service)}
 }
 
+// Handle network connection
+// Read data from Socket file descriptor and decode it, handle message in
+// individual logic routine
 func (handler *HandlerService) Handle(conn net.Conn) {
 	defer conn.Close()
+	// message buffer
+	messageChan := make(chan *unhandledMessage, messageBufferSize)
+	// all user logic will be handled in single goroutine
+	// synchronized in below routine
+	go func() {
+		for {
+			cmsg := <-messageChan
+			handler.processMessage(cmsg.session, cmsg.message)
+		}
+	}()
+	// register new session when new connection connected in
 	session := sessionService.RegisterSession(conn)
-	sessionService.dumpSessions()
-	tmp := make([]byte, 0) //保存截断数据
+	sessionService.dumpSessions() // TODO delete this line
+	tmp := make([]byte, 0)        // save truncated data
 	buf := make([]byte, 512)
 	for {
 		n, err := conn.Read(buf)
@@ -54,8 +74,7 @@ func (handler *HandlerService) Handle(conn net.Conn) {
 			break
 		}
 
-		// decode packet
-		var pkg *Packet
+		var pkg *Packet // save decoded packet
 		pkg, tmp = unpack(append(tmp, buf[:n]...))
 		if pkg != nil {
 			switch pkg.Type {
@@ -82,7 +101,7 @@ func (handler *HandlerService) Handle(conn net.Conn) {
 					session.heartbeat()
 					msg := decodeMessage(pkg.Body)
 					if msg != nil {
-						handler.processMessage(session, msg)
+						messageChan <- &unhandledMessage{session, msg}
 					}
 				}
 			}
@@ -194,10 +213,10 @@ func (handler *HandlerService) localProcess(session *Session, ri *routeInfo, msg
 		if s, present := handler.serviceMap[ri.service]; present {
 			if m, ok := s.method[ri.method]; ok {
 				m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(msg.Body)})
-			}else {
+			} else {
 				Info("method: " + ri.method + " not found")
 			}
-		}else {
+		} else {
 			Info("service: " + ri.service + " not found")
 		}
 	} else {

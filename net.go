@@ -29,7 +29,7 @@ func (net *NetService) SendToSession(session *Session, data []byte) {
 	session.RawConn.Write(pack(PACKET_DATA, data))
 }
 
-func (net *NetService) PushToSession(session *Session,route string, data []byte) {
+func (net *NetService) PushToSession(session *Session, route string, data []byte) {
 	m := encodeMessage(&Message{Type: MessageType(MT_PUSH), Route: route, Body: data})
 	session.RawConn.Write(pack(PacketType(PACKET_DATA), m))
 }
