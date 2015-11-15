@@ -54,8 +54,7 @@ func (handler *HandlerService) Handle(conn net.Conn) {
 	// all user logic will be handled in single goroutine
 	// synchronized in below routine
 	go func() {
-		for {
-			cmsg := <-messageChan
+		for cmsg := range messageChan {
 			handler.processMessage(cmsg.session, cmsg.message)
 		}
 	}()
