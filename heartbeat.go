@@ -15,11 +15,6 @@ func NewHeartbeatService() *HeartbeatService {
 func (h *HeartbeatService) start() {
 	for {
 		<-h.ticker.C
-		for _, session := range sessionService.sessionAddrMaps {
-			if session.status == SS_WORKING {
-				session.RawConn.Write(pack(PACKET_HEARTBEAT, nil))
-				session.heartbeat()
-			}
-		}
+		Net.heartbeat()
 	}
 }

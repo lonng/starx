@@ -158,7 +158,6 @@ func init() {
 	Net = newNetService()
 	Route = make(map[string]func() string)
 	TimerManager = NewTimer()
-	sessionService = NewSesseionService()
 	channelServive = NewChannelServive()
 	connectionService = NewConnectionService()
 	protocolState = PROTOCOL_START

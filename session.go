@@ -22,16 +22,16 @@ const (
 // server, correspond frontend session or backend session id as a field
 // will be store in type instance
 type Session struct {
-	Id                int
-	Uid               int
-	reqId             uint // last requst id
-	status            SessionStatus
-	lastTime          int64
-	frontendSessionId uint64 // current session correspond frontend session, only in frontend server
-	backendSessionId  uint64 // current session correspond backend session, only in backend server
+	Id           int           // session global uniqe id
+	Uid          int           // binding user id
+	reqId        uint          // last request id
+	status       SessionStatus // session current time
+	lastTime     int64         // last heartbeat time
+	rawSessionId uint64        // raw session id, frontendSession in frontend server, or backendSession in backend server
 }
 
 // Session for frontend server, used for store raw socket information
+// only used in package internal, can not accessible by other package
 type frontendSession struct {
 	id          uint64
 	socket      net.Conn
@@ -41,16 +41,18 @@ type frontendSession struct {
 }
 
 // Session for backend server, used for store raw socket information
+// only used in package internal, can not accessible by other package
 type backendSession struct {
-	id         uint64
-	socket     net.Conn
-	status     SessionStatus
-	sessionMap map[uint64]*Session
-	lastTime   int64 // last heartbeat unix time stamp
+	id          uint64
+	socket      net.Conn
+	status      SessionStatus
+	sessionMap  map[uint64]*Session
+	userSession *Session
+	lastTime    int64 // last heartbeat unix time stamp
 }
 
 // Create new session instance
-func newSession(rawConn net.Conn) *Session {
+func newSession() *Session {
 	return &Session{
 		Id:       connectionService.getNewSessionUUID(),
 		status:   SS_START,
@@ -59,11 +61,15 @@ func newSession(rawConn net.Conn) *Session {
 
 // Create new frontend session instance
 func newFrontendSession(id uint64, conn net.Conn) *frontendSession {
-	return &frontendSession{
+	fs := &frontendSession{
 		id:       id,
 		socket:   conn,
 		status:   SS_START,
 		lastTime: time.Now().Unix()}
+	session := newSession()
+	session.rawSessionId = fs.id
+	fs.userSession = session
+	return fs
 }
 
 // Create new backend session instance
@@ -125,7 +131,6 @@ func (bs *backendSession) heartbeat() {
 func (session *Session) Bind(uid int) {
 	if session.Uid > 0 {
 		session.Uid = uid
-		sessionService.SessionUidMaps[uid] = session
 	} else {
 		Error("uid invalid")
 	}
@@ -134,8 +139,7 @@ func (session *Session) Bind(uid int) {
 func (session *Session) String() string {
 	return fmt.Sprintf("Id: %d, Uid: %d, RemoteAddr: %s",
 		session.Id,
-		session.Uid,
-		session.RawConn.RemoteAddr().String())
+		session.Uid)
 }
 
 func (session *Session) heartbeat() {
@@ -147,63 +151,4 @@ type SessionService struct {
 	SessionUidMaps  map[int]*Session // uid map sesseion
 	sam             sync.RWMutex     // protect sessionAddrMaps
 	sessionAddrMaps map[string]*Session
-}
-
-func NewSesseionService() *SessionService {
-	return &SessionService{
-		SessionUidMaps:  make(map[int]*Session),
-		sessionAddrMaps: make(map[string]*Session)}
-}
-
-func (s *SessionService) RegisterSession(conn net.Conn) *Session {
-	if session, exists := s.getSessionByAddr(conn.RemoteAddr().String()); exists {
-		Info("session has exists already")
-		return session
-	}
-	session := newSession(conn)
-	s.sam.Lock()
-	s.sessionAddrMaps[session.RawConn.RemoteAddr().String()] = session
-	s.sam.Unlock()
-	connectionService.incrementConnCount()
-	return session
-}
-
-func (s *SessionService) RemoveSession(session *Session) {
-	addr := session.RawConn.RemoteAddr().String()
-	if session, exists := s.getSessionByAddr(addr); exists {
-		s.sum.Lock()
-		s.sam.Lock()
-		if session.Uid > 0 {
-			delete(s.SessionUidMaps, session.Uid)
-		}
-		delete(s.sessionAddrMaps, addr)
-		s.sam.Unlock()
-		s.sum.Unlock()
-
-	} else {
-		Info("session has not exists")
-	}
-	connectionService.decrementConnCount()
-}
-
-func (s *SessionService) getSessionByAddr(addr string) (*Session, bool) {
-	s.sam.RLock()
-	session, exists := s.sessionAddrMaps[addr]
-	s.sam.RUnlock()
-	return session, exists
-}
-
-// Decide whether a remote address session exists
-func (s *SessionService) isSessionExists(addr string) bool {
-	s.sam.RLock()
-	_, exists := s.sessionAddrMaps[addr]
-	s.sam.RUnlock()
-	return exists
-}
-
-func (s *SessionService) GetSessionByUid(uid int) (*Session, bool) {
-	s.sum.RLock()
-	session, exists := s.SessionUidMaps[uid]
-	s.sum.RUnlock()
-	return session, exists
 }

@@ -26,7 +26,7 @@ func newNetService() *netService {
 		fsessionUUID: 1,
 		fsessionMap:  make(map[uint64]*frontendSession),
 		bsessionUUID: 1,
-		bsessionMap:  make(map[uint]*backendSession)}
+		bsessionMap:  make(map[uint64]*backendSession)}
 }
 
 // Create frontend session via netService
@@ -58,57 +58,87 @@ func (net *netService) createBackendSession(conn net.Conn) *backendSession {
 }
 
 // Send packet data
+// call by package internal, the second argument was packaged packet
 func (net *netService) send(session *Session, data []byte) {
 	if App.CurSvrConfig.IsFrontend {
-		if fs, ok := net.fsessionMap[session.frontendSessionId]; ok&fs != nil {
+		if fs, ok := net.fsessionMap[session.rawSessionId]; ok && (fs != nil) {
 			go fs.send(data)
 		}
 	} else {
-		if bs, ok := net.bsessionMap[session.backendSessionId]; ok&bs != nil {
+		if bs, ok := net.bsessionMap[session.rawSessionId]; ok && (bs != nil) {
 			go bs.send(data)
 		}
 	}
 }
 
 // Message level method
+// call by all package, the last argument was packaged message
 func (net *netService) Push(session *Session, route string, data []byte) {
 	m := encodeMessage(&Message{Type: MessageType(MT_PUSH), Route: route, Body: data})
 	net.send(session, pack(PacketType(PACKET_DATA), m))
 }
 
+// Message level method
+// call by all package, the last argument was packaged message
 func (net *netService) Response(session *Session, data []byte) {
 	m := encodeMessage(&Message{Type: MessageType(MT_RESPONSE), ID: session.reqId, Body: data})
 	net.send(session, pack(PacketType(PACKET_DATA), m))
 }
 
 // Push message to all sessions
+// Message level method
+// call by all package, the last argument was packaged message
 func (net *netService) Broadcast(route string, data []byte) {
 	if App.CurSvrConfig.IsFrontend {
 		for _, s := range net.fsessionMap {
-			net.Push(s, route, data)
+			net.Push(s.userSession, route, data)
 		}
 	} else {
 		for _, s := range net.bsessionMap {
-			net.Push(s, route, data)
+			net.Push(s.userSession, route, data)
 		}
 	}
+}
+
+// TODO
+func (net *netService) Multcast(uids []int, route string, data []byte) {
+
 }
 
 // Close session
 func (net *netService) closeSession(session *Session) {
 	if App.CurSvrConfig.IsFrontend {
-		if fs, ok := net.fsessionMap[session.frontendSessionId]; ok&fs != nil {
+		if fs, ok := net.fsessionMap[session.rawSessionId]; ok && (fs != nil)  {
 			fs.socket.Close()
 			net.fsmLock.Lock()
-			delete(net.fsessionMap, session.frontendSessionId)
+			delete(net.fsessionMap, session.rawSessionId)
 			net.fsmLock.Unlock()
 		}
 	} else {
-		if bs, ok := net.fsessionMap[session.frontendSessionId]; ok&bs != nil {
+		if bs, ok := net.bsessionMap[session.rawSessionId]; ok && (bs != nil)  {
 			bs.socket.Close()
 			net.bsmLock.Lock()
-			delete(net.fsessionMap, session.frontendSessionId)
+			delete(net.bsessionMap, session.rawSessionId)
 			net.bsmLock.Unlock()
+		}
+	}
+}
+
+// Send heartbeat packet
+func (net *netService) heartbeat() {
+	if App.CurSvrConfig.IsFrontend {
+		for _, session := range net.fsessionMap {
+			if session.status == SS_WORKING {
+				session.send(pack(PACKET_HEARTBEAT, nil))
+				session.heartbeat()
+			}
+		}
+	} else {
+		for _, session := range net.bsessionMap {
+			if session.status == SS_WORKING {
+				session.send(pack(PACKET_HEARTBEAT, nil))
+				session.heartbeat()
+			}
 		}
 	}
 }

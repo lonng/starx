@@ -68,7 +68,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 		if err != nil {
 			Info("session closed(" + err.Error() + ")")
 			fs.status = SS_CLOSED
-			Net.closeSession(fs)
+			Net.closeSession(fs.userSession)
 			Net.dumpFrontendSessions()
 			break
 		}
@@ -101,7 +101,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 						go fs.heartbeat()
 						msg := decodeMessage(pkg.Body)
 						if msg != nil {
-							messageChan <- &unhandledMessage{fs, msg}
+							messageChan <- &unhandledMessage{fs.userSession, msg}
 						}
 					}
 				}
