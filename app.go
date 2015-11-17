@@ -10,16 +10,12 @@ type _app struct {
 	CurSvrConfig *ServerConfig      // current server info
 	RemoveChan   chan string        // remove server channel
 	RegisterChan chan *ServerConfig // add server channel
-	MessageChan  chan *Message      // message channel
-	PacketChan   chan *Packet       // package channel
 }
 
 func newApp() *_app {
 	return &_app{
 		RemoveChan:   make(chan string, 10),
-		RegisterChan: make(chan *ServerConfig, 10),
-		MessageChan:  make(chan *Message, 10000),
-		PacketChan:   make(chan *Packet, 1000)}
+		RegisterChan: make(chan *ServerConfig, 10)}
 }
 
 func (app *_app) Start() {
@@ -35,7 +31,6 @@ func (app *_app) Start() {
 	<-endRunning
 	Info("server: " + app.CurSvrConfig.Id + " is stopping...")
 	// close all channels
-	close(app.MessageChan)
 	close(app.RegisterChan)
 	close(app.RemoveChan)
 	close(endRunning)
@@ -76,14 +71,8 @@ func (app *_app) listenChan() {
 			registerServer(*svr)
 		case svrId := <-app.RemoveChan:
 			removeServer(svrId)
-		case msg := <-app.MessageChan:
-			handleMessage(msg)
 		}
 	}
-}
-
-func handleMessage(msg *Message) {
-	Info(msg.String())
 }
 
 func (app *_app) loadDefaultComps() {
