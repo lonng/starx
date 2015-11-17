@@ -33,10 +33,11 @@ type Session struct {
 
 // Session for frontend server, used for store raw socket information
 type frontendSession struct {
-	id       uint64
-	socket   net.Conn
-	status   SessionStatus
-	lastTime int64 // last heartbeat unix time stamp
+	id          uint64
+	socket      net.Conn
+	status      SessionStatus
+	userSession *Session
+	lastTime    int64 // last heartbeat unix time stamp
 }
 
 // Session for backend server, used for store raw socket information
@@ -80,12 +81,12 @@ func (session *Session) Send(data []byte) {
 }
 
 // Push message to session
-func (session *Session) Push(route string, data[]byte) {
+func (session *Session) Push(route string, data []byte) {
 	Net.Push(session, route, data)
 }
 
 // Response message to session
-func (session *Session) Response(data []byte){
+func (session *Session) Response(data []byte) {
 	Net.Response(session, data)
 }
 
@@ -97,12 +98,28 @@ func (fs *frontendSession) String() string {
 		fs.lastTime)
 }
 
+func (fs *frontendSession) send(data []byte) {
+	fs.socket.Write(data)
+}
+
+func (fs *frontendSession) heartbeat() {
+	fs.lastTime = time.Now().Unix()
+}
+
 // Implement Stringer interface
 func (bs *backendSession) String() string {
 	return fmt.Sprintf("id: %d, remote address: %s, last time: %d",
 		bs.id,
 		bs.socket.RemoteAddr().String(),
 		bs.lastTime)
+}
+
+func (bs *backendSession) send(data []byte) {
+	bs.socket.Write(data)
+}
+
+func (bs *backendSession) heartbeat() {
+	bs.lastTime = time.Now().Unix()
 }
 
 func (session *Session) Bind(uid int) {

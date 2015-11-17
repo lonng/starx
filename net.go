@@ -1,5 +1,5 @@
 /*
- 消息发送
+ Network handle
 */
 package starx
 
@@ -49,7 +49,7 @@ func (net *netService) createBackendSession(conn net.Conn) *backendSession {
 	id := net.fsessionUUID
 	net.fsessionUUID++
 	net.buuidLock.Unlock()
-	bs:= newBackendSession(id, conn)
+	bs := newBackendSession(id, conn)
 	// add to maps
 	net.bsmLock.Lock()
 	net.bsessionMap[id] = bs
@@ -58,18 +58,19 @@ func (net *netService) createBackendSession(conn net.Conn) *backendSession {
 }
 
 // Send packet data
-func (net *netService) send(session *Session, data[]byte) {
+func (net *netService) send(session *Session, data []byte) {
 	if App.CurSvrConfig.IsFrontend {
-		if fs, ok := net.fsessionMap[session.frontendSessionId]; ok & fs != nil {
-			go fs.socket.Write(data)
+		if fs, ok := net.fsessionMap[session.frontendSessionId]; ok&fs != nil {
+			go fs.send(data)
 		}
 	} else {
-		if bs, ok := net.bsessionMap[session.backendSessionId]; ok & bs != nil {
-			go bs.socket.Write(data)
+		if bs, ok := net.bsessionMap[session.backendSessionId]; ok&bs != nil {
+			go bs.send(data)
 		}
 	}
 }
 
+// Message level method
 func (net *netService) Push(session *Session, route string, data []byte) {
 	m := encodeMessage(&Message{Type: MessageType(MT_PUSH), Route: route, Body: data})
 	net.send(session, pack(PacketType(PACKET_DATA), m))
@@ -86,7 +87,7 @@ func (net *netService) Broadcast(route string, data []byte) {
 		for _, s := range net.fsessionMap {
 			net.Push(s, route, data)
 		}
-	}else{
+	} else {
 		for _, s := range net.bsessionMap {
 			net.Push(s, route, data)
 		}
@@ -96,14 +97,14 @@ func (net *netService) Broadcast(route string, data []byte) {
 // Close session
 func (net *netService) closeSession(session *Session) {
 	if App.CurSvrConfig.IsFrontend {
-		if fs, ok := net.fsessionMap[session.frontendSessionId]; ok & fs != nil {
+		if fs, ok := net.fsessionMap[session.frontendSessionId]; ok&fs != nil {
 			fs.socket.Close()
 			net.fsmLock.Lock()
 			delete(net.fsessionMap, session.frontendSessionId)
 			net.fsmLock.Unlock()
 		}
-	}else {
-		if bs, ok := net.fsessionMap[session.frontendSessionId]; ok & bs != nil {
+	} else {
+		if bs, ok := net.fsessionMap[session.frontendSessionId]; ok&bs != nil {
 			bs.socket.Close()
 			net.bsmLock.Lock()
 			delete(net.fsessionMap, session.frontendSessionId)

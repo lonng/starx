@@ -50,66 +50,64 @@ func newHandler() *handlerService {
 func (handler *handlerService) handle(conn net.Conn) {
 	defer conn.Close()
 	// message buffer
-	packetChan := make(chan *unhandledPacket, packetBufferSize)
+	messageChan := make(chan *unhandledMessage, packetBufferSize)
 	// all user logic will be handled in single goroutine
 	// synchronized in below routine
 	go func() {
-		for cpkg := range packetChan {
-			handler.processPacket(cpkg.session, cpkg.packet)
+		for cpkg := range messageChan {
+			handler.processMessage(cpkg.session, cpkg.packet)
 		}
 	}()
 	// register new session when new connection connected in
-	session := Net.createFrontendSession(conn)
+	fs := Net.createFrontendSession(conn)
 	Net.dumpFrontendSessions()
-	tmp := make([]byte, 512)      // save truncated data
+	tmp := make([]byte, 512) // save truncated data
 	buf := make([]byte, 512)
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
 			Info("session closed(" + err.Error() + ")")
-			session.status = SS_CLOSED
-			Net.closeSession(session)
+			fs.status = SS_CLOSED
+			Net.closeSession(fs)
 			Net.dumpFrontendSessions()
 			break
 		}
 		tmp = append(tmp, buf[:n]...)
 		var pkg *Packet // save decoded packet
+		// TODO
+		// Refactor this loop
 		for len(tmp) > headLength {
 			if pkg, tmp = unpack(tmp); pkg != nil {
-				packetChan <- &unhandledPacket{session, pkg}
+				switch pkg.Type {
+				case PACKET_HANDSHAKE:
+					{
+						fs.status = SS_HANDSHAKING
+						data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
+						if err != nil {
+							Info(err.Error())
+						}
+						fs.send(pack(PACKET_HANDSHAKE, data))
+					}
+				case PACKET_HANDSHAKE_ACK:
+					{
+						fs.status = SS_WORKING
+					}
+				case PACKET_HEARTBEAT:
+					{
+						go fs.heartbeat()
+					}
+				case PACKET_DATA:
+					{
+						go fs.heartbeat()
+						msg := decodeMessage(pkg.Body)
+						if msg != nil {
+							messageChan <- &unhandledMessage{fs, msg}
+						}
+					}
+				}
+
 			} else {
 				break
-			}
-		}
-	}
-}
-
-func (handler *handlerService) processPacket(session *Session, pkg *Packet) {
-	switch pkg.Type {
-	case PACKET_HANDSHAKE:
-		{
-			session.status = SS_HANDSHAKING
-			Info(pkg.String())
-			data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
-			if err != nil {
-				Info(err.Error())
-			}
-			session.Send(pack(PACKET_HANDSHAKE, data))
-		}
-	case PACKET_HANDSHAKE_ACK:
-		{
-			session.status = SS_WORKING
-		}
-	case PACKET_HEARTBEAT:
-		{
-			go session.heartbeat()
-		}
-	case PACKET_DATA:
-		{
-			go session.heartbeat()
-			msg := decodeMessage(pkg.Body)
-			if msg != nil {
-				handler.processMessage(session, msg)
 			}
 		}
 	}
