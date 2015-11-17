@@ -93,11 +93,11 @@ func (handler *HandlerService) Handle(conn net.Conn) {
 				}
 			case PACKET_HEARTBEAT:
 				{
-					session.heartbeat()
+					//go session.heartbeat()
 				}
 			case PACKET_DATA:
 				{
-					session.heartbeat()
+					//go session.heartbeat()
 					msg := decodeMessage(pkg.Body)
 					if msg != nil {
 						messageChan <- &unhandledMessage{session, msg}
@@ -128,7 +128,6 @@ func encodeMessage(m *Message) []byte {
 				break
 			}
 		}
-		fmt.Println("%+v", temp)
 	} else if m.Type == MT_PUSH {
 		if m.isCompress {
 			temp = append(temp, byte((m.RouteCode>>8)&0xFF))
@@ -207,19 +206,21 @@ func decodeRouteInfo(route string) (*routeInfo, error) {
 // TODO: implement request protocol
 func (handler *HandlerService) localProcess(session *Session, ri *routeInfo, msg *Message) {
 	if msg.Type == MT_REQUEST {
-		// TODO
+		session.reqId = msg.ID
 	} else if msg.Type == MT_NOTIFY {
-		if s, present := handler.serviceMap[ri.service]; present {
-			if m, ok := s.method[ri.method]; ok {
-				m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(msg.Body)})
-			} else {
-				Info("method: " + ri.method + " not found")
-			}
+		session.reqId = 0
+	} else {
+		Info("invalid message type")
+		return
+	}
+	if s, present := handler.serviceMap[ri.service]; present {
+		if m, ok := s.method[ri.method]; ok {
+			m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(msg.Body)})
 		} else {
-			Info("service: " + ri.service + " not found")
+			Info("method: " + ri.method + " not found")
 		}
 	} else {
-		Info("unrecognize message type")
+		Info("service: " + ri.service + " not found")
 	}
 }
 

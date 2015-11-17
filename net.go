@@ -31,7 +31,14 @@ func (net *NetService) SendToSession(session *Session, data []byte) {
 
 func (net *NetService) PushToSession(session *Session, route string, data []byte) {
 	m := encodeMessage(&Message{Type: MessageType(MT_PUSH), Route: route, Body: data})
-	session.RawConn.Write(pack(PacketType(PACKET_DATA), m))
+	go session.RawConn.Write(pack(PacketType(PACKET_DATA), m))
+}
+
+func (net *NetService) ResponseToSession(session *Session, data []byte) {
+	if session.reqId > 0 {
+		m := encodeMessage(&Message{Type: MessageType(MT_RESPONSE), ID: session.reqId, Body: data})
+		go session.RawConn.Write(pack(PacketType(PACKET_DATA), m))
+	}
 }
 
 func (net *NetService) Multicast(uids []int, data []byte) {

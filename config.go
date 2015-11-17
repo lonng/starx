@@ -15,7 +15,7 @@ import (
 var VERSION = "0.0.1"
 
 var (
-	App               *StarxApp // starx application
+	App               *_app // starx application
 	AppName           string
 	AppPath           string
 	workPath          string
@@ -37,7 +37,7 @@ var (
 	channelServive    *ChannelServive                            // channel service component
 	connectionService *ConnectionService                         // connection service component
 	protocolState     ProtocolState                              // current protocol state
-	heartbeatInternal time.Duration            = time.Second * 3 // beatheart time internal, second unit
+	heartbeatInternal time.Duration            = time.Second * 8 // beatheart time internal, second unit
 	heartbeatService  *HeartbeatService                          // beatheart service
 )
 
@@ -149,7 +149,7 @@ func removeServer(svrId string) {
 }
 
 func init() {
-	App = NewApp()
+	App = newApp()
 	SvrTypeMaps = make(map[string][]string)
 	SvrIdMaps = make(map[string]*ServerConfig)
 	Settings = make(map[string][]func())

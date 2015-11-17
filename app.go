@@ -5,7 +5,7 @@ import (
 	"net"
 )
 
-type StarxApp struct {
+type _app struct {
 	Master       *ServerConfig      // master server config
 	CurSvrConfig *ServerConfig      // current server info
 	RemoveChan   chan string        // remove server channel
@@ -14,15 +14,15 @@ type StarxApp struct {
 	PacketChan   chan *Packet       // package channel
 }
 
-func NewApp() *StarxApp {
-	return &StarxApp{
+func newApp() *_app {
+	return &_app{
 		RemoveChan:   make(chan string, 10),
 		RegisterChan: make(chan *ServerConfig, 10),
 		MessageChan:  make(chan *Message, 10000),
 		PacketChan:   make(chan *Packet, 1000)}
 }
 
-func (app *StarxApp) Start() {
+func (app *_app) Start() {
 	var endRunning = make(chan bool, 1)
 	app.loadDefaultComps()
 
@@ -45,7 +45,7 @@ func (app *StarxApp) Start() {
 }
 
 // Enable current server backend listener
-func (app *StarxApp) listenPort() {
+func (app *_app) listenPort() {
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", app.CurSvrConfig.Host, app.CurSvrConfig.Port))
 	if err != nil {
 		Error(err.Error())
@@ -69,7 +69,7 @@ func (app *StarxApp) listenPort() {
 	}
 }
 
-func (app *StarxApp) listenChan() {
+func (app *_app) listenChan() {
 	for {
 		select {
 		case svr := <-app.RegisterChan:
@@ -86,6 +86,6 @@ func handleMessage(msg *Message) {
 	Info(msg.String())
 }
 
-func (app *StarxApp) loadDefaultComps() {
+func (app *_app) loadDefaultComps() {
 	Rpc.Register(new(Manager))
 }

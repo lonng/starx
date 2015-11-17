@@ -20,6 +20,7 @@ const (
 type Session struct {
 	Id       int
 	Uid      int
+	reqId    uint // last requst id
 	RawConn  net.Conn
 	status   SessionStatus
 	lastTime int64
@@ -50,6 +51,7 @@ func (session *Session) String() string {
 }
 
 func (session *Session) heartbeat() {
+	Info("session: heartbeat")
 	session.lastTime = time.Now().Unix()
 }
 
