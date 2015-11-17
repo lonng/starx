@@ -28,9 +28,9 @@ type Message struct {
 	Body       []byte
 }
 
-type unhandledMessage struct {
+type unhandledPacket struct {
 	session *Session
-	message *Message
+	packet  *Packet
 }
 
 func NewMessage() *Message {

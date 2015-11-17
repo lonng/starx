@@ -51,7 +51,6 @@ func (session *Session) String() string {
 }
 
 func (session *Session) heartbeat() {
-	Info("session: heartbeat")
 	session.lastTime = time.Now().Unix()
 }
 

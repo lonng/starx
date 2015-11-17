@@ -15,7 +15,7 @@ import (
 // Unhandled message buffer size
 // Every connection has an individual message channel buffer
 const (
-	messageBufferSize = 256
+	packetBufferSize = 256
 )
 
 type methodType struct {
@@ -50,18 +50,18 @@ func NewHandler() *HandlerService {
 func (handler *HandlerService) Handle(conn net.Conn) {
 	defer conn.Close()
 	// message buffer
-	messageChan := make(chan *unhandledMessage, messageBufferSize)
+	packetChan := make(chan *unhandledPacket, packetBufferSize)
 	// all user logic will be handled in single goroutine
 	// synchronized in below routine
 	go func() {
-		for cmsg := range messageChan {
-			handler.processMessage(cmsg.session, cmsg.message)
+		for cpkg := range packetChan {
+			handler.processPacket(cpkg.session, cpkg.packet)
 		}
 	}()
 	// register new session when new connection connected in
 	session := sessionService.RegisterSession(conn)
 	sessionService.dumpSessions() // TODO delete this line
-	tmp := make([]byte, 0)        // save truncated data
+	tmp := make([]byte, 512)      // save truncated data
 	buf := make([]byte, 512)
 	for {
 		n, err := conn.Read(buf)
@@ -72,37 +72,44 @@ func (handler *HandlerService) Handle(conn net.Conn) {
 			sessionService.dumpSessions()
 			break
 		}
-
+		tmp = append(tmp, buf[:n]...)
 		var pkg *Packet // save decoded packet
-		pkg, tmp = unpack(append(tmp, buf[:n]...))
-		if pkg != nil {
-			switch pkg.Type {
-			case PACKET_HANDSHAKE:
-				{
-					session.status = SS_HANDSHAKING
-					Info(pkg.String())
-					data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
-					if err != nil {
-						Info(err.Error())
-					}
-					conn.Write(pack(PACKET_HANDSHAKE, data))
-				}
-			case PACKET_HANDSHAKE_ACK:
-				{
-					session.status = SS_WORKING
-				}
-			case PACKET_HEARTBEAT:
-				{
-					//go session.heartbeat()
-				}
-			case PACKET_DATA:
-				{
-					//go session.heartbeat()
-					msg := decodeMessage(pkg.Body)
-					if msg != nil {
-						messageChan <- &unhandledMessage{session, msg}
-					}
-				}
+		for len(tmp) > headLength {
+			if pkg, tmp = unpack(tmp); pkg != nil {
+				packetChan <- &unhandledPacket{session, pkg}
+			} else {
+				break
+			}
+		}
+	}
+}
+
+func (handler *HandlerService) processPacket(session *Session, pkg *Packet) {
+	switch pkg.Type {
+	case PACKET_HANDSHAKE:
+		{
+			session.status = SS_HANDSHAKING
+			Info(pkg.String())
+			data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
+			if err != nil {
+				Info(err.Error())
+			}
+			session.RawConn.Write(pack(PACKET_HANDSHAKE, data))
+		}
+	case PACKET_HANDSHAKE_ACK:
+		{
+			session.status = SS_WORKING
+		}
+	case PACKET_HEARTBEAT:
+		{
+			go session.heartbeat()
+		}
+	case PACKET_DATA:
+		{
+			go session.heartbeat()
+			msg := decodeMessage(pkg.Body)
+			if msg != nil {
+				handler.processMessage(session, msg)
 			}
 		}
 	}
