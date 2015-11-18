@@ -50,12 +50,12 @@ func newHandler() *handlerService {
 func (handler *handlerService) handle(conn net.Conn) {
 	defer conn.Close()
 	// message buffer
-	messageChan := make(chan *unhandledMessage, packetBufferSize)
+	packetChan := make(chan *unhandledFrontendPacket, packetBufferSize)
 	// all user logic will be handled in single goroutine
 	// synchronized in below routine
 	go func() {
-		for cpkg := range messageChan {
-			handler.processMessage(cpkg.session, cpkg.packet)
+		for cpkg := range packetChan {
+			handler.processPacket(cpkg.fs, cpkg.packet)
 		}
 	}()
 	// register new session when new connection connected in
@@ -78,34 +78,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 		// Refactor this loop
 		for len(tmp) > headLength {
 			if pkg, tmp = unpack(tmp); pkg != nil {
-				switch pkg.Type {
-				case PACKET_HANDSHAKE:
-					{
-						fs.status = SS_HANDSHAKING
-						data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
-						if err != nil {
-							Info(err.Error())
-						}
-						fs.send(pack(PACKET_HANDSHAKE, data))
-					}
-				case PACKET_HANDSHAKE_ACK:
-					{
-						fs.status = SS_WORKING
-					}
-				case PACKET_HEARTBEAT:
-					{
-						go fs.heartbeat()
-					}
-				case PACKET_DATA:
-					{
-						go fs.heartbeat()
-						msg := decodeMessage(pkg.Body)
-						if msg != nil {
-							messageChan <- &unhandledMessage{fs.userSession, msg}
-						}
-					}
-				}
-
+				packetChan <- &unhandledFrontendPacket{fs, pkg}
 			} else {
 				break
 			}
@@ -186,6 +159,36 @@ func decodeMessage(data []byte) *Message {
 	}
 	msg.Body = data[offset:]
 	return msg
+}
+
+func (handler *handlerService) processPacket(fs *frontendSession, pkg *Packet){
+	switch pkg.Type {
+	case PACKET_HANDSHAKE:
+		{
+			fs.status = SS_HANDSHAKING
+			data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
+			if err != nil {
+				Info(err.Error())
+			}
+			fs.send(pack(PACKET_HANDSHAKE, data))
+		}
+	case PACKET_HANDSHAKE_ACK:
+		{
+			fs.status = SS_WORKING
+		}
+	case PACKET_HEARTBEAT:
+		{
+			go fs.heartbeat()
+		}
+	case PACKET_DATA:
+		{
+			go fs.heartbeat()
+			msg := decodeMessage(pkg.Body)
+			if msg != nil {
+				handler.processMessage(fs.userSession, msg)
+			}
+		}
+	}
 }
 
 func (handler *handlerService) processMessage(session *Session, msg *Message) {

@@ -26,6 +26,11 @@ type Packet struct {
 	session *Session
 }
 
+type unhandledFrontendPacket struct {
+	fs *frontendSession
+	packet  *Packet
+}
+
 func NewPacket() *Packet {
 	return &Packet{}
 }
