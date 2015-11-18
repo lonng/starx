@@ -8,33 +8,22 @@ import (
 type _app struct {
 	Master       *ServerConfig      // master server config
 	CurSvrConfig *ServerConfig      // current server info
-	RemoveChan   chan string        // remove server channel
-	RegisterChan chan *ServerConfig // add server channel
 }
 
 func newApp() *_app {
-	return &_app{
-		RemoveChan:   make(chan string, 10),
-		RegisterChan: make(chan *ServerConfig, 10)}
+	return &_app{}
 }
 
 func (app *_app) Start() {
 	var endRunning = make(chan bool, 1)
 	app.loadDefaultComps()
 
-	// enable port listener
-	go app.listenPort()
 	go heartbeatService.start()
-	// main goroutine
-	app.listenChan()
+	// enable port listener
+	app.listenPort()
 
 	<-endRunning
 	Info("server: " + app.CurSvrConfig.Id + " is stopping...")
-	// close all channels
-	close(app.RegisterChan)
-	close(app.RemoveChan)
-	close(endRunning)
-
 	// close all of components
 	Rpc.Close()
 }
@@ -60,17 +49,6 @@ func (app *_app) listenPort() {
 			go handler.handle(conn)
 		} else {
 			go Rpc.Handle(conn)
-		}
-	}
-}
-
-func (app *_app) listenChan() {
-	for {
-		select {
-		case svr := <-app.RegisterChan:
-			registerServer(*svr)
-		case svrId := <-app.RemoveChan:
-			removeServer(svrId)
 		}
 	}
 }
