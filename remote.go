@@ -1,10 +1,10 @@
 package starx
 
 import (
+	"encoding/json"
+	"fmt"
 	"net"
 	"reflect"
-	"fmt"
-	"encoding/json"
 )
 
 type remoteService struct {
@@ -56,7 +56,7 @@ func (remote *remoteService) handle(conn net.Conn) {
 	}
 }
 
-func (remote *remoteService) processPacket(bs *backendSession, pkg *Packet)  {
+func (remote *remoteService) processPacket(bs *backendSession, pkg *Packet) {
 	switch pkg.Type {
 	case PACKET_HANDSHAKE:
 		{
@@ -163,7 +163,6 @@ func (remote *remoteService) _register(rcvr HandlerComponent) {
 	remote.serviceMap[s.name] = s
 	remote.dumpServiceMap()
 }
-
 
 func (remote *remoteService) dumpServiceMap() {
 	for sname, s := range remote.serviceMap {

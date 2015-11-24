@@ -1,9 +1,9 @@
 package starx
 
 import (
-	"fmt"
-"strings"
 	"errors"
+	"fmt"
+	"strings"
 )
 
 type routeInfo struct {
@@ -27,4 +27,3 @@ func decodeRouteInfo(route string) (*routeInfo, error) {
 	}
 	return newRouteInfo(parts[0], parts[1], parts[2]), nil
 }
-
