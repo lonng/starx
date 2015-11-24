@@ -27,8 +27,13 @@ type Packet struct {
 }
 
 type unhandledFrontendPacket struct {
-	fs *frontendSession
-	packet  *Packet
+	fs     *frontendSession
+	packet *Packet
+}
+
+type unhandledBackendPacket struct {
+	bs *backendSession
+	packet *Packet
 }
 
 func NewPacket() *Packet {

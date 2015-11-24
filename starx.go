@@ -47,6 +47,6 @@ func Register(comp Component) {
 	if App.CurSvrConfig.IsFrontend {
 		handler.register(comp)
 	} else {
-		Rpc.Register(comp)
+		remote.register(comp)
 	}
 }
