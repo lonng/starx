@@ -30,6 +30,7 @@ var (
 	Settings          map[string][]func()                        // all settiings
 	Rpc               *RpcService                                // rpc proxy
 	handler           *handlerService                            // hander
+	remote            *remoteService                             // remote service
 	Net               *netService                                // net service
 	TimerManager      Timer                                      // timer component
 	Route             map[string]func() string                   // server route function
@@ -155,6 +156,7 @@ func init() {
 	Log = log.New(os.Stdout, "", log.LstdFlags)
 	Rpc = newRpc()
 	handler = newHandler()
+	remote = newRemote()
 	Net = newNetService()
 	Route = make(map[string]func() string)
 	TimerManager = NewTimer()

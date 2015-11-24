@@ -2,11 +2,9 @@ package starx
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"reflect"
-	"strings"
 	"sync"
 	"unicode"
 	"unicode/utf8"
@@ -50,12 +48,12 @@ func newHandler() *handlerService {
 func (handler *handlerService) handle(conn net.Conn) {
 	defer conn.Close()
 	// message buffer
-	messageChan := make(chan *unhandledMessage, packetBufferSize)
+	packetChan := make(chan *unhandledFrontendPacket, packetBufferSize)
 	// all user logic will be handled in single goroutine
 	// synchronized in below routine
 	go func() {
-		for cpkg := range messageChan {
-			handler.processMessage(cpkg.session, cpkg.packet)
+		for cpkg := range packetChan {
+			handler.processPacket(cpkg.fs, cpkg.packet)
 		}
 	}()
 	// register new session when new connection connected in
@@ -78,34 +76,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 		// Refactor this loop
 		for len(tmp) > headLength {
 			if pkg, tmp = unpack(tmp); pkg != nil {
-				switch pkg.Type {
-				case PACKET_HANDSHAKE:
-					{
-						fs.status = SS_HANDSHAKING
-						data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
-						if err != nil {
-							Info(err.Error())
-						}
-						fs.send(pack(PACKET_HANDSHAKE, data))
-					}
-				case PACKET_HANDSHAKE_ACK:
-					{
-						fs.status = SS_WORKING
-					}
-				case PACKET_HEARTBEAT:
-					{
-						go fs.heartbeat()
-					}
-				case PACKET_DATA:
-					{
-						go fs.heartbeat()
-						msg := decodeMessage(pkg.Body)
-						if msg != nil {
-							messageChan <- &unhandledMessage{fs.userSession, msg}
-						}
-					}
-				}
-
+				packetChan <- &unhandledFrontendPacket{fs, pkg}
 			} else {
 				break
 			}
@@ -113,79 +84,34 @@ func (handler *handlerService) handle(conn net.Conn) {
 	}
 }
 
-func encodeMessage(m *Message) []byte {
-	temp := make([]byte, 0)
-	flag := byte(m.Type) << 1
-	if m.isCompress {
-		flag |= 0x01
-	}
-	temp = append(temp, flag)
-	// response message
-	if m.Type == MT_RESPONSE {
-		n := m.ID
-		for {
-			b := byte(n % 128)
-			n >>= 7
-			if n != 0 {
-				temp = append(temp, b+128)
-			} else {
-				temp = append(temp, b)
-				break
+func (handler *handlerService) processPacket(fs *frontendSession, pkg *Packet) {
+	switch pkg.Type {
+	case PACKET_HANDSHAKE:
+		{
+			fs.status = SS_HANDSHAKING
+			data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
+			if err != nil {
+				Info(err.Error())
+			}
+			fs.send(pack(PACKET_HANDSHAKE, data))
+		}
+	case PACKET_HANDSHAKE_ACK:
+		{
+			fs.status = SS_WORKING
+		}
+	case PACKET_HEARTBEAT:
+		{
+			go fs.heartbeat()
+		}
+	case PACKET_DATA:
+		{
+			go fs.heartbeat()
+			msg := decodeMessage(pkg.Body)
+			if msg != nil {
+				handler.processMessage(fs.userSession, msg)
 			}
 		}
-	} else if m.Type == MT_PUSH {
-		if m.isCompress {
-			temp = append(temp, byte((m.RouteCode>>8)&0xFF))
-			temp = append(temp, byte(m.RouteCode&0xFF))
-		} else {
-			temp = append(temp, byte(len(m.Route)))
-			temp = append(temp, []byte(m.Route)...)
-		}
-	} else {
-		Error("wrong message type")
 	}
-	temp = append(temp, m.Body...)
-	return temp
-}
-
-func decodeMessage(data []byte) *Message {
-	// filter invalid message
-	if len(data) <= 3 {
-		Info("invalid message")
-		return nil
-	}
-	msg := NewMessage()
-	flag := data[0]
-	// set offset to 1, because 1st byte will always be flag
-	offset := 1
-	msg.Type = MessageType((flag >> 1) & MSG_TYPE_MASK)
-	if msg.Type == MT_REQUEST {
-		id := uint(0)
-		// little end byte order
-		// WARNING: must can be stored in 64 bits integer
-		for i := offset; i < len(data); i++ {
-			b := data[i]
-			id += (uint(b&0x7F) << uint(7*(i-offset)))
-			if b < 128 {
-				offset = i + 1
-				break
-			}
-		}
-		msg.ID = id
-	}
-	if flag&MSG_ROUTE_COMPRESS_MASK == 1 {
-		msg.isCompress = true
-		msg.RouteCode = uint(bytesToInt(data[offset:(offset + 2)]))
-		offset += 2
-	} else {
-		msg.isCompress = false
-		rl := data[offset]
-		offset += 1
-		msg.Route = string(data[offset:(offset + int(rl))])
-		offset += int(rl)
-	}
-	msg.Body = data[offset:]
-	return msg
 }
 
 func (handler *handlerService) processMessage(session *Session, msg *Message) {
@@ -198,14 +124,6 @@ func (handler *handlerService) processMessage(session *Session, msg *Message) {
 	} else {
 		handler.remoteProcess(session, ri, msg)
 	}
-}
-
-func decodeRouteInfo(route string) (*routeInfo, error) {
-	parts := strings.Split(route, ".")
-	if len(parts) != 3 {
-		return nil, errors.New("invalid route")
-	}
-	return newRouteInfo(parts[0], parts[1], parts[2]), nil
 }
 
 // TODO: implement request protocol

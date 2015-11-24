@@ -108,14 +108,14 @@ func (net *netService) Multcast(uids []int, route string, data []byte) {
 // Close session
 func (net *netService) closeSession(session *Session) {
 	if App.CurSvrConfig.IsFrontend {
-		if fs, ok := net.fsessionMap[session.rawSessionId]; ok && (fs != nil)  {
+		if fs, ok := net.fsessionMap[session.rawSessionId]; ok && (fs != nil) {
 			fs.socket.Close()
 			net.fsmLock.Lock()
 			delete(net.fsessionMap, session.rawSessionId)
 			net.fsmLock.Unlock()
 		}
 	} else {
-		if bs, ok := net.bsessionMap[session.rawSessionId]; ok && (bs != nil)  {
+		if bs, ok := net.bsessionMap[session.rawSessionId]; ok && (bs != nil) {
 			bs.socket.Close()
 			net.bsmLock.Lock()
 			delete(net.bsessionMap, session.rawSessionId)
