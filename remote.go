@@ -41,12 +41,12 @@ func (this *remoteService) handle(conn net.Conn) {
 	rpc.ServeConn(conn)
 }
 
-func (this *remoteService) Request(route string) {
+func (this *remoteService) request(route string, session *Session, data []byte) {
 	routeArgs := strings.Split(route, ".")
 	if len(routeArgs) != 3 {
 		Error(fmt.Sprintf("wrong route: `%s`", route))
 	}
-	client, err := this.getClientByType(routeArgs[0])
+	client, err := this.getClientByType(routeArgs[0], session)
 	if err != nil {
 		Info(err.Error())
 		return
@@ -60,7 +60,7 @@ func (this *remoteService) Request(route string) {
 	}
 }
 
-func (this *remoteService) CloseClient(svrId string) {
+func (this *remoteService) closeClient(svrId string) {
 	if client, ok := this.ClientIdMaps[svrId]; ok {
 		delete(this.ClientIdMaps, svrId)
 		client.Close()
@@ -76,22 +76,22 @@ func (this *remoteService) close() {
 	// close rpc clients
 	Info("close all of socket connections")
 	for svrId, _ := range this.ClientIdMaps {
-		this.CloseClient(svrId)
+		this.closeClient(svrId)
 	}
 }
 
 // TODO: add another argment session, to select a exact server when the
 // server type has more than one server
 // all established `rpc.Client` will be disconnected in `App.Stop()`
-func (this *remoteService) getClientByType(svrType string) (*rpc.Client, error) {
-	if svrType == App.CurSvrConfig.Type {
+func (this *remoteService) getClientByType(svrType string, session *Session) (*rpc.Client, error) {
+	if svrType == App.Config.Type {
 		return nil, errors.New(fmt.Sprintf("current server has the same type(Type: %s)", svrType))
 	}
 	svrIds := SvrTypeMaps[svrType]
 	if nums := len(svrIds); nums > 0 {
 		if fn := Route[svrType]; fn != nil {
 			// try to get user-define route function
-			return this.getClientById(fn())
+			return this.getClientById(fn(session))
 		} else {
 			// if can not abtain user-define route function,
 			// select a random server establish rpc connection
@@ -114,7 +114,7 @@ func (this *remoteService) getClientById(svrId string) (*rpc.Client, error) {
 		return client, nil
 	}
 	if svr, ok := SvrIdMaps[svrId]; ok && svr != nil {
-		if svr.Id == App.CurSvrConfig.Id {
+		if svr.Id == App.Config.Id {
 			return nil, errors.New(svr.Id + " is current server")
 		}
 		if svr.IsFrontend {

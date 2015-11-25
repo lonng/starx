@@ -17,7 +17,7 @@ func newRouteInfo(server, service, method string) *routeInfo {
 }
 
 func (r *routeInfo) String() string {
-	return fmt.Sprintf("server: %s, service: %s, method: %s", r.server, r.service, r.method)
+	return fmt.Sprintf("%s.%s.%s", r.server, r.service, r.method)
 }
 
 func decodeRouteInfo(route string) (*routeInfo, error) {

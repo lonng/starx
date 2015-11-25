@@ -15,13 +15,13 @@ func (this *Manager) Setup() {
 }
 
 func (this *Manager) RemoveServer(svrId *string, replay *int) error {
-	App.RemoveChan <- *svrId
+	App.removeChan <- *svrId
 	return nil
 }
 
 func (this *Manager) AddServer(svr *ServerConfig, replay *int) error {
-	Info(App.CurSvrConfig.String())
-	App.RegisterChan <- svr
+	Info(App.Config.String())
+	App.registChan <- svr
 	return nil
 }
 
