@@ -36,7 +36,7 @@ func (app *_app) Start() {
 	close(endRunning)
 
 	// close all of components
-	Rpc.Close()
+	remote.close()
 }
 
 // Enable current server backend listener
@@ -76,5 +76,5 @@ func (app *_app) listenChan() {
 }
 
 func (app *_app) loadDefaultComps() {
-	Rpc.Register(new(Manager))
+	remote.register(new(Manager))
 }

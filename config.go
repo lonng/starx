@@ -28,9 +28,8 @@ var (
 	SvrTypeMaps       map[string][]string                        // all servers type maps
 	SvrIdMaps         map[string]*ServerConfig                   // all servers id maps
 	Settings          map[string][]func()                        // all settiings
-	Rpc               *RpcService                                // rpc proxy
+	remote               *remoteService                                // rpc proxy
 	handler           *handlerService                            // hander
-	remote            *remoteService                             // remote service
 	Net               *netService                                // net service
 	TimerManager      Timer                                      // timer component
 	Route             map[string]func() string                   // server route function
@@ -142,7 +141,7 @@ func removeServer(svrId string) {
 		}
 		// remove from ServerIdMaps
 		delete(SvrIdMaps, svrId)
-		Rpc.CloseClient(svrId)
+		remote.CloseClient(svrId)
 	} else {
 		Info(fmt.Sprintf("serverId: %s not found", svrId))
 	}
@@ -154,9 +153,8 @@ func init() {
 	SvrIdMaps = make(map[string]*ServerConfig)
 	Settings = make(map[string][]func())
 	Log = log.New(os.Stdout, "", log.LstdFlags)
-	Rpc = newRpc()
-	handler = newHandler()
 	remote = newRemote()
+	handler = newHandler()
 	Net = newNetService()
 	Route = make(map[string]func() string)
 	TimerManager = NewTimer()

@@ -1,173 +1,140 @@
 package starx
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
+	"math/rand"
 	"net"
-	"reflect"
+	"starx/rpc"
+	"strings"
+)
+
+type RpcStatus int32
+
+const (
+	RPC_STATUS_UNINIT RpcStatus = iota
+	RPC_STATUS_INITED
 )
 
 type remoteService struct {
-	serviceMap   map[string]*service
-	routeMap     map[string]uint
-	routeCodeMap map[uint]string
+	Name         string
+	ClientIdMaps map[string]*rpc.Client
+	Route        map[string]func(string) uint32
+	Status       RpcStatus
 }
 
 func newRemote() *remoteService {
-	return &remoteService{serviceMap: make(map[string]*service)}
+	return &remoteService{
+		Name:         "RpcComponent",
+		ClientIdMaps: make(map[string]*rpc.Client),
+		Route:        make(map[string]func(string) uint32),
+		Status:       RPC_STATUS_UNINIT}
 }
 
-func (remote *remoteService) handle(conn net.Conn) {
+func (this *remoteService) register(comp RpcComponent) {
+	comp.Setup()
+	rpc.Register(comp)
+}
+
+func (this *remoteService) handle(conn net.Conn) {
 	defer conn.Close()
-	// message buffer
-	packetChan := make(chan *unhandledBackendPacket, packetBufferSize)
-	// all user logic will be handled in single goroutine
-	// synchronized in below routine
-	go func() {
-		for cpkg := range packetChan {
-			remote.processPacket(cpkg.bs, cpkg.packet)
-		}
-	}()
-	// register new session when new connection connected in
-	bs := Net.createBackendSession(conn)
-	Net.dumpBackendSessions()
-	tmp := make([]byte, 512) // save truncated data
-	buf := make([]byte, 512)
-	for {
-		n, err := conn.Read(buf)
-		if err != nil {
-			Info("session closed(" + err.Error() + ")")
-			bs.status = SS_CLOSED
-			Net.closeSession(bs.userSession)
-			Net.dumpBackendSessions()
-			break
-		}
-		tmp = append(tmp, buf[:n]...)
-		var pkg *Packet // save decoded packet
-		// TODO
-		// Refactor this loop
-		for len(tmp) > headLength {
-			if pkg, tmp = unpack(tmp); pkg != nil {
-				packetChan <- &unhandledBackendPacket{bs, pkg}
-			} else {
-				break
-			}
-		}
-	}
+	rpc.ServeConn(conn)
 }
 
-func (remote *remoteService) processPacket(bs *backendSession, pkg *Packet) {
-	switch pkg.Type {
-	case PACKET_HANDSHAKE:
-		{
-			bs.status = SS_HANDSHAKING
-			data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
-			if err != nil {
-				Info(err.Error())
-			}
-			bs.send(pack(PACKET_HANDSHAKE, data))
-		}
-	case PACKET_HANDSHAKE_ACK:
-		{
-			bs.status = SS_WORKING
-		}
-	case PACKET_HEARTBEAT:
-		{
-			go bs.heartbeat()
-		}
-	case PACKET_DATA:
-		{
-			go bs.heartbeat()
-			msg := decodeMessage(pkg.Body)
-			if msg != nil {
-				remote.processMessage(bs.userSession, msg)
-			}
-		}
+func (this *remoteService) Request(route string) {
+	routeArgs := strings.Split(route, ".")
+	if len(routeArgs) != 3 {
+		Error(fmt.Sprintf("wrong route: `%s`", route))
 	}
-}
-
-func (remote *remoteService) processMessage(session *Session, msg *Message) {
-	ri, err := decodeRouteInfo(msg.Route)
+	client, err := this.getClientByType(routeArgs[0])
 	if err != nil {
+		Info(err.Error())
 		return
 	}
-	if msg.Type == MT_REQUEST {
-		session.reqId = msg.ID
-	} else if msg.Type == MT_NOTIFY {
-		session.reqId = 0
+	req := "hello"
+	var rep int
+	e := client.Call(routeArgs[1]+"."+routeArgs[2], &req, &rep)
+	Info(fmt.Sprint("reply value: %d", rep))
+	if e != nil {
+		Info(e.Error())
+	}
+}
+
+func (this *remoteService) CloseClient(svrId string) {
+	if client, ok := this.ClientIdMaps[svrId]; ok {
+		delete(this.ClientIdMaps, svrId)
+		client.Close()
 	} else {
-		Info("invalid message type")
-		return
+		Info(fmt.Sprintf("%s not found in rpc client list", svrId))
 	}
-	if s, present := handler.serviceMap[ri.service]; present {
-		if m, ok := s.method[ri.method]; ok {
-			m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(msg.Body)})
+
+	Info(fmt.Sprintf("%s rpc client has been removed.", svrId))
+	this.dumpClientIdMaps()
+}
+
+func (this *remoteService) close() {
+	// close rpc clients
+	Info("close all of socket connections")
+	for svrId, _ := range this.ClientIdMaps {
+		this.CloseClient(svrId)
+	}
+}
+
+// TODO: add another argment session, to select a exact server when the
+// server type has more than one server
+// all established `rpc.Client` will be disconnected in `App.Stop()`
+func (this *remoteService) getClientByType(svrType string) (*rpc.Client, error) {
+	if svrType == App.CurSvrConfig.Type {
+		return nil, errors.New(fmt.Sprintf("current server has the same type(Type: %s)", svrType))
+	}
+	svrIds := SvrTypeMaps[svrType]
+	if nums := len(svrIds); nums > 0 {
+		if fn := Route[svrType]; fn != nil {
+			// try to get user-define route function
+			return this.getClientById(fn())
 		} else {
-			Info("method: " + ri.method + " not found")
+			// if can not abtain user-define route function,
+			// select a random server establish rpc connection
+			random := rand.Intn(nums)
+			return this.getClientById(svrIds[random])
 		}
-	} else {
-		Info("service: " + ri.service + " not found")
 	}
+	return nil, errors.New("not found rpc client")
 }
 
-// Register publishes in the service the set of methods of the
-// receiver value that satisfy the following conditions:
-//	- exported method of exported type
-//	- two arguments, both of exported type
-//	- the first argument is *starx.Session
-//	- the second argument is []byte
-func (remote *remoteService) register(rcvr HandlerComponent) {
-	rcvr.Setup()
-	remote._register(rcvr)
+// Get rpc client by server id(`connector-server-1`), return correspond rpc
+// client if remote server connection has established already, or try to
+// connect remote server when remote server network connectoin has not made
+// by now, and return a nil value when server id not found or target machine
+// refuse it.
+func (this *remoteService) getClientById(svrId string) (*rpc.Client, error) {
+	client := this.ClientIdMaps[svrId]
+	if client != nil {
+		Info("already exists")
+		return client, nil
+	}
+	if svr, ok := SvrIdMaps[svrId]; ok && svr != nil {
+		if svr.Id == App.CurSvrConfig.Id {
+			return nil, errors.New(svr.Id + " is current server")
+		}
+		if svr.IsFrontend {
+			return nil, errors.New(svr.Id + " is frontend server, can handle rpc request")
+		}
+		client, err := rpc.Dial("tcp4", fmt.Sprintf("%s:%d", svr.Host, svr.Port))
+		if err != nil {
+			return nil, err
+		}
+		this.ClientIdMaps[svr.Id] = client
+		Info(fmt.Sprintf("%s establish rpc client successful.", svr.Id))
+		this.dumpClientIdMaps()
+		return client, nil
+	}
+	return nil, errors.New(fmt.Sprintf("server id does not exists(Id: %s)", svrId))
 }
 
-func (remote *remoteService) _register(rcvr HandlerComponent) {
-	if remote.serviceMap == nil {
-		remote.serviceMap = make(map[string]*service)
-	}
-	s := new(service)
-	s.typ = reflect.TypeOf(rcvr)
-	s.rcvr = reflect.ValueOf(rcvr)
-	sname := reflect.Indirect(s.rcvr).Type().Name()
-	if sname == "" {
-		s := "remote.Register: no service name for type " + s.typ.String()
-		Info(s)
-		return
-	}
-	if !isExported(sname) {
-		s := "remote.Register: type " + sname + " is not exported"
-		Info(s)
-		return
-	}
-	if _, present := remote.serviceMap[sname]; present {
-		Info("remote: service already defined: " + sname)
-		return
-	}
-	s.name = sname
-
-	// Install the methods
-	s.method = suitableMethods(s.typ, true)
-
-	if len(s.method) == 0 {
-		str := ""
-
-		// To help the user, see if a pointer receiver would work.
-		method := suitableMethods(reflect.PtrTo(s.typ), false)
-		if len(method) != 0 {
-			str = "remote.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
-		} else {
-			str = "remote.Register: type " + sname + " has no exported methods of suitable type"
-		}
-		Info(str)
-	}
-	remote.serviceMap[s.name] = s
-	remote.dumpServiceMap()
-}
-
-func (remote *remoteService) dumpServiceMap() {
-	for sname, s := range remote.serviceMap {
-		for mname, _ := range s.method {
-			Info(fmt.Sprintf("registered service: %s.%s", sname, mname))
-		}
+// Dump all clients that has established netword connection with remote server
+func (this *remoteService) dumpClientIdMaps() {
+	for id, _ := range this.ClientIdMaps {
+		Info(fmt.Sprintf("[%s] is contained in rpc client list", id))
 	}
 }
