@@ -146,6 +146,41 @@ func (session *Session) heartbeat() {
 	session.lastTime = time.Now().Unix()
 }
 
+func (session *Session) Request(route string, data []byte) {
+	ri, err := decodeRouteInfo(string)
+	if err != nil {
+		Error(err.Error())
+		return
+	}
+	if App.Config.Type == ri.server {
+		msg := NewMessage()
+		msg.Type = MT_REQUEST
+		handler.localProcess(session, ri, msg.encoding())
+	} else {
+		remote.request(route, session, data)
+	}
+}
+
+func (session *Session) Notify(route string, data []byte) {
+	ri, err := decodeRouteInfo(route)
+	if err != nil {
+		Error(err.Error())
+		return
+	}
+	if App.Config.Type == ri.server {
+		msg := NewMessage()
+		msg.Type = MT_NOTIFY
+		handler.localProcess(session, ri, msg.encoding())
+	} else {
+		remote.notify(route, session, data)
+	}
+}
+
+func (session *Session) Sync(string) {
+	//TODO
+	//synchronize session setting field to frontend server
+}
+
 type SessionService struct {
 	sum             sync.RWMutex     // protect SessionUidMaps
 	SessionUidMaps  map[int]*Session // uid map sesseion

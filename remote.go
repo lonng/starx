@@ -72,12 +72,16 @@ func (this *remoteService) closeClient(svrId string) {
 	this.dumpClientIdMaps()
 }
 
-func (this *remoteService) close() {
+func (rs *remoteService) close() {
 	// close rpc clients
 	Info("close all of socket connections")
-	for svrId, _ := range this.ClientIdMaps {
-		this.closeClient(svrId)
+	for svrId, _ := range rs.ClientIdMaps {
+		rs.closeClient(svrId)
 	}
+}
+
+func (rs *remoteService) notify(route string, session *Session, data []byte) {
+
 }
 
 // TODO: add another argment session, to select a exact server when the
