@@ -46,6 +46,8 @@ func (msg *Message) encoding() []byte {
 	return encodeMessage(msg)
 }
 
+// MESSAGE PROTOCOL
+// refs: https://github.com/NetEase/pomelo/wiki/Communication-Protocol
 func encodeMessage(m *Message) []byte {
 	temp := make([]byte, 0)
 	flag := byte(m.Type) << 1
