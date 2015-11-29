@@ -14,17 +14,6 @@ func (this *Manager) Setup() {
 	Info("manager component initialized")
 }
 
-func (this *Manager) RemoveServer(svrId *string, replay *int) error {
-	App.removeChan <- *svrId
-	return nil
-}
-
-func (this *Manager) AddServer(svr *ServerConfig, replay *int) error {
-	Info(App.Config.String())
-	App.registChan <- svr
-	return nil
-}
-
 func (this *Manager) Test(g string, replay *int) error {
 	this.Counter++
 	Info(fmt.Sprintf("%s, %d", g, this.Counter))
