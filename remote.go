@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"net"
 	"starx/rpc"
-	"strings"
 )
 
 type RpcStatus int32
@@ -41,19 +40,15 @@ func (this *remoteService) handle(conn net.Conn) {
 	rpc.ServeConn(conn)
 }
 
-func (this *remoteService) request(route string, session *Session, data []byte) {
-	routeArgs := strings.Split(route, ".")
-	if len(routeArgs) != 3 {
-		Error(fmt.Sprintf("wrong route: `%s`", route))
-	}
-	client, err := this.getClientByType(routeArgs[0], session)
+func (this *remoteService) request(route *routeInfo, session *Session, data []byte) {
+	client, err := this.getClientByType(route.server, session)
 	if err != nil {
 		Info(err.Error())
 		return
 	}
 	req := "hello"
 	var rep int
-	e := client.Call(routeArgs[1]+"."+routeArgs[2], &req, &rep)
+	e := client.Call(route.service+"."+route.method, &req, &rep)
 	Info(fmt.Sprint("reply value: %d", rep))
 	if e != nil {
 		Info(e.Error())
@@ -72,12 +67,16 @@ func (this *remoteService) closeClient(svrId string) {
 	this.dumpClientIdMaps()
 }
 
-func (this *remoteService) close() {
+func (rs *remoteService) close() {
 	// close rpc clients
 	Info("close all of socket connections")
-	for svrId, _ := range this.ClientIdMaps {
-		this.closeClient(svrId)
+	for svrId, _ := range rs.ClientIdMaps {
+		rs.closeClient(svrId)
 	}
+}
+
+func (rs *remoteService) notify(route *routeInfo, session *Session, data []byte) {
+
 }
 
 // TODO: add another argment session, to select a exact server when the

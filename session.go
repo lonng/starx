@@ -21,6 +21,8 @@ const (
 // for frontend session in frontend server or backend session in backend
 // server, correspond frontend session or backend session id as a field
 // will be store in type instance
+//
+// This is user sessions, not contain raw sockets information
 type Session struct {
 	Id           int           // session global uniqe id
 	Uid          int           // binding user id
@@ -43,12 +45,13 @@ type frontendSession struct {
 // Session for backend server, used for store raw socket information
 // only used in package internal, can not accessible by other package
 type backendSession struct {
-	id          uint64
-	socket      net.Conn
-	status      SessionStatus
-	sessionMap  map[uint64]*Session
-	userSession *Session
-	lastTime    int64 // last heartbeat unix time stamp
+	id                uint64
+	socket            net.Conn
+	status            SessionStatus
+	sessionMap        map[uint64]*Session
+	userSession       *Session
+	lastTime          int64 // last heartbeat unix time stamp
+	frontendSessionId uint64
 }
 
 // Create new session instance
@@ -144,6 +147,41 @@ func (session *Session) String() string {
 
 func (session *Session) heartbeat() {
 	session.lastTime = time.Now().Unix()
+}
+
+func (session *Session) Request(route string, data []byte) {
+	ri, err := decodeRouteInfo(route)
+	if err != nil {
+		Error(err.Error())
+		return
+	}
+	if App.Config.Type == ri.server {
+		msg := NewMessage()
+		msg.Type = MT_REQUEST
+		handler.localProcess(session, ri, msg)
+	} else {
+		remote.request(ri, session, data)
+	}
+}
+
+func (session *Session) Notify(route string, data []byte) {
+	ri, err := decodeRouteInfo(route)
+	if err != nil {
+		Error(err.Error())
+		return
+	}
+	if App.Config.Type == ri.server {
+		msg := NewMessage()
+		msg.Type = MT_NOTIFY
+		handler.localProcess(session, ri, msg)
+	} else {
+		remote.notify(ri, session, data)
+	}
+}
+
+func (session *Session) Sync(string) {
+	//TODO
+	//synchronize session setting field to frontend server
 }
 
 type SessionService struct {
