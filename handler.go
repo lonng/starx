@@ -149,7 +149,16 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 
 // TODO: implemention
 func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, msg *Message) {
-	remote.request(ri.String(), session, msg.encoding())
+	if msg.Type == MT_REQUEST {
+		session.reqId = msg.ID
+		remote.request(ri, session, msg.encoding())
+	} else if msg.Type == MT_NOTIFY {
+		session.reqId = 0
+		remote.notify(ri, session, msg.encoding())
+	} else {
+		Info("invalid message type")
+		return
+	}
 }
 
 // Register publishes in the service the set of methods of the
