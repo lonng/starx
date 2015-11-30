@@ -119,7 +119,7 @@ func (handler *handlerService) processMessage(session *Session, msg *Message) {
 	if err != nil {
 		return
 	}
-	if ri.server == App.CurSvrConfig.Type {
+	if ri.server == App.Config.Type {
 		handler.localProcess(session, ri, msg)
 	} else {
 		handler.remoteProcess(session, ri, msg)
@@ -149,6 +149,16 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 
 // TODO: implemention
 func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, msg *Message) {
+	if msg.Type == MT_REQUEST {
+		session.reqId = msg.ID
+		remote.request(ri, session, msg.encoding())
+	} else if msg.Type == MT_NOTIFY {
+		session.reqId = 0
+		remote.notify(ri, session, msg.encoding())
+	} else {
+		Info("invalid message type")
+		return
+	}
 }
 
 // Register publishes in the service the set of methods of the

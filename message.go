@@ -32,14 +32,18 @@ func NewMessage() *Message {
 	return &Message{}
 }
 
-func (this *Message) String() string {
+func (msg *Message) String() string {
 	return fmt.Sprintf("[MESSAGE]Type: %d, ID: %d, Route: %s, IsCompress: %t, RouteCode: %d, Body: %s",
-		this.Type,
-		this.ID,
-		this.Route,
-		this.isCompress,
-		this.RouteCode,
-		this.Body)
+		msg.Type,
+		msg.ID,
+		msg.Route,
+		msg.isCompress,
+		msg.RouteCode,
+		msg.Body)
+}
+
+func (msg *Message) encoding() []byte {
+	return encodeMessage(msg)
 }
 
 // MESSAGE PROTOCOL
