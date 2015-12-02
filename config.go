@@ -27,7 +27,7 @@ var (
 	SvrTypeMaps       map[string][]string                                // all servers type maps
 	SvrIdMaps         map[string]*ServerConfig                           // all servers id maps
 	Settings          map[string][]func()                                // all settiings
-	remote            *remoteService                                     // rpc proxy
+	remote            *remoteService                                     // remote service
 	handler           *handlerService                                    // hander
 	Net               *netService                                        // net service
 	TimerManager      Timer                                              // timer component

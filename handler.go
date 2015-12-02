@@ -48,7 +48,7 @@ func newHandler() *handlerService {
 func (handler *handlerService) handle(conn net.Conn) {
 	defer conn.Close()
 	// message buffer
-	packetChan := make(chan *unhandledFrontendPacket, packetBufferSize)
+	packetChan := make(chan *unhandledPacket, packetBufferSize)
 	// all user logic will be handled in single goroutine
 	// synchronized in below routine
 	go func() {
@@ -76,7 +76,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 		// Refactor this loop
 		for len(tmp) > headLength {
 			if pkg, tmp = unpack(tmp); pkg != nil {
-				packetChan <- &unhandledFrontendPacket{fs, pkg}
+				packetChan <- &unhandledPacket{fs, pkg}
 			} else {
 				break
 			}

@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"starx/rpc"
+	"encoding/json"
 )
 
 type RpcStatus int32
@@ -15,11 +16,30 @@ const (
 	RPC_STATUS_INITED
 )
 
+const (
+	remoteRequestHeadLength = 2
+	remoteResponseHeadLength = 2
+)
+
 type remoteService struct {
 	Name         string
 	ClientIdMaps map[string]*rpc.Client
 	Route        map[string]func(string) uint32
 	Status       RpcStatus
+}
+
+type remoteRequest struct {
+	namespace string
+	seq uint64
+}
+
+type remoteResponse struct {
+	seq uint64
+}
+
+type unhandledRemoteRequest struct {
+	bs *backendSession
+	rr *remoteRequest
 }
 
 func newRemote() *remoteService {
@@ -30,14 +50,68 @@ func newRemote() *remoteService {
 		Status:       RPC_STATUS_UNINIT}
 }
 
-func (this *remoteService) register(comp RpcComponent) {
+func (rs *remoteService) register(comp RpcComponent) {
 	comp.Setup()
 	rpc.Register(comp)
 }
 
-func (this *remoteService) handle(conn net.Conn) {
+func (rs *remoteService) handle(conn net.Conn) {
 	defer conn.Close()
-	rpc.ServeConn(conn)
+	requestChan := make(chan *unhandledRemoteRequest, packetBufferSize)
+	go func(){
+		for urr := range requestChan {
+			rs.processPacket(urr.bs, urr.rr)
+		}
+	}()
+
+	bs := Net.createBackendSession(conn)
+	Net.dumpBackendSessions()
+	tmp := make([]byte, 512) // save truncated data
+	buf := make([]byte, 512)
+	for {
+		n, err := conn.Read(buf)
+		if err != nil {
+			Info("session closed(" + err.Error() + ")")
+			bs.status = SS_CLOSED
+			Net.closeSession(bs.userSession)
+			Net.dumpFrontendSessions()
+			break
+		}
+		tmp = append(tmp, buf[:n]...)
+		var rr *remoteRequest // save decoded packet
+		// TODO
+		// Refactor this loop
+		for len(tmp) > headLength {
+			if rr, tmp = readRemoteRequest(tmp); rr != nil {
+				requestChan <- &unhandledRemoteRequest{bs, rr}
+			} else {
+				break
+			}
+		}
+	}
+	//rpc.ServeConn(conn)
+}
+
+func readRemoteRequest(data []byte) (*remoteRequest, []byte){
+	if len(data) < remoteRequestHeadLength {
+		return nil, data
+	}
+	length := bytesToInt(data[:remoteRequestHeadLength])
+	if len(data) < remoteRequestHeadLength + length {
+		return nil, data
+	}else {
+		rr := new(remoteRequest)
+		err := json.Unmarshal(data[remoteRequestHeadLength:(remoteRequestHeadLength + length)], rr)
+		if err != nil {
+			Error(err.Error())
+			return nil, data[(remoteRequestHeadLength + length):]
+		}
+		return rr, data[(remoteRequestHeadLength + length):]
+	}
+}
+
+func (rs *remoteService) processPacket(bs *backendSession, rr *remoteRequest){
+
 }
 
 func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args ... interface{}) {
