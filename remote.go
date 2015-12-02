@@ -28,18 +28,9 @@ type remoteService struct {
 	Status       RpcStatus
 }
 
-type remoteRequest struct {
-	namespace string
-	seq       uint64
-}
-
-type remoteResponse struct {
-	seq uint64
-}
-
-type unhandledRemoteRequest struct {
+type unhandledRequest struct {
 	bs *backendSession
-	rr *remoteRequest
+	rr *rpc.Request
 }
 
 func newRemote() *remoteService {
@@ -57,10 +48,13 @@ func (rs *remoteService) register(comp RpcComponent) {
 
 func (rs *remoteService) handle(conn net.Conn) {
 	defer conn.Close()
-	requestChan := make(chan *unhandledRemoteRequest, packetBufferSize)
+	// message buffer
+	requestChan := make(chan *unhandledRequest, packetBufferSize)
+	// all user logic will be handled in single goroutine
+	// synchronized in below routine
 	go func() {
-		for urr := range requestChan {
-			rs.processPacket(urr.bs, urr.rr)
+		for r := range requestChan {
+			rs.processRequest(r.bs, r.rr)
 		}
 	}()
 
@@ -78,12 +72,12 @@ func (rs *remoteService) handle(conn net.Conn) {
 			break
 		}
 		tmp = append(tmp, buf[:n]...)
-		var rr *remoteRequest // save decoded packet
+		var rr *rpc.Request // save decoded packet
 		// TODO
 		// Refactor this loop
 		for len(tmp) > headLength {
-			if rr, tmp = readRemoteRequest(tmp); rr != nil {
-				requestChan <- &unhandledRemoteRequest{bs, rr}
+			if rr, tmp = decodeRemoteRequest(tmp); rr != nil {
+				requestChan <- &unhandledRequest{bs, rr}
 			} else {
 				break
 			}
@@ -92,7 +86,11 @@ func (rs *remoteService) handle(conn net.Conn) {
 	//rpc.ServeConn(conn)
 }
 
-func readRemoteRequest(data []byte) (*remoteRequest, []byte) {
+func encodeRemoteRequst(rr *rpc.Request) ([]byte, error) {
+	return json.Marshal(rr)
+}
+
+func decodeRemoteRequest(data []byte) (*rpc.Request, []byte) {
 	if len(data) < remoteRequestHeadLength {
 		return nil, data
 	}
@@ -100,7 +98,7 @@ func readRemoteRequest(data []byte) (*remoteRequest, []byte) {
 	if len(data) < remoteRequestHeadLength+length {
 		return nil, data
 	} else {
-		rr := new(remoteRequest)
+		rr := new(rpc.Request)
 		err := json.Unmarshal(data[remoteRequestHeadLength:(remoteRequestHeadLength+length)], rr)
 		if err != nil {
 			Error(err.Error())
@@ -110,7 +108,7 @@ func readRemoteRequest(data []byte) (*remoteRequest, []byte) {
 	}
 }
 
-func (rs *remoteService) processPacket(bs *backendSession, rr *remoteRequest) {
+func (rs *remoteService) processRequest(bs *backendSession, rr *rpc.Request) {
 
 }
 
