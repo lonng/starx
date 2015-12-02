@@ -1,12 +1,12 @@
 package starx
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
 	"net"
 	"starx/rpc"
-	"encoding/json"
 )
 
 type RpcStatus int32
@@ -17,7 +17,7 @@ const (
 )
 
 const (
-	remoteRequestHeadLength = 2
+	remoteRequestHeadLength  = 2
 	remoteResponseHeadLength = 2
 )
 
@@ -30,7 +30,7 @@ type remoteService struct {
 
 type remoteRequest struct {
 	namespace string
-	seq uint64
+	seq       uint64
 }
 
 type remoteResponse struct {
@@ -58,7 +58,7 @@ func (rs *remoteService) register(comp RpcComponent) {
 func (rs *remoteService) handle(conn net.Conn) {
 	defer conn.Close()
 	requestChan := make(chan *unhandledRemoteRequest, packetBufferSize)
-	go func(){
+	go func() {
 		for urr := range requestChan {
 			rs.processPacket(urr.bs, urr.rr)
 		}
@@ -92,16 +92,16 @@ func (rs *remoteService) handle(conn net.Conn) {
 	//rpc.ServeConn(conn)
 }
 
-func readRemoteRequest(data []byte) (*remoteRequest, []byte){
+func readRemoteRequest(data []byte) (*remoteRequest, []byte) {
 	if len(data) < remoteRequestHeadLength {
 		return nil, data
 	}
 	length := bytesToInt(data[:remoteRequestHeadLength])
-	if len(data) < remoteRequestHeadLength + length {
+	if len(data) < remoteRequestHeadLength+length {
 		return nil, data
-	}else {
+	} else {
 		rr := new(remoteRequest)
-		err := json.Unmarshal(data[remoteRequestHeadLength:(remoteRequestHeadLength + length)], rr)
+		err := json.Unmarshal(data[remoteRequestHeadLength:(remoteRequestHeadLength+length)], rr)
 		if err != nil {
 			Error(err.Error())
 			return nil, data[(remoteRequestHeadLength + length):]
@@ -110,11 +110,11 @@ func readRemoteRequest(data []byte) (*remoteRequest, []byte){
 	}
 }
 
-func (rs *remoteService) processPacket(bs *backendSession, rr *remoteRequest){
+func (rs *remoteService) processPacket(bs *backendSession, rr *remoteRequest) {
 
 }
 
-func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args ... interface{}) {
+func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args ...interface{}) {
 
 }
 
