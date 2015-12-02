@@ -60,7 +60,7 @@ func (net *netService) createBackendSession(conn net.Conn) *backendSession {
 // Send packet data
 // call by package internal, the second argument was packaged packet
 func (net *netService) send(session *Session, data []byte) {
-	if App.CurSvrConfig.IsFrontend {
+	if App.Config.IsFrontend {
 		if fs, ok := net.fsessionMap[session.rawSessionId]; ok && (fs != nil) {
 			go fs.send(data)
 		}
@@ -89,7 +89,7 @@ func (net *netService) Response(session *Session, data []byte) {
 // Message level method
 // call by all package, the last argument was packaged message
 func (net *netService) Broadcast(route string, data []byte) {
-	if App.CurSvrConfig.IsFrontend {
+	if App.Config.IsFrontend {
 		for _, s := range net.fsessionMap {
 			net.Push(s.userSession, route, data)
 		}
@@ -107,15 +107,15 @@ func (net *netService) Multcast(uids []int, route string, data []byte) {
 
 // Close session
 func (net *netService) closeSession(session *Session) {
-	if App.CurSvrConfig.IsFrontend {
-		if fs, ok := net.fsessionMap[session.rawSessionId]; ok && (fs != nil)  {
+	if App.Config.IsFrontend {
+		if fs, ok := net.fsessionMap[session.rawSessionId]; ok && (fs != nil) {
 			fs.socket.Close()
 			net.fsmLock.Lock()
 			delete(net.fsessionMap, session.rawSessionId)
 			net.fsmLock.Unlock()
 		}
 	} else {
-		if bs, ok := net.bsessionMap[session.rawSessionId]; ok && (bs != nil)  {
+		if bs, ok := net.bsessionMap[session.rawSessionId]; ok && (bs != nil) {
 			bs.socket.Close()
 			net.bsmLock.Lock()
 			delete(net.bsessionMap, session.rawSessionId)
@@ -126,7 +126,7 @@ func (net *netService) closeSession(session *Session) {
 
 // Send heartbeat packet
 func (net *netService) heartbeat() {
-	if App.CurSvrConfig.IsFrontend {
+	if App.Config.IsFrontend {
 		for _, session := range net.fsessionMap {
 			if session.status == SS_WORKING {
 				session.send(pack(PACKET_HEARTBEAT, nil))

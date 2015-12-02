@@ -6,12 +6,12 @@ import (
 )
 
 func Start() {
-	ParseConfig()
+	parseConfig()
 	loadSettings()
-	App.Start()
+	App.start()
 }
 
-func Router(svrType string, fn func() string) {
+func Router(svrType string, fn func(*Session) string) {
 	if t := strings.TrimSpace(svrType); t != "" {
 		Route[svrType] = fn
 	}
@@ -35,8 +35,8 @@ func Set(svrTypes string, fn func()) {
 }
 
 func loadSettings() {
-	Info(fmt.Sprintf("loading %s settings", App.CurSvrConfig.Type))
-	if setting, ok := Settings[App.CurSvrConfig.Type]; ok && len(setting) > 0 {
+	Info(fmt.Sprintf("loading %s settings", App.Config.Type))
+	if setting, ok := Settings[App.Config.Type]; ok && len(setting) > 0 {
 		for _, fn := range setting {
 			fn()
 		}
@@ -44,9 +44,9 @@ func loadSettings() {
 }
 
 func Register(comp Component) {
-	if App.CurSvrConfig.IsFrontend {
+	if App.Config.IsFrontend {
 		handler.register(comp)
 	} else {
-		Rpc.Register(comp)
+		remote.register(comp)
 	}
 }

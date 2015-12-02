@@ -27,14 +27,24 @@ type Packet struct {
 }
 
 type unhandledFrontendPacket struct {
-	fs *frontendSession
-	packet  *Packet
+	fs     *frontendSession
+	packet *Packet
+}
+
+type unhandledBackendPacket struct {
+	bs     *backendSession
+	packet *Packet
 }
 
 func NewPacket() *Packet {
 	return &Packet{}
 }
 
+// PACKET PROTOCOL
+// - protocol type(1 byte)
+// - packet data length(3 byte big end)
+// - data segment
+// refs: https://github.com/NetEase/pomelo/wiki/Communication-Protocol
 func pack(t PacketType, data []byte) []byte {
 	var buf []byte
 	return append(append(append(buf, byte(t)), intToBytes(len(data))...), data...)
@@ -44,9 +54,9 @@ func (p *Packet) String() string {
 	return fmt.Sprintf("[PACKET]Type: %d, Length: %d, Data: %s", p.Type, p.Length, string(p.Body))
 }
 
-// Unpackage data to packet
+// Decode binary data to packet
 // If packet has not been received completely, return nil and incomplete data,
-//
+// concrete protocol ref pack function
 func unpack(data []byte) (*Packet, []byte) {
 	t := PacketType(data[0])
 	length := bytesToInt(data[1:headLength])
@@ -61,7 +71,7 @@ func unpack(data []byte) (*Packet, []byte) {
 	return p, data[(length + headLength):]
 }
 
-// bigend byte
+// big end byte
 func bytesToInt(b []byte) int {
 	result := 0
 	for _, v := range b {
@@ -70,7 +80,7 @@ func bytesToInt(b []byte) int {
 	return result
 }
 
-// bigend, return 3 byte
+// big end, return 3 byte
 func intToBytes(n int) []byte {
 	var buf []byte
 	buf = append(buf, byte((n>>16)&0xFF))

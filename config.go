@@ -23,21 +23,20 @@ var (
 	ServerConfigPath  string
 	MasterConfigPath  string
 	StartTime         time.Time
-	SvrConfigs        []*ServerConfig                            // all servers config
-	SvrTypes          []string                                   // all server type
-	SvrTypeMaps       map[string][]string                        // all servers type maps
-	SvrIdMaps         map[string]*ServerConfig                   // all servers id maps
-	Settings          map[string][]func()                        // all settiings
-	Rpc               *RpcService                                // rpc proxy
-	handler           *handlerService                            // hander
-	Net               *netService                                // net service
-	TimerManager      Timer                                      // timer component
-	Route             map[string]func() string                   // server route function
-	channelServive    *ChannelServive                            // channel service component
-	connectionService *ConnectionService                         // connection service component
-	protocolState     ProtocolState                              // current protocol state
-	heartbeatInternal time.Duration            = time.Second * 8 // beatheart time internal, second unit
-	heartbeatService  *HeartbeatService                          // beatheart service
+	SvrTypes          []string                                           // all server type
+	SvrTypeMaps       map[string][]string                                // all servers type maps
+	SvrIdMaps         map[string]*ServerConfig                           // all servers id maps
+	Settings          map[string][]func()                                // all settiings
+	remote            *remoteService                                     // rpc proxy
+	handler           *handlerService                                    // hander
+	Net               *netService                                        // net service
+	TimerManager      Timer                                              // timer component
+	Route             map[string]func(*Session) string                   // server route function
+	channelServive    *ChannelServive                                    // channel service component
+	connectionService *ConnectionService                                 // connection service component
+	protocolState     ProtocolState                                      // current protocol state
+	heartbeatInternal time.Duration                    = time.Second * 8 // beatheart time internal, second unit
+	heartbeatService  *HeartbeatService                                  // beatheart service
 )
 
 type ServerConfig struct {
@@ -57,12 +56,6 @@ func (this *ServerConfig) String() string {
 		this.Port,
 		this.IsFrontend,
 		this.IsMaster)
-}
-
-func dumpSvrConfigs() {
-	for _, v := range SvrConfigs {
-		Info(v.String())
-	}
 }
 
 func dumpSvrIdMaps() {
@@ -90,7 +83,6 @@ func registerServer(server ServerConfig) {
 		return
 	}
 	svr := &server
-	SvrConfigs = append(SvrConfigs, svr)
 	if len(SvrTypes) > 0 {
 		for k, t := range SvrTypes {
 			// duplicate
@@ -112,16 +104,6 @@ func registerServer(server ServerConfig) {
 func removeServer(svrId string) {
 
 	if _, ok := SvrIdMaps[svrId]; ok {
-		// remove from Servers array
-		var tempServers []*ServerConfig
-		for idx, svr := range SvrConfigs {
-			if svr.Id == svrId {
-				tempServers = append(tempServers, SvrConfigs[:idx]...)
-				tempServers = append(tempServers, SvrConfigs[(idx+1):]...)
-				break
-			}
-		}
-		SvrConfigs = tempServers
 		// remove from ServerIdMaps map
 		typ := SvrIdMaps[svrId].Type
 		if svrs, ok := SvrTypeMaps[typ]; ok && len(svrs) > 0 {
@@ -141,7 +123,7 @@ func removeServer(svrId string) {
 		}
 		// remove from ServerIdMaps
 		delete(SvrIdMaps, svrId)
-		Rpc.CloseClient(svrId)
+		remote.closeClient(svrId)
 	} else {
 		Info(fmt.Sprintf("serverId: %s not found", svrId))
 	}
@@ -152,11 +134,12 @@ func init() {
 	SvrTypeMaps = make(map[string][]string)
 	SvrIdMaps = make(map[string]*ServerConfig)
 	Settings = make(map[string][]func())
+	StartTime = time.Now()
 	Log = log.New(os.Stdout, "", log.LstdFlags)
-	Rpc = newRpc()
+	remote = newRemote()
 	handler = newHandler()
 	Net = newNetService()
-	Route = make(map[string]func() string)
+	Route = make(map[string]func(*Session) string)
 	TimerManager = NewTimer()
 	channelServive = NewChannelServive()
 	connectionService = NewConnectionService()
@@ -192,7 +175,7 @@ func init() {
 	}
 }
 
-func ParseConfig() {
+func parseConfig() {
 	// initialize master server config
 	if !utils.FileExists(MasterConfigPath) {
 		panic(fmt.Sprintf("%s not found", MasterConfigPath))
@@ -251,10 +234,10 @@ func ParseConfig() {
 	flag.StringVar(&serverId, "s", defaultServerId, "server id")
 	flag.Parse()
 	if serverId == defaultServerId { // master server
-		App.CurSvrConfig = App.Master
+		App.Config = App.Master
 	} else { // other server
-		App.CurSvrConfig = SvrIdMaps[serverId]
-		if App.CurSvrConfig == nil {
+		App.Config = SvrIdMaps[serverId]
+		if App.Config == nil {
 			panic(fmt.Sprintf("%s infomation not found in %s", serverId, ServerConfigPath))
 		}
 	}

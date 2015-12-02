@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"net"
 	"starx/rpc"
-	"strings"
 )
 
 type RpcStatus int32
@@ -16,51 +15,51 @@ const (
 	RPC_STATUS_INITED
 )
 
-type RpcService struct {
+type remoteService struct {
 	Name         string
 	ClientIdMaps map[string]*rpc.Client
 	Route        map[string]func(string) uint32
 	Status       RpcStatus
 }
 
-func newRpc() *RpcService {
-	return &RpcService{
+func newRemote() *remoteService {
+	return &remoteService{
 		Name:         "RpcComponent",
 		ClientIdMaps: make(map[string]*rpc.Client),
 		Route:        make(map[string]func(string) uint32),
 		Status:       RPC_STATUS_UNINIT}
 }
 
-func (this *RpcService) Register(comp RpcComponent) {
+func (this *remoteService) register(comp RpcComponent) {
 	comp.Setup()
 	rpc.Register(comp)
 }
 
-func (this *RpcService) Handle(conn net.Conn) {
+func (this *remoteService) handle(conn net.Conn) {
 	defer conn.Close()
 	rpc.ServeConn(conn)
 }
 
-func (this *RpcService) Request(route string) {
-	routeArgs := strings.Split(route, ".")
-	if len(routeArgs) != 3 {
-		Error(fmt.Sprintf("wrong route: `%s`", route))
-	}
-	client, err := this.getClientByType(routeArgs[0])
+func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args ... interface{}) {
+
+}
+
+func (this *remoteService) request(route *routeInfo, session *Session, args ...interface{}) {
+	client, err := this.getClientByType(route.server, session)
 	if err != nil {
 		Info(err.Error())
 		return
 	}
 	req := "hello"
 	var rep int
-	e := client.Call(routeArgs[1]+"."+routeArgs[2], &req, &rep)
+	e := client.Call(route.service+"."+route.method, &req, &rep)
 	Info(fmt.Sprint("reply value: %d", rep))
 	if e != nil {
 		Info(e.Error())
 	}
 }
 
-func (this *RpcService) CloseClient(svrId string) {
+func (this *remoteService) closeClient(svrId string) {
 	if client, ok := this.ClientIdMaps[svrId]; ok {
 		delete(this.ClientIdMaps, svrId)
 		client.Close()
@@ -72,26 +71,26 @@ func (this *RpcService) CloseClient(svrId string) {
 	this.dumpClientIdMaps()
 }
 
-func (this *RpcService) Close() {
+func (rs *remoteService) close() {
 	// close rpc clients
 	Info("close all of socket connections")
-	for svrId, _ := range this.ClientIdMaps {
-		this.CloseClient(svrId)
+	for svrId, _ := range rs.ClientIdMaps {
+		rs.closeClient(svrId)
 	}
 }
 
 // TODO: add another argment session, to select a exact server when the
 // server type has more than one server
 // all established `rpc.Client` will be disconnected in `App.Stop()`
-func (this *RpcService) getClientByType(svrType string) (*rpc.Client, error) {
-	if svrType == App.CurSvrConfig.Type {
+func (this *remoteService) getClientByType(svrType string, session *Session) (*rpc.Client, error) {
+	if svrType == App.Config.Type {
 		return nil, errors.New(fmt.Sprintf("current server has the same type(Type: %s)", svrType))
 	}
 	svrIds := SvrTypeMaps[svrType]
 	if nums := len(svrIds); nums > 0 {
 		if fn := Route[svrType]; fn != nil {
 			// try to get user-define route function
-			return this.getClientById(fn())
+			return this.getClientById(fn(session))
 		} else {
 			// if can not abtain user-define route function,
 			// select a random server establish rpc connection
@@ -107,14 +106,14 @@ func (this *RpcService) getClientByType(svrType string) (*rpc.Client, error) {
 // connect remote server when remote server network connectoin has not made
 // by now, and return a nil value when server id not found or target machine
 // refuse it.
-func (this *RpcService) getClientById(svrId string) (*rpc.Client, error) {
+func (this *remoteService) getClientById(svrId string) (*rpc.Client, error) {
 	client := this.ClientIdMaps[svrId]
 	if client != nil {
 		Info("already exists")
 		return client, nil
 	}
 	if svr, ok := SvrIdMaps[svrId]; ok && svr != nil {
-		if svr.Id == App.CurSvrConfig.Id {
+		if svr.Id == App.Config.Id {
 			return nil, errors.New(svr.Id + " is current server")
 		}
 		if svr.IsFrontend {
@@ -133,7 +132,7 @@ func (this *RpcService) getClientById(svrId string) (*rpc.Client, error) {
 }
 
 // Dump all clients that has established netword connection with remote server
-func (this *RpcService) dumpClientIdMaps() {
+func (this *remoteService) dumpClientIdMaps() {
 	for id, _ := range this.ClientIdMaps {
 		Info(fmt.Sprintf("[%s] is contained in rpc client list", id))
 	}
