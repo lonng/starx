@@ -20,6 +20,7 @@ func (app *_app) start() {
 	go heartbeatService.start()
 	// enable port listener
 	app.listenPort()
+	// waiting for application shutdown
 	<-endRunning
 	Info("server: " + app.Config.Id + " is stopping...")
 	// close all channels
