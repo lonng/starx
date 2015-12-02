@@ -276,8 +276,7 @@ func (client *Client) Go(ns string, service string, method string, reply interfa
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
-func (client *Client) Call(ns string, service string, method string, args ...interface{}) ([]byte, error) {
-	var reply []byte
+func (client *Client) Call(ns string, service string, method string, reply interface{}, args ...interface{}) error {
 	call := <-client.Go(ns, service, method, reply, make(chan *Call, 1), args).Done
-	return reply, call.Error
+	return call.Error
 }

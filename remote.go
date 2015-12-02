@@ -123,11 +123,12 @@ func (this *remoteService) request(ns string, route *routeInfo, session *Session
 		Info(err.Error())
 		return nil, err
 	}
-	reply, err := client.Call(ns, route.service, route.method, args)
+	var reply *[]byte
+	err = client.Call(ns, route.service, route.method, reply, args)
 	if err != nil {
 		return nil, errors.New(err.Error())
 	}
-	return reply, nil
+	return *reply, nil
 }
 
 func (this *remoteService) closeClient(svrId string) {
