@@ -15,7 +15,6 @@ func newApp() *_app {
 }
 
 func (app *_app) start() {
-	var endRunning = make(chan bool, 1)
 	app.loadDefaultComps()
 	// enable heartbeat service
 	go heartbeatService.start()

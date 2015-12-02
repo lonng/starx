@@ -37,6 +37,7 @@ var (
 	protocolState     ProtocolState                                      // current protocol state
 	heartbeatInternal time.Duration                    = time.Second * 8 // beatheart time internal, second unit
 	heartbeatService  *HeartbeatService                                  // beatheart service
+	endRunning        chan bool                                          // wait for end application
 )
 
 type ServerConfig struct {
@@ -145,6 +146,7 @@ func init() {
 	connectionService = NewConnectionService()
 	protocolState = PROTOCOL_START
 	heartbeatService = NewHeartbeatService()
+	endRunning = make(chan bool, 1)
 
 	workPath, _ = os.Getwd()
 	workPath, _ = filepath.Abs(workPath)
