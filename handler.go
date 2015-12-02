@@ -151,10 +151,10 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, msg *Message) {
 	if msg.Type == MT_REQUEST {
 		session.reqId = msg.ID
-		remote.request(ri, session, msg.encoding())
+		remote.request(ri, session, msg)
 	} else if msg.Type == MT_NOTIFY {
 		session.reqId = 0
-		remote.notify(ri, session, msg.encoding())
+		remote.request(ri, session, msg)
 	} else {
 		Info("invalid message type")
 		return

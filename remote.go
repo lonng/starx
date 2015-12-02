@@ -40,7 +40,11 @@ func (this *remoteService) handle(conn net.Conn) {
 	rpc.ServeConn(conn)
 }
 
-func (this *remoteService) request(route *routeInfo, session *Session, data []byte) {
+func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args ... interface{}) {
+
+}
+
+func (this *remoteService) request(route *routeInfo, session *Session, args ...interface{}) {
 	client, err := this.getClientByType(route.server, session)
 	if err != nil {
 		Info(err.Error())
@@ -73,10 +77,6 @@ func (rs *remoteService) close() {
 	for svrId, _ := range rs.ClientIdMaps {
 		rs.closeClient(svrId)
 	}
-}
-
-func (rs *remoteService) notify(route *routeInfo, session *Session, data []byte) {
-
 }
 
 // TODO: add another argment session, to select a exact server when the

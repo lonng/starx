@@ -149,7 +149,7 @@ func (session *Session) heartbeat() {
 	session.lastTime = time.Now().Unix()
 }
 
-func (session *Session) Request(route string, data []byte) {
+func (session *Session) AsyncRPC(route string, args ...interface{}) {
 	ri, err := decodeRouteInfo(route)
 	if err != nil {
 		Error(err.Error())
@@ -160,11 +160,11 @@ func (session *Session) Request(route string, data []byte) {
 		msg.Type = MT_REQUEST
 		handler.localProcess(session, ri, msg)
 	} else {
-		remote.request(ri, session, data)
+		remote.request(ri, session, args)
 	}
 }
 
-func (session *Session) Notify(route string, data []byte) {
+func (session *Session) RPC(route string, args ...interface{}) {
 	ri, err := decodeRouteInfo(route)
 	if err != nil {
 		Error(err.Error())
@@ -175,13 +175,18 @@ func (session *Session) Notify(route string, data []byte) {
 		msg.Type = MT_NOTIFY
 		handler.localProcess(session, ri, msg)
 	} else {
-		remote.notify(ri, session, data)
+		remote.request(ri, session, args)
 	}
 }
 
+// Sync session setting to frontend server
 func (session *Session) Sync(string) {
 	//TODO
 	//synchronize session setting field to frontend server
+}
+
+// Sync all settings to frontend server
+func (session *Session) SyncAll() {
 }
 
 type SessionService struct {
