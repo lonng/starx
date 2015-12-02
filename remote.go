@@ -116,19 +116,18 @@ func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args .
 
 }
 
-func (this *remoteService) request(route *routeInfo, session *Session, args ...interface{}) {
+// First argument is namespace, can be set `user` or `sys`
+func (this *remoteService) request(ns string, route *routeInfo, session *Session, args ...interface{}) ([]byte, error){
 	client, err := this.getClientByType(route.server, session)
 	if err != nil {
 		Info(err.Error())
-		return
+		return nil, err
 	}
-	req := "hello"
-	var rep int
-	e := client.Call(route.service+"."+route.method, &req, &rep)
-	Info(fmt.Sprint("reply value: %d", rep))
-	if e != nil {
-		Info(e.Error())
+	reply, err := client.Call(ns, route.service, route.method, args)
+	if err != nil {
+		return nil, errors.New(err.Error())
 	}
+	return reply, nil
 }
 
 func (this *remoteService) closeClient(svrId string) {

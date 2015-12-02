@@ -160,7 +160,7 @@ func (session *Session) AsyncRPC(route string, args ...interface{}) {
 		msg.Type = MT_REQUEST
 		handler.localProcess(session, ri, msg)
 	} else {
-		remote.request(ri, session, args)
+		remote.request("user", ri, session, args)
 	}
 }
 
@@ -175,7 +175,7 @@ func (session *Session) RPC(route string, args ...interface{}) {
 		msg.Type = MT_NOTIFY
 		handler.localProcess(session, ri, msg)
 	} else {
-		remote.request(ri, session, args)
+		remote.request("user", ri, session, args)
 	}
 }
 

@@ -254,9 +254,9 @@ func (client *Client) Close() error {
 // the invocation.  The done channel will signal when the call is complete by returning
 // the same Call object.  If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
-func (client *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
+func (client *Client) Go(ns string, service string, method string, reply interface{}, done chan *Call, args ...interface{}) *Call {
 	call := new(Call)
-	call.ServiceMethod = serviceMethod
+	call.ServiceMethod = service + "." + method
 	call.Args = args
 	call.Reply = reply
 	if done == nil {
@@ -276,7 +276,8 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
-func (client *Client) Call(serviceMethod string, args interface{}, reply interface{}) error {
-	call := <-client.Go(serviceMethod, args, reply, make(chan *Call, 1)).Done
-	return call.Error
+func (client *Client) Call(ns string, service string, method string, args ...interface{}) ([]byte, error) {
+	var reply []byte
+	call := <-client.Go(ns, service, method, reply, make(chan *Call, 1), args).Done
+	return reply, call.Error
 }
