@@ -46,7 +46,7 @@ type Request struct {
 	ServiceMethod string      // format: "Service.Method"
 	Seq           uint64      // sequence number chosen by client
 	Args          interface{} // for args
-	ns            string    // namespace
+	ns            string      // namespace
 	next          *Request    // for free list in Server
 }
 

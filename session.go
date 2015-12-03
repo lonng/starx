@@ -34,7 +34,7 @@ type Session struct {
 
 // Session for frontend server, used for store raw socket information
 // only used in package internal, can not accessible by other package
-type frontendSession struct {
+type handlerSession struct {
 	id          uint64
 	socket      net.Conn
 	status      SessionStatus
@@ -44,7 +44,7 @@ type frontendSession struct {
 
 // Session for backend server, used for store raw socket information
 // only used in package internal, can not accessible by other package
-type backendSession struct {
+type remoteSession struct {
 	id                uint64
 	socket            net.Conn
 	status            SessionStatus
@@ -63,21 +63,21 @@ func newSession() *Session {
 }
 
 // Create new frontend session instance
-func newFrontendSession(id uint64, conn net.Conn) *frontendSession {
-	fs := &frontendSession{
+func newHandlerSession(id uint64, conn net.Conn) *handlerSession {
+	hs := &handlerSession{
 		id:       id,
 		socket:   conn,
 		status:   SS_START,
 		lastTime: time.Now().Unix()}
 	session := newSession()
-	session.rawSessionId = fs.id
-	fs.userSession = session
-	return fs
+	session.rawSessionId = hs.id
+	hs.userSession = session
+	return hs
 }
 
 // Create new backend session instance
-func newBackendSession(id uint64, conn net.Conn) *backendSession {
-	return &backendSession{
+func newRemoteSession(id uint64, conn net.Conn) *remoteSession {
+	return &remoteSession{
 		id:       id,
 		socket:   conn,
 		status:   SS_START,
@@ -100,35 +100,35 @@ func (session *Session) Response(data []byte) {
 }
 
 // Implement Stringer interface
-func (fs *frontendSession) String() string {
+func (hs *handlerSession) String() string {
 	return fmt.Sprintf("id: %d, remote address: %s, last time: %d",
-		fs.id,
-		fs.socket.RemoteAddr().String(),
-		fs.lastTime)
+		hs.id,
+		hs.socket.RemoteAddr().String(),
+		hs.lastTime)
 }
 
-func (fs *frontendSession) send(data []byte) {
-	fs.socket.Write(data)
+func (hs *handlerSession) send(data []byte) {
+	hs.socket.Write(data)
 }
 
-func (fs *frontendSession) heartbeat() {
-	fs.lastTime = time.Now().Unix()
+func (hs *handlerSession) heartbeat() {
+	hs.lastTime = time.Now().Unix()
 }
 
 // Implement Stringer interface
-func (bs *backendSession) String() string {
+func (rs *remoteSession) String() string {
 	return fmt.Sprintf("id: %d, remote address: %s, last time: %d",
-		bs.id,
-		bs.socket.RemoteAddr().String(),
-		bs.lastTime)
+		rs.id,
+		rs.socket.RemoteAddr().String(),
+		rs.lastTime)
 }
 
-func (bs *backendSession) send(data []byte) {
-	bs.socket.Write(data)
+func (rs *remoteSession) send(data []byte) {
+	rs.socket.Write(data)
 }
 
-func (bs *backendSession) heartbeat() {
-	bs.lastTime = time.Now().Unix()
+func (rs *remoteSession) heartbeat() {
+	rs.lastTime = time.Now().Unix()
 }
 
 func (session *Session) Bind(uid int) {

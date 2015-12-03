@@ -10,32 +10,32 @@ import (
 )
 
 type netService struct {
-	fuuidLock    sync.RWMutex                // protect fsessionUUID
-	fsessionUUID uint64                      // frontend session uuid
-	fsmLock      sync.RWMutex                // protect fsessionMap
-	fsessionMap  map[uint64]*frontendSession // frontend id to session map
-	buuidLock    sync.RWMutex                // protect bsessionUUID
-	bsessionUUID uint64                      // backend session uuid
-	bsmLock      sync.RWMutex                // protect bsessionMap
-	bsessionMap  map[uint64]*backendSession  // backend id to session map
+	fuuidLock    sync.RWMutex               // protect fsessionUUID
+	fsessionUUID uint64                     // frontend session uuid
+	fsmLock      sync.RWMutex               // protect fsessionMap
+	fsessionMap  map[uint64]*handlerSession // frontend id to session map
+	buuidLock    sync.RWMutex               // protect bsessionUUID
+	bsessionUUID uint64                     // backend session uuid
+	bsmLock      sync.RWMutex               // protect bsessionMap
+	bsessionMap  map[uint64]*remoteSession  // backend id to session map
 }
 
 // Create new netservive
 func newNetService() *netService {
 	return &netService{
 		fsessionUUID: 1,
-		fsessionMap:  make(map[uint64]*frontendSession),
+		fsessionMap:  make(map[uint64]*handlerSession),
 		bsessionUUID: 1,
-		bsessionMap:  make(map[uint64]*backendSession)}
+		bsessionMap:  make(map[uint64]*remoteSession)}
 }
 
 // Create frontend session via netService
-func (net *netService) createFrontendSession(conn net.Conn) *frontendSession {
+func (net *netService) createFrontendSession(conn net.Conn) *handlerSession {
 	net.fuuidLock.Lock()
 	id := net.fsessionUUID
 	net.fsessionUUID++
 	net.fuuidLock.Unlock()
-	fs := newFrontendSession(id, conn)
+	fs := newHandlerSession(id, conn)
 	// add to maps
 	net.fsmLock.Lock()
 	net.fsessionMap[id] = fs
@@ -44,12 +44,12 @@ func (net *netService) createFrontendSession(conn net.Conn) *frontendSession {
 }
 
 // Create backend session via netService
-func (net *netService) createBackendSession(conn net.Conn) *backendSession {
+func (net *netService) createBackendSession(conn net.Conn) *remoteSession {
 	net.buuidLock.Lock()
 	id := net.fsessionUUID
 	net.fsessionUUID++
 	net.buuidLock.Unlock()
-	bs := newBackendSession(id, conn)
+	bs := newRemoteSession(id, conn)
 	// add to maps
 	net.bsmLock.Lock()
 	net.bsessionMap[id] = bs

@@ -6,8 +6,8 @@ import (
 )
 
 type _app struct {
-	Master     *ServerConfig      // master server config
-	Config     *ServerConfig      // current server info
+	Master *ServerConfig // master server config
+	Config *ServerConfig // current server info
 }
 
 func newApp() *_app {

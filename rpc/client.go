@@ -21,7 +21,7 @@ func (e ServerError) Error() string {
 var (
 	ErrShutdown        = errors.New("connection is shut down")
 	ErrRequestOverFlow = errors.New("request too long")
-	ErrEmptyBuffer = errors.New("empty buffer")
+	ErrEmptyBuffer     = errors.New("empty buffer")
 )
 
 // Call represents an active RPC.
@@ -95,7 +95,7 @@ func (codec *clientCodec) readResponse(response *Response) error {
 }
 
 func (codec *clientCodec) close() error {
-	return codec.rw.Close();
+	return codec.rw.Close()
 }
 
 func (client *Client) send(ns string, call *Call) {

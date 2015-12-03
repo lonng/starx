@@ -84,7 +84,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 	}
 }
 
-func (handler *handlerService) processPacket(fs *frontendSession, pkg *Packet) {
+func (handler *handlerService) processPacket(fs *handlerSession, pkg *Packet) {
 	switch pkg.Type {
 	case PACKET_HANDSHAKE:
 		{

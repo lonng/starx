@@ -27,7 +27,7 @@ type Packet struct {
 }
 
 type unhandledPacket struct {
-	fs     *frontendSession
+	fs     *handlerSession
 	packet *Packet
 }
 

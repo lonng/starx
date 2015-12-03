@@ -16,11 +16,6 @@ const (
 	RPC_STATUS_INITED
 )
 
-const (
-	remoteRequestHeadLength  = 2
-	remoteResponseHeadLength = 2
-)
-
 type remoteService struct {
 	Name         string
 	ClientIdMaps map[string]*rpc.Client
@@ -29,7 +24,7 @@ type remoteService struct {
 }
 
 type unhandledRequest struct {
-	bs *backendSession
+	bs *remoteSession
 	rr *rpc.Request
 }
 
@@ -76,40 +71,37 @@ func (rs *remoteService) handle(conn net.Conn) {
 		var rr *rpc.Request // save decoded packet
 		// TODO
 		// Refactor this loop
+		// read all request from buffer, and send to handle queue
 		for len(tmp) > headLength {
-			if rr, tmp = decodeRemoteRequest(tmp); rr != nil {
+			if rr, tmp = readRequest(tmp); rr != nil {
 				requestChan <- &unhandledRequest{bs, rr}
 			} else {
 				break
 			}
 		}
 	}
-	//rpc.ServeConn(conn)
 }
 
-func encodeRemoteRequst(rr *rpc.Request) ([]byte, error) {
-	return json.Marshal(rr)
-}
-
-func decodeRemoteRequest(data []byte) (*rpc.Request, []byte) {
-	if len(data) < remoteRequestHeadLength {
-		return nil, data
-	}
-	length := bytesToInt(data[:remoteRequestHeadLength])
-	if len(data) < remoteRequestHeadLength+length {
-		return nil, data
-	} else {
-		rr := new(rpc.Request)
-		err := json.Unmarshal(data[remoteRequestHeadLength:(remoteRequestHeadLength+length)], rr)
-		if err != nil {
-			Error(err.Error())
-			return nil, data[(remoteRequestHeadLength + length):]
+func readRequest(data []byte) (*rpc.Request, []byte) {
+	var length uint
+	var offset = 0
+	for i := 0; i < len(data); i++ {
+		b := data[i]
+		length += (uint(b&0x7F) << uint(7*(i)))
+		if b < 128 {
+			offset = i + 1
+			break
 		}
-		return rr, data[(remoteRequestHeadLength + length):]
 	}
+	request := rpc.Request{}
+	err := json.Unmarshal(data[offset:(offset+int(length))], &request)
+	if err != nil {
+		//TODO
+	}
+	return &request, data[(offset+int(length)):]
 }
 
-func (rs *remoteService) processRequest(bs *backendSession, rr *rpc.Request) {
+func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
 
 }
 
@@ -119,7 +111,7 @@ func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args .
 
 // Client send request
 // First argument is namespace, can be set `user` or `sys`
-func (this *remoteService) request(ns string, route *routeInfo, session *Session, args ...interface{}) ([]byte, error){
+func (this *remoteService) request(ns string, route *routeInfo, session *Session, args ...interface{}) ([]byte, error) {
 	client, err := this.getClientByType(route.server, session)
 	if err != nil {
 		Info(err.Error())
