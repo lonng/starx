@@ -46,6 +46,7 @@ func (rs *remoteService) register(comp RpcComponent) {
 	rpc.Register(comp)
 }
 
+// Server handle request
 func (rs *remoteService) handle(conn net.Conn) {
 	defer conn.Close()
 	// message buffer
@@ -116,6 +117,7 @@ func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args .
 
 }
 
+// Client send request
 // First argument is namespace, can be set `user` or `sys`
 func (this *remoteService) request(ns string, route *routeInfo, session *Session, args ...interface{}) ([]byte, error){
 	client, err := this.getClientByType(route.server, session)
