@@ -15,12 +15,12 @@ func newApp() *_app {
 }
 
 func (app *_app) start() {
-	var endRunning = make(chan bool, 1)
 	app.loadDefaultComps()
 	// enable heartbeat service
 	go heartbeatService.start()
 	// enable port listener
 	app.listenPort()
+	// waiting for application shutdown
 	<-endRunning
 	Info("server: " + app.Config.Id + " is stopping...")
 	// close all channels
