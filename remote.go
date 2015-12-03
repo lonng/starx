@@ -56,7 +56,7 @@ func (rs *remoteService) handle(conn net.Conn) {
 
 	bs := Net.createBackendSession(conn)
 	Net.dumpBackendSessions()
-	tmp := make([]byte, 512) // save truncated data
+	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)
 	for {
 		n, err := conn.Read(buf)
@@ -74,6 +74,7 @@ func (rs *remoteService) handle(conn net.Conn) {
 		// read all request from buffer, and send to handle queue
 		for len(tmp) > headLength {
 			if rr, tmp = readRequest(tmp); rr != nil {
+				fmt.Println("readRequest loop")
 				requestChan <- &unhandledRequest{bs, rr}
 			} else {
 				break
@@ -102,7 +103,7 @@ func readRequest(data []byte) (*rpc.Request, []byte) {
 }
 
 func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
-
+	fmt.Printf("%#v\n%#v", bs, rr)
 }
 
 func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args ...interface{}) {
