@@ -99,11 +99,11 @@ func readRequest(data []byte) (*rpc.Request, []byte) {
 	if err != nil {
 		//TODO
 	}
-	return &request, data[(offset+int(length)):]
+	return &request, data[(offset + int(length)):]
 }
 
 func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
-	fmt.Printf("%#v\n%#v", bs, rr)
+	fmt.Printf("%+v\n", rr)
 }
 
 func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args ...interface{}) {
