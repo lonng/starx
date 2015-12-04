@@ -58,7 +58,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 	}()
 	// register new session when new connection connected in
 	fs := Net.createHandlerSession(conn)
-	Net.dumpFrontendSessions()
+	Net.dumpHandlerSessions()
 	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)
 	for {
@@ -67,7 +67,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 			Info("session closed(" + err.Error() + ")")
 			fs.status = SS_CLOSED
 			Net.closeSession(fs.userSession)
-			Net.dumpFrontendSessions()
+			Net.dumpHandlerSessions()
 			break
 		}
 		tmp = append(tmp, buf[:n]...)

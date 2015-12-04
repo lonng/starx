@@ -144,7 +144,7 @@ func (net *netService) heartbeat() {
 }
 
 // Dump all frontend sessions
-func (net *netService) dumpFrontendSessions() {
+func (net *netService) dumpHandlerSessions() {
 	net.fsmLock.RLock()
 	defer net.fsmLock.RUnlock()
 	Info(fmt.Sprintf("current frontend session count: %d", len(net.fsessionMap)))
@@ -154,7 +154,7 @@ func (net *netService) dumpFrontendSessions() {
 }
 
 // Dump all backend sessions
-func (net *netService) dumpBackendSessions() {
+func (net *netService) dumpRemoteSessions() {
 	net.bsmLock.RLock()
 	defer net.bsmLock.RUnlock()
 	Info(fmt.Sprintf("current backen session count: %d", len(net.bsessionMap)))

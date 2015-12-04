@@ -55,7 +55,7 @@ func (rs *remoteService) handle(conn net.Conn) {
 	}()
 
 	bs := Net.createRemoteSession(conn)
-	Net.dumpBackendSessions()
+	Net.dumpRemoteSessions()
 	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)
 	for {
@@ -64,7 +64,7 @@ func (rs *remoteService) handle(conn net.Conn) {
 			Info("session closed(" + err.Error() + ")")
 			bs.status = SS_CLOSED
 			Net.closeSession(bs.userSession)
-			Net.dumpFrontendSessions()
+			Net.dumpHandlerSessions()
 			break
 		}
 		tmp = append(tmp, buf[:n]...)
