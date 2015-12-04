@@ -43,11 +43,12 @@ type service struct {
 // but documented here as an aid to debugging, such as when analyzing
 // network traffic.
 type Request struct {
-	ServiceMethod string      // format: "Service.Method"
-	Seq           uint64      // sequence number chosen by client
-	Args          interface{} // for args
-	Namespace     string      // namespace
-	next          *Request    // for free list in Server
+	ServiceMethod string   // format: "Service.Method"
+	Seq           uint64   // sequence number chosen by client
+	Sid           uint64   // frontend session id
+	Args          []byte   // for args
+	Namespace     string   // namespace
+	next          *Request // for free list in Server
 }
 
 // Response is a header written before every RPC return.  It is used internally

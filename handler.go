@@ -57,7 +57,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 		}
 	}()
 	// register new session when new connection connected in
-	fs := Net.createFrontendSession(conn)
+	fs := Net.createHandlerSession(conn)
 	Net.dumpFrontendSessions()
 	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)

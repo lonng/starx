@@ -1,6 +1,8 @@
 package starx
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -17,6 +19,10 @@ const (
 	SS_CLOSED
 )
 
+var (
+	ErrRPCLocal = errors.New("RPC object must location in different server type")
+)
+
 // This session type as argument pass to Handler method, is a proxy session
 // for frontend session in frontend server or backend session in backend
 // server, correspond frontend session or backend session id as a field
@@ -24,7 +30,7 @@ const (
 //
 // This is user sessions, not contain raw sockets information
 type Session struct {
-	Id           int           // session global uniqe id
+	Id           uint64        // session global uniqe id
 	Uid          int           // binding user id
 	reqId        uint          // last request id
 	status       SessionStatus // session current time
@@ -49,9 +55,10 @@ type remoteSession struct {
 	socket            net.Conn
 	status            SessionStatus
 	sessionMap        map[uint64]*Session
+	fsessionIdMap     map[uint64]uint64 // session id map(frontend session id -> backend session id)
+	bsessionIdMap     map[uint64]uint64 // session id map(backend session id -> frontend session id)
 	userSession       *Session
 	lastTime          int64 // last heartbeat unix time stamp
-	frontendSessionId uint64
 }
 
 // Create new session instance
@@ -149,34 +156,25 @@ func (session *Session) heartbeat() {
 	session.lastTime = time.Now().Unix()
 }
 
-func (session *Session) AsyncRPC(route string, args ...interface{}) {
+func (session *Session) AsyncRPC(route string, args ...interface{}) error {
 	ri, err := decodeRouteInfo(route)
 	if err != nil {
-		Error(err.Error())
-		return
+		return err
+	}
+	encodeArgs, err := json.Marshal(args)
+	if err != nil {
+		return err
 	}
 	if App.Config.Type == ri.server {
-		msg := NewMessage()
-		msg.Type = MT_REQUEST
-		handler.localProcess(session, ri, msg)
+		return ErrRPCLocal
 	} else {
-		remote.request("user", ri, session, args)
+		remote.request("user", ri, session, encodeArgs)
+		return nil
 	}
 }
 
-func (session *Session) RPC(route string, args ...interface{}) {
-	ri, err := decodeRouteInfo(route)
-	if err != nil {
-		Error(err.Error())
-		return
-	}
-	if App.Config.Type == ri.server {
-		msg := NewMessage()
-		msg.Type = MT_NOTIFY
-		handler.localProcess(session, ri, msg)
-	} else {
-		remote.request("user", ri, session, args)
-	}
+func (session *Session) RPC(route string, args ...interface{}) error {
+	return session.AsyncRPC(route, args)
 }
 
 // Sync session setting to frontend server

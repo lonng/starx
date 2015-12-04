@@ -26,11 +26,12 @@ var (
 
 // Call represents an active RPC.
 type Call struct {
-	ServiceMethod string        // The name of the service and method to call.
-	Args          []interface{} // The argument to the function (*struct).
-	Reply         *[]byte       // The reply from the function (*struct).
-	Error         error         // After completion, the error status.
-	Done          chan *Call    // Strobes when call is complete.
+	ServiceMethod string     // The name of the service and method to call.
+	Args          []byte     // The argument to the function (*struct).
+	Sid           uint64     // Frontend server session id
+	Reply         *[]byte    // The reply from the function (*struct).
+	Error         error      // After completion, the error status.
+	Done          chan *Call // Strobes when call is complete.
 }
 
 // Client represents an RPC Client.
@@ -120,6 +121,7 @@ func (client *Client) send(ns string, call *Call) {
 	client.request.ServiceMethod = call.ServiceMethod
 	client.request.Args = call.Args
 	client.request.Namespace = ns
+	client.request.Sid = call.Sid
 	err := client.codec.writeRequest(&client.request)
 	if err != nil {
 		client.mutex.Lock()
@@ -254,11 +256,12 @@ func (client *Client) Close() error {
 // the invocation.  The done channel will signal when the call is complete by returning
 // the same Call object.  If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
-func (client *Client) Go(ns string, service string, method string, reply *[]byte, done chan *Call, args ...interface{}) *Call {
+func (client *Client) Go(ns string, service string, method string, sid uint64, reply *[]byte, done chan *Call, args []byte) *Call {
 	call := new(Call)
 	call.ServiceMethod = service + "." + method
 	call.Args = args
 	call.Reply = reply
+	call.Sid = sid
 	if done == nil {
 		done = make(chan *Call, 10) // buffered.
 	} else {
@@ -276,7 +279,7 @@ func (client *Client) Go(ns string, service string, method string, reply *[]byte
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
-func (client *Client) Call(ns string, service string, method string, reply *[]byte, args ...interface{}) error {
-	call := <-client.Go(ns, service, method, reply, make(chan *Call, 1), args).Done
+func (client *Client) Call(ns string, service string, method string, sid uint64, reply *[]byte, args []byte) error {
+	call := <-client.Go(ns, service, method, sid, reply, make(chan *Call, 1), args).Done
 	return call.Error
 }

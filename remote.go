@@ -54,7 +54,7 @@ func (rs *remoteService) handle(conn net.Conn) {
 		}
 	}()
 
-	bs := Net.createBackendSession(conn)
+	bs := Net.createRemoteSession(conn)
 	Net.dumpBackendSessions()
 	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)
@@ -104,6 +104,15 @@ func readRequest(data []byte) (*rpc.Request, []byte) {
 
 func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
 	fmt.Printf("%+v\n", rr)
+	if rr.Namespace == "sys" {
+		fmt.Println(string(rr.Args))
+	} else if rr.Namespace == "user" {
+		var args interface{}
+		json.Unmarshal(rr.Args, &args)
+		fmt.Printf("%#v\n", args)
+	} else {
+		Error("invalid rpc namespace")
+	}
 }
 
 func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args ...interface{}) {
@@ -112,14 +121,14 @@ func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args .
 
 // Client send request
 // First argument is namespace, can be set `user` or `sys`
-func (this *remoteService) request(ns string, route *routeInfo, session *Session, args ...interface{}) ([]byte, error) {
+func (this *remoteService) request(ns string, route *routeInfo, session *Session, args []byte) ([]byte, error) {
 	client, err := this.getClientByType(route.server, session)
 	if err != nil {
 		Info(err.Error())
 		return nil, err
 	}
 	var reply *[]byte
-	err = client.Call(ns, route.service, route.method, reply, args)
+	err = client.Call(ns, route.service, route.method, session.Id, reply, args)
 	if err != nil {
 		return nil, errors.New(err.Error())
 	}

@@ -30,7 +30,7 @@ func newNetService() *netService {
 }
 
 // Create frontend session via netService
-func (net *netService) createFrontendSession(conn net.Conn) *handlerSession {
+func (net *netService) createHandlerSession(conn net.Conn) *handlerSession {
 	net.fuuidLock.Lock()
 	id := net.fsessionUUID
 	net.fsessionUUID++
@@ -44,7 +44,7 @@ func (net *netService) createFrontendSession(conn net.Conn) *handlerSession {
 }
 
 // Create backend session via netService
-func (net *netService) createBackendSession(conn net.Conn) *remoteSession {
+func (net *netService) createRemoteSession(conn net.Conn) *remoteSession {
 	net.buuidLock.Lock()
 	id := net.fsessionUUID
 	net.fsessionUUID++
