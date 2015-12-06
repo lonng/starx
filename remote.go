@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"starx/rpc"
 	"reflect"
+	"starx/rpc"
 )
 
 type RpcStatus int32
@@ -39,7 +39,7 @@ func newRemote() *remoteService {
 
 func (rs *remoteService) register(ns string, comp RpcComponent) {
 	comp.Setup()
-	rpc.Register(ns, comp)
+	rpc.Register(comp)
 }
 
 // Server handle request
@@ -108,7 +108,7 @@ func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
 	if rr.Namespace == "sys" {
 		fmt.Println(string(rr.Args))
 		session := bs.GetUserSession(rr.Sid)
-		method, err:= rpc.DefaultServer.GetServiceMethod("sys", rr.ServiceMethod)
+		method, err := rpc.DefaultServer.GetServiceMethod(rr.ServiceMethod)
 		if err != nil {
 			Error(err.Error())
 			return
