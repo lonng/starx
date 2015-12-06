@@ -144,6 +144,7 @@ func (rs *remoteSession) GetUserSession(sid uint64) *Session {
 	} else {
 
 	}
+	return newSession()
 }
 
 func (session *Session) Bind(uid int) {
