@@ -55,5 +55,5 @@ func (app *_app) listenPort() {
 }
 
 func (app *_app) loadDefaultComps() {
-	remote.register(new(Manager))
+	remote.register("sys", new(Manager))
 }

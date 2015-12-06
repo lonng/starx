@@ -105,17 +105,17 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
 // no suitable methods. It also logs the error using package log.
 // The client accesses each method using a string of the form "Type.Method",
 // where Type is the receiver's concrete type.
-func (server *Server) Register(rcvr interface{}) error {
-	return server.register(rcvr, "", false)
+func (server *Server) Register(ns string, rcvr interface{}) error {
+	return server.register(ns, rcvr, "", false)
 }
 
 // RegisterName is like Register but uses the provided name for the type
 // instead of the receiver's concrete type.
-func (server *Server) RegisterName(name string, rcvr interface{}) error {
-	return server.register(rcvr, name, true)
+func (server *Server) RegisterName(ns string, name string, rcvr interface{}) error {
+	return server.register(ns, rcvr, name, true)
 }
 
-func (server *Server) register(rcvr interface{}, name string, useName bool) error {
+func (server *Server) register(ns string, rcvr interface{}, name string, useName bool) error {
 	server.mu.Lock()
 	defer server.mu.Unlock()
 	if server.serviceMap == nil {
@@ -500,13 +500,30 @@ func (server *Server) Accept(lis net.Listener) {
 	}
 }
 
+func (server *Server) GetServiceMethod(ns string, serviceMethod string) (*reflect.Method, error) {
+	parts := strings.Split(serviceMethod, ".")
+	if len(parts) != 2 {
+		return nil, errors.New("wrong route string")
+	}
+	sname, smethod := parts[0], parts[1]
+	if s, present := server.serviceMap[sname]; present && s != nil {
+		if m, present := s.method[smethod]; present && m != nil {
+			return &m.method, nil
+		} else {
+			return nil, errors.New("rpc: " + smethod + " do not exists")
+		}
+	} else {
+		return nil, errors.New("rpc: " + sname + "do not exists")
+	}
+}
+
 // Register publishes the receiver's methods in the DefaultServer.
-func Register(rcvr interface{}) error { return DefaultServer.Register(rcvr) }
+func Register(ns string, rcvr interface{}) error { return DefaultServer.Register(ns, rcvr) }
 
 // RegisterName is like Register but uses the provided name for the type
 // instead of the receiver's concrete type.
-func RegisterName(name string, rcvr interface{}) error {
-	return DefaultServer.RegisterName(name, rcvr)
+func RegisterName(ns string, name string, rcvr interface{}) error {
+	return DefaultServer.RegisterName(ns, name, rcvr)
 }
 
 // A ServerCodec implements reading of RPC requests and writing of

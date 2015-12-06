@@ -138,6 +138,14 @@ func (rs *remoteSession) heartbeat() {
 	rs.lastTime = time.Now().Unix()
 }
 
+func (rs *remoteSession) GetUserSession(sid uint64) *Session {
+	if bsid, ok := rs.fsessionIdMap[sid]; ok && bsid > 0 {
+		// todo
+	} else {
+
+	}
+}
+
 func (session *Session) Bind(uid int) {
 	if session.Uid > 0 {
 		session.Uid = uid
