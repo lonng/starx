@@ -8,7 +8,6 @@ import (
 	"sync"
 	"unicode"
 	"unicode/utf8"
-	"fmt"
 )
 
 const (
@@ -186,7 +185,7 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 			continue
 		} else if argType.Kind() != reflect.Ptr {
 			if reportErr {
-				log.Println("method", mname, "reply type not a pointer:", replyType)
+				log.Println("method", mname, "reply type not a pointer:", argType)
 			}
 			continue
 		}
