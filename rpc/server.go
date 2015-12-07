@@ -186,12 +186,12 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 		}
 		// Second arg must be a pointer.
 		replyType := mtype.In(2)
-		if replyType.Kind() != reflect.Ptr {
-			if reportErr {
-				log.Println("method", mname, "reply type not a pointer:", replyType)
-			}
-			continue
-		}
+//		if replyType.Kind() != reflect.Ptr {
+//			if reportErr {
+//				log.Println("method", mname, "reply type not a pointer:", replyType)
+//			}
+//			continue
+//		}
 		// Reply type must be exported.
 		if !isExportedOrBuiltinType(replyType) {
 			if reportErr {
@@ -252,11 +252,7 @@ func (server *Server) freeResponse(resp *Response) {
 	server.respLock.Unlock()
 }
 
-func (server *Server) Call(serviceMethod string, args []reflect.Value) (*Response, error) {
-	return nil, nil
-}
-
-func (server *Server) GetServiceMethod(serviceMethod string) (*reflect.Method, error) {
+func (server *Server) Call(serviceMethod string, args []reflect.Value) ([]reflect.Value, error) {
 	parts := strings.Split(serviceMethod, ".")
 	if len(parts) != 2 {
 		return nil, errors.New("wrong route string")
@@ -264,7 +260,9 @@ func (server *Server) GetServiceMethod(serviceMethod string) (*reflect.Method, e
 	sname, smethod := parts[0], parts[1]
 	if s, present := server.serviceMap[sname]; present && s != nil {
 		if m, present := s.method[smethod]; present && m != nil {
-			return &m.method, nil
+			args = append([]reflect.Value{s.rcvr}, args...)
+			data := m.method.Func.Call(args)
+			return data, nil
 		} else {
 			return nil, errors.New("rpc: " + smethod + " do not exists")
 		}

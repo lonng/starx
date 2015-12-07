@@ -108,12 +108,7 @@ func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
 	if rr.Namespace == "sys" {
 		fmt.Println(string(rr.Args))
 		session := bs.GetUserSession(rr.Sid)
-		method, err := rpc.DefaultServer.GetServiceMethod(rr.ServiceMethod)
-		if err != nil {
-			Error(err.Error())
-			return
-		}
-		method.Func.Call([]reflect.Value{reflect.ValueOf(session), reflect.ValueOf(rr.Args)})
+		rpc.DefaultServer.Call(rr.ServiceMethod, []reflect.Value{reflect.ValueOf(session), reflect.ValueOf(rr.Args)})
 	} else if rr.Namespace == "user" {
 		var args interface{}
 		json.Unmarshal(rr.Args, &args)
