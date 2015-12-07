@@ -8,6 +8,7 @@ import (
 	"sync"
 	"unicode"
 	"unicode/utf8"
+	"fmt"
 )
 
 const (
@@ -183,15 +184,14 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 				log.Println(mname, "argument type not exported:", argType)
 			}
 			continue
+		} else if argType.Kind() != reflect.Ptr {
+			if reportErr {
+				log.Println("method", mname, "reply type not a pointer:", replyType)
+			}
+			continue
 		}
 		// Second arg must be a pointer.
 		replyType := mtype.In(2)
-//		if replyType.Kind() != reflect.Ptr {
-//			if reportErr {
-//				log.Println("method", mname, "reply type not a pointer:", replyType)
-//			}
-//			continue
-//		}
 		// Reply type must be exported.
 		if !isExportedOrBuiltinType(replyType) {
 			if reportErr {
