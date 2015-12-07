@@ -140,11 +140,15 @@ func (rs *remoteSession) heartbeat() {
 
 func (rs *remoteSession) GetUserSession(sid uint64) *Session {
 	if bsid, ok := rs.fsessionIdMap[sid]; ok && bsid > 0 {
-		// todo
+		return rs.sessionMap[bsid]
 	} else {
-
+		session := newSession()
+		session.rawSessionId = rs.id
+		rs.fsessionIdMap[sid] = session.Id
+		rs.sessionMap[session.Id] = session
+		rs.bsessionIdMap[session.Id] = sid
+		return session
 	}
-	return newSession()
 }
 
 func (session *Session) Bind(uid int) {
