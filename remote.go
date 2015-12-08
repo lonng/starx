@@ -138,6 +138,7 @@ func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
 		response.ServiceMethod = rr.ServiceMethod
 		response.Seq = rr.Seq
 		response.Sid = rr.Sid
+		response.ResponseType = rpc.RPC_REMOTE_RESPONSE
 		if err != nil {
 			response.Error = err.Error()
 		} else {
