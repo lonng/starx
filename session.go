@@ -88,6 +88,9 @@ func newRemoteSession(id uint64, conn net.Conn) *remoteSession {
 		id:       id,
 		socket:   conn,
 		status:   SS_START,
+		sessionMap: make(map[uint64]*Session),
+		fsessionIdMap:make(map[uint64]uint64),
+		bsessionIdMap:make(map[uint64]uint64),
 		lastTime: time.Now().Unix()}
 }
 

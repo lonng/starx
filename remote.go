@@ -103,8 +103,30 @@ func readRequest(data []byte) (*rpc.Request, []byte) {
 	return &request, data[(offset + int(length)):]
 }
 
-func (rs *remoteService) writeResponse(serviceMethod string, seq uint64) {
-	fmt.Println("execute here")
+func writeResponse(bs *remoteSession, response *rpc.Response) {
+	if response == nil {
+		return
+	}
+	resp, err := json.Marshal(response)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	buf := make([]byte, 0)
+	length := len(resp)
+	for {
+		b := byte(length % 128)
+		length >>= 7
+		if length != 0 {
+			buf = append(buf, b+128)
+		} else {
+			buf = append(buf, b)
+			break
+		}
+	}
+	buf = append(buf, resp...)
+	fmt.Println(fmt.Sprintf("%+v", buf))
+	bs.socket.Write(buf)
 }
 
 func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
@@ -113,17 +135,19 @@ func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
 		fmt.Println(string(rr.Args))
 		session := bs.GetUserSession(rr.Sid)
 		returnValues, err := rpc.DefaultServer.Call(rr.ServiceMethod, []reflect.Value{reflect.ValueOf(session), reflect.ValueOf(rr.Args)})
+		response := &rpc.Response{}
+		response.ServiceMethod = rr.ServiceMethod
+		response.Seq = rr.Seq
 		if err != nil {
-			// todo
-			// remote call encounter error
+			response.Error = err.Error()
+		} else {
+			// handler method encounter error
+			errInter := returnValues[0].Interface()
+			if errInter != nil {
+				response.Error = errInter.(error).Error()
+			}
 		}
-		// handler method encounter error
-		errInter := returnValues[0].Interface()
-		if errInter != nil {
-			fmt.Println(err.Error())
-			return
-		}
-		rs.writeResponse(rr.ServiceMethod, rr.Seq)
+		writeResponse(bs, response)
 	} else if rr.Namespace == "user" {
 		var args interface{}
 		json.Unmarshal(rr.Args, &args)
@@ -145,7 +169,8 @@ func (this *remoteService) request(ns string, route *routeInfo, session *Session
 		Info(err.Error())
 		return nil, err
 	}
-	var reply *[]byte
+	reply := new([]byte)
+	fmt.Println(ns)
 	err = client.Call(ns, route.service, route.method, session.Id, reply, args)
 	if err != nil {
 		return nil, errors.New(err.Error())

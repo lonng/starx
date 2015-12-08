@@ -92,6 +92,21 @@ func (codec *clientCodec) readResponse(response *Response) error {
 	if len(codec.buf) == 0 {
 		return ErrEmptyBuffer
 	}
+	var length uint
+	var offset = 0
+	for i := 0; i < len(codec.buf); i++ {
+		b := codec.buf[i]
+		length += (uint(b&0x7F) << uint(7*(i)))
+		if b < 128 {
+			offset = i + 1
+			break
+		}
+	}
+	err := json.Unmarshal(codec.buf[offset:(offset+int(length))], &response)
+	if err != nil {
+		return err
+	}
+	codec.buf = codec.buf[(offset + int(length)):]
 	return nil
 }
 
@@ -146,12 +161,14 @@ func (client *Client) input() {
 			break
 		}
 		client.codec.buf = append(client.codec.buf, tmp[:n]...)
+		fmt.Println(fmt.Sprintf("%+v", client.codec.buf))
 		for {
 			response = Response{}
 			err = client.codec.readResponse(&response)
 			if err != nil {
 				break
 			}
+			fmt.Println(fmt.Sprintf("%+v", response))
 			seq := response.Seq
 			client.mutex.Lock()
 			call := client.pending[seq]
@@ -225,7 +242,7 @@ func (call *Call) done() {
 // the header and payload are sent as a unit.
 func NewClient(conn io.ReadWriteCloser) *Client {
 	client := &Client{
-		codec:   &clientCodec{conn, make([]byte, 512)},
+		codec:   &clientCodec{conn, make([]byte, 0)},
 		pending: make(map[uint64]*Call),
 	}
 	go client.input()
