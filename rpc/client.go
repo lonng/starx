@@ -161,7 +161,6 @@ func (client *Client) input() {
 			break
 		}
 		client.codec.buf = append(client.codec.buf, tmp[:n]...)
-		fmt.Println(fmt.Sprintf("%+v", client.codec.buf))
 		for {
 			response = Response{}
 			err = client.codec.readResponse(&response)

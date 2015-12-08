@@ -107,6 +107,7 @@ func writeResponse(bs *remoteSession, response *rpc.Response) {
 	if response == nil {
 		return
 	}
+	fmt.Println(fmt.Sprintf("%+v", response))
 	resp, err := json.Marshal(response)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -125,12 +126,10 @@ func writeResponse(bs *remoteSession, response *rpc.Response) {
 		}
 	}
 	buf = append(buf, resp...)
-	fmt.Println(fmt.Sprintf("%+v", buf))
 	bs.socket.Write(buf)
 }
 
 func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
-	fmt.Printf("%+v\n", rr)
 	if rr.Namespace == "sys" {
 		fmt.Println(string(rr.Args))
 		session := bs.GetUserSession(rr.Sid)
@@ -138,6 +137,7 @@ func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
 		response := &rpc.Response{}
 		response.ServiceMethod = rr.ServiceMethod
 		response.Seq = rr.Seq
+		response.Sid = rr.Sid
 		if err != nil {
 			response.Error = err.Error()
 		} else {
@@ -175,6 +175,7 @@ func (this *remoteService) request(ns string, route *routeInfo, session *Session
 	if err != nil {
 		return nil, errors.New(err.Error())
 	}
+	fmt.Println("rpc returned")
 	return *reply, nil
 }
 
