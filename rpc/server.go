@@ -16,6 +16,15 @@ const (
 	DefaultDebugPath = "/debug/rpc"
 )
 
+type RpcResponseType byte
+
+const (
+	_                    RpcResponseType = iota
+	RPC_HANDLER_RESPONSE                 // handler session response
+	RPC_HANDLER_PUSH                     // handler session push
+	RPC_REMOTE_RESPONSE                  // remote request normal response, represent whether rpc call successfully
+)
+
 // Precompute the reflect type for error.  Can't use error directly
 // because Typeof takes an empty interface value.  This is annoying.
 var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
