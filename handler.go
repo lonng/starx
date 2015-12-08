@@ -265,7 +265,7 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 		replyType := mtype.In(2)
 		if replyType.Kind() != reflect.Slice {
 			if reportErr {
-				fmt.Println("method", mname, "reply type not a pointer:", replyType)
+				fmt.Println("method", mname, "reply type not a slice:", replyType)
 			}
 			continue
 		}

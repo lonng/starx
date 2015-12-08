@@ -103,12 +103,27 @@ func readRequest(data []byte) (*rpc.Request, []byte) {
 	return &request, data[(offset + int(length)):]
 }
 
+func (rs *remoteService) writeResponse(serviceMethod string, seq uint64) {
+	fmt.Println("execute here")
+}
+
 func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
 	fmt.Printf("%+v\n", rr)
 	if rr.Namespace == "sys" {
 		fmt.Println(string(rr.Args))
 		session := bs.GetUserSession(rr.Sid)
-		rpc.DefaultServer.Call(rr.ServiceMethod, []reflect.Value{reflect.ValueOf(session), reflect.ValueOf(rr.Args)})
+		returnValues, err := rpc.DefaultServer.Call(rr.ServiceMethod, []reflect.Value{reflect.ValueOf(session), reflect.ValueOf(rr.Args)})
+		if err != nil {
+			// todo
+			// remote call encounter error
+		}
+		// handler method encounter error
+		errInter := returnValues[0].Interface()
+		if errInter != nil {
+			fmt.Println(err.Error())
+			return
+		}
+		rs.writeResponse(rr.ServiceMethod, rr.Seq)
 	} else if rr.Namespace == "user" {
 		var args interface{}
 		json.Unmarshal(rr.Args, &args)
