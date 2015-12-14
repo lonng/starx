@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"starx/rpc"
 	"sync"
 	"unicode"
 	"unicode/utf8"
@@ -158,6 +159,27 @@ func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, ms
 	} else {
 		Info("invalid message type")
 		return
+	}
+}
+
+func (handler *handlerService) processRemotePush(resp *rpc.Response) {
+	//Info(fmt.Sprintf("%+v", resp))
+	hsession, err := Net.getHandlerSessionBySid(resp.Sid)
+	if err != nil {
+		Error(err.Error())
+		return
+	} else {
+		hsession.userSession.Push(resp.Route, resp.Reply)
+	}
+}
+
+func (handler *handlerService) processRemoteResponse(resp *rpc.Response) {
+	Info(fmt.Sprintf("%+v", resp))
+	hsession, err := Net.getHandlerSessionBySid(resp.Sid)
+	if err != nil {
+		return
+	} else {
+		hsession.userSession.Response(resp.Reply)
 	}
 }
 

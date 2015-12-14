@@ -64,7 +64,6 @@ func (rs *remoteService) handle(conn net.Conn) {
 		if err != nil {
 			Info("session closed(" + err.Error() + ")")
 			bs.status = SS_CLOSED
-			Net.closeSession(bs.userSession)
 			Net.dumpHandlerSessions()
 			break
 		}
@@ -172,7 +171,7 @@ func (this *remoteService) request(ns string, route *routeInfo, session *Session
 	}
 	reply := new([]byte)
 	fmt.Println(ns)
-	err = client.Call(ns, route.service, route.method, session.Id, reply, args)
+	err = client.Call(ns, route.service, route.method, session.rawSessionId, reply, args)
 	if err != nil {
 		return nil, errors.New(err.Error())
 	}
@@ -244,6 +243,18 @@ func (this *remoteService) getClientById(svrId string) (*rpc.Client, error) {
 		if err != nil {
 			return nil, err
 		}
+		go func() {
+			for resp := range client.ResponseChan {
+				if resp.ResponseType == rpc.RPC_HANDLER_PUSH {
+					handler.processRemotePush(resp)
+				} else if resp.ResponseType == rpc.RPC_HANDLER_RESPONSE {
+					handler.processRemoteResponse(resp)
+				} else {
+					// todo
+					// invalid response type
+				}
+			}
+		}()
 		this.ClientIdMaps[svr.Id] = client
 		Info(fmt.Sprintf("%s establish rpc client successful.", svr.Id))
 		this.dumpClientIdMaps()

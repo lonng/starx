@@ -4,6 +4,7 @@
 package starx
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -43,6 +44,14 @@ func (net *netService) createHandlerSession(conn net.Conn) *handlerSession {
 	return fs
 }
 
+func (net *netService) getHandlerSessionBySid(sid uint64) (*handlerSession, error) {
+	if hs, ok := net.fsessionMap[sid]; ok && hs != nil {
+		return hs, nil
+	} else {
+		return nil, errors.New("handler session id " + string(sid) + " not exists!")
+	}
+}
+
 // Create backend session via netService
 func (net *netService) createRemoteSession(conn net.Conn) *remoteSession {
 	net.buuidLock.Lock()
@@ -55,6 +64,14 @@ func (net *netService) createRemoteSession(conn net.Conn) *remoteSession {
 	net.bsessionMap[id] = bs
 	net.bsmLock.Unlock()
 	return bs
+}
+
+func (net *netService) getRemoteSessionBySid(sid uint64) (*remoteSession, error) {
+	if rs, ok := net.bsessionMap[sid]; ok && rs != nil {
+		return rs, nil
+	}else {
+		return nil, errors.New("remote session id " + string(sid) + " not exists!")
+	}
 }
 
 // Send packet data
@@ -93,10 +110,6 @@ func (net *netService) Broadcast(route string, data []byte) {
 		for _, s := range net.fsessionMap {
 			net.Push(s.userSession, route, data)
 		}
-	} else {
-		for _, s := range net.bsessionMap {
-			net.Push(s.userSession, route, data)
-		}
 	}
 }
 
@@ -128,13 +141,6 @@ func (net *netService) closeSession(session *Session) {
 func (net *netService) heartbeat() {
 	if App.Config.IsFrontend {
 		for _, session := range net.fsessionMap {
-			if session.status == SS_WORKING {
-				session.send(pack(PACKET_HEARTBEAT, nil))
-				session.heartbeat()
-			}
-		}
-	} else {
-		for _, session := range net.bsessionMap {
 			if session.status == SS_WORKING {
 				session.send(pack(PACKET_HEARTBEAT, nil))
 				session.heartbeat()

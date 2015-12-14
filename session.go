@@ -7,6 +7,7 @@ import (
 	"net"
 	"sync"
 	"time"
+	"starx/rpc"
 )
 
 type SessionStatus byte
@@ -57,7 +58,6 @@ type remoteSession struct {
 	sessionMap    map[uint64]*Session
 	fsessionIdMap map[uint64]uint64 // session id map(frontend session id -> backend session id)
 	bsessionIdMap map[uint64]uint64 // session id map(backend session id -> frontend session id)
-	userSession   *Session
 	lastTime      int64 // last heartbeat unix time stamp
 }
 
@@ -85,13 +85,13 @@ func newHandlerSession(id uint64, conn net.Conn) *handlerSession {
 // Create new backend session instance
 func newRemoteSession(id uint64, conn net.Conn) *remoteSession {
 	return &remoteSession{
-		id:       id,
-		socket:   conn,
-		status:   SS_START,
-		sessionMap: make(map[uint64]*Session),
-		fsessionIdMap:make(map[uint64]uint64),
-		bsessionIdMap:make(map[uint64]uint64),
-		lastTime: time.Now().Unix()}
+		id:            id,
+		socket:        conn,
+		status:        SS_START,
+		sessionMap:    make(map[uint64]*Session),
+		fsessionIdMap: make(map[uint64]uint64),
+		bsessionIdMap: make(map[uint64]uint64),
+		lastTime:      time.Now().Unix()}
 }
 
 // Session send packet data
@@ -101,12 +101,49 @@ func (session *Session) Send(data []byte) {
 
 // Push message to session
 func (session *Session) Push(route string, data []byte) {
-	Net.Push(session, route, data)
+	if App.Config.IsFrontend{
+		Net.Push(session, route, data)
+	} else {
+		rs, err := Net.getRemoteSessionBySid(session.rawSessionId)
+		if err != nil {
+			Error(err.Error())
+		}else{
+			sid, ok := rs.bsessionIdMap[session.Id]
+			if !ok {
+				Error("sid not exists")
+				return
+			}
+			resp := rpc.Response{}
+			resp.Route = route
+			resp.ResponseType = rpc.RPC_HANDLER_PUSH
+			resp.Reply = data
+			resp.Sid = sid
+			writeResponse(rs, &resp)
+		}
+	}
 }
 
 // Response message to session
 func (session *Session) Response(data []byte) {
-	Net.Response(session, data)
+	if App.Config.IsFrontend {
+		Net.Response(session, data)
+	} else {
+		rs, err := Net.getRemoteSessionBySid(session.rawSessionId)
+		if err != nil {
+			Error(err.Error())
+		}else{
+			sid, ok := rs.bsessionIdMap[session.Id]
+			if !ok {
+				Error("sid not exists")
+				return
+			}
+			resp := rpc.Response{}
+			resp.ResponseType = rpc.RPC_HANDLER_RESPONSE
+			resp.Reply = data
+			resp.Sid = sid
+			writeResponse(rs, &resp)
+		}
+	}
 }
 
 // Implement Stringer interface

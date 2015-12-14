@@ -22,6 +22,7 @@ var (
 	ErrShutdown        = errors.New("connection is shut down")
 	ErrRequestOverFlow = errors.New("request too long")
 	ErrEmptyBuffer     = errors.New("empty buffer")
+	ErrTruncedBuffer   = errors.New("buffer length less than response length")
 )
 
 // Call represents an active RPC.
@@ -36,7 +37,7 @@ type Call struct {
 
 // Client represents an RPC Client.
 // There may be multiple outstanding Calls associated
-// with a single Client, and a Client may be used by
+// with a single Client, and a Client may be used byßß
 // multiple goroutines simultaneously.
 type Client struct {
 	codec *clientCodec
@@ -44,12 +45,12 @@ type Client struct {
 	reqMutex sync.Mutex // protects following
 	request  Request
 
-	mutex    sync.Mutex // protects following
-	seq      uint64
-	pending  map[uint64]*Call
-	closing  bool           // user has called Close
-	shutdown bool           // server has told us to stop
-	msgChan  chan *Response // rpc response handler
+	mutex        sync.Mutex // protects following
+	seq          uint64
+	pending      map[uint64]*Call
+	closing      bool           // user has called Close
+	shutdown     bool           // server has told us to stop
+	ResponseChan chan *Response // rpc response handler
 }
 
 // A ClientCodec implements writing of RPC requests and
@@ -102,6 +103,9 @@ func (codec *clientCodec) readResponse(response *Response) error {
 			offset = i + 1
 			break
 		}
+	}
+	if len(codec.buf) < (int(length) + offset) {
+		return ErrTruncedBuffer
 	}
 	err := json.Unmarshal(codec.buf[offset:(offset+int(length))], &response)
 	if err != nil {
@@ -168,6 +172,11 @@ func (client *Client) input() {
 			if err != nil {
 				break
 			}
+			if response.ResponseType == RPC_HANDLER_PUSH || response.ResponseType == RPC_HANDLER_RESPONSE {
+				client.ResponseChan <- &response
+				fmt.Println(fmt.Sprintf("%+v", response))
+				continue
+			}
 			seq := response.Seq
 			client.mutex.Lock()
 			call := client.pending[seq]
@@ -182,10 +191,6 @@ func (client *Client) input() {
 				// error reading request body. We should still attempt
 				// to read error body, but there's no one to give it to.
 				// err = errors.New("reading error body")
-				if response.ResponseType == RPC_HANDLER_PUSH || response.ResponseType == RPC_HANDLER_RESPONSE {
-					client.msgChan <- &response
-					fmt.Println(fmt.Sprintf("%+v", response))
-				}
 			case response.Error != "":
 				// We've got an error response. Give this to the request;
 				// any subsequent requests will get the ReadResponseBody
@@ -245,9 +250,9 @@ func (call *Call) done() {
 // the header and payload are sent as a unit.
 func NewClient(conn io.ReadWriteCloser) *Client {
 	client := &Client{
-		codec:   &clientCodec{conn, make([]byte, 0)},
-		pending: make(map[uint64]*Call),
-		msgChan: make(chan *Response),
+		codec:        &clientCodec{conn, make([]byte, 0)},
+		pending:      make(map[uint64]*Call),
+		ResponseChan: make(chan *Response),
 	}
 	go client.input()
 	return client

@@ -66,6 +66,7 @@ type Response struct {
 	Sid           uint64          // frontend session id
 	Reply         []byte          // save reply value
 	Error         string          // error, if any.
+	Route         string          // exists when ResponseType equal RPC_HANDLER_PUSH
 	next          *Response       // for free list in Server
 }
 
