@@ -163,7 +163,6 @@ func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, ms
 }
 
 func (handler *handlerService) processRemotePush(resp *rpc.Response) {
-	//Info(fmt.Sprintf("%+v", resp))
 	hsession, err := Net.getHandlerSessionBySid(resp.Sid)
 	if err != nil {
 		Error(err.Error())
@@ -174,7 +173,6 @@ func (handler *handlerService) processRemotePush(resp *rpc.Response) {
 }
 
 func (handler *handlerService) processRemoteResponse(resp *rpc.Response) {
-	Info(fmt.Sprintf("%+v", resp))
 	hsession, err := Net.getHandlerSessionBySid(resp.Sid)
 	if err != nil {
 		return

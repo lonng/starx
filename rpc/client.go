@@ -157,7 +157,7 @@ func (client *Client) send(ns string, call *Call) {
 
 func (client *Client) input() {
 	var err error
-	var response Response
+	var response *Response
 	var tmp = make([]byte, 512)
 	for err == nil {
 		n, err := client.codec.rw.Read(tmp)
@@ -167,14 +167,13 @@ func (client *Client) input() {
 		}
 		client.codec.buf = append(client.codec.buf, tmp[:n]...)
 		for {
-			response = Response{}
-			err = client.codec.readResponse(&response)
+			response = &Response{}
+			err = client.codec.readResponse(response)
 			if err != nil {
 				break
 			}
 			if response.ResponseType == RPC_HANDLER_PUSH || response.ResponseType == RPC_HANDLER_RESPONSE {
-				client.ResponseChan <- &response
-				fmt.Println(fmt.Sprintf("%+v", response))
+				client.ResponseChan <- response
 				continue
 			}
 			seq := response.Seq
@@ -252,7 +251,7 @@ func NewClient(conn io.ReadWriteCloser) *Client {
 	client := &Client{
 		codec:        &clientCodec{conn, make([]byte, 0)},
 		pending:      make(map[uint64]*Call),
-		ResponseChan: make(chan *Response),
+		ResponseChan: make(chan *Response, 2 << 10),
 	}
 	go client.input()
 	return client
