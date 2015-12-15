@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"sync"
 	"time"
 	"starx/rpc"
 )
@@ -238,11 +237,4 @@ func (session *Session) Sync(string) {
 
 // Sync all settings to frontend server
 func (session *Session) SyncAll() {
-}
-
-type SessionService struct {
-	sum             sync.RWMutex     // protect SessionUidMaps
-	SessionUidMaps  map[int]*Session // uid map sesseion
-	sam             sync.RWMutex     // protect sessionAddrMaps
-	sessionAddrMaps map[string]*Session
 }
