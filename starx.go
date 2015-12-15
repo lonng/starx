@@ -43,10 +43,18 @@ func loadSettings() {
 	}
 }
 
-func Register(comp Component) {
+func Handler(comp Component) {
 	if App.Config.IsFrontend {
 		handler.register(comp)
 	} else {
-		remote.register(comp)
+		remote.register("sys", comp)
+	}
+}
+
+func Remote(comp Component) {
+	if App.Config.IsFrontend {
+		Error("current server is frontend server")
+	} else {
+		remote.register("user", comp)
 	}
 }

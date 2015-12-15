@@ -4,38 +4,39 @@
 package starx
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"sync"
 )
 
 type netService struct {
-	fuuidLock    sync.RWMutex                // protect fsessionUUID
-	fsessionUUID uint64                      // frontend session uuid
-	fsmLock      sync.RWMutex                // protect fsessionMap
-	fsessionMap  map[uint64]*frontendSession // frontend id to session map
-	buuidLock    sync.RWMutex                // protect bsessionUUID
-	bsessionUUID uint64                      // backend session uuid
-	bsmLock      sync.RWMutex                // protect bsessionMap
-	bsessionMap  map[uint64]*backendSession  // backend id to session map
+	fuuidLock    sync.RWMutex               // protect fsessionUUID
+	fsessionUUID uint64                     // frontend session uuid
+	fsmLock      sync.RWMutex               // protect fsessionMap
+	fsessionMap  map[uint64]*handlerSession // frontend id to session map
+	buuidLock    sync.RWMutex               // protect bsessionUUID
+	bsessionUUID uint64                     // backend session uuid
+	bsmLock      sync.RWMutex               // protect bsessionMap
+	bsessionMap  map[uint64]*remoteSession  // backend id to session map
 }
 
 // Create new netservive
 func newNetService() *netService {
 	return &netService{
 		fsessionUUID: 1,
-		fsessionMap:  make(map[uint64]*frontendSession),
+		fsessionMap:  make(map[uint64]*handlerSession),
 		bsessionUUID: 1,
-		bsessionMap:  make(map[uint64]*backendSession)}
+		bsessionMap:  make(map[uint64]*remoteSession)}
 }
 
 // Create frontend session via netService
-func (net *netService) createFrontendSession(conn net.Conn) *frontendSession {
+func (net *netService) createHandlerSession(conn net.Conn) *handlerSession {
 	net.fuuidLock.Lock()
 	id := net.fsessionUUID
 	net.fsessionUUID++
 	net.fuuidLock.Unlock()
-	fs := newFrontendSession(id, conn)
+	fs := newHandlerSession(id, conn)
 	// add to maps
 	net.fsmLock.Lock()
 	net.fsessionMap[id] = fs
@@ -43,18 +44,34 @@ func (net *netService) createFrontendSession(conn net.Conn) *frontendSession {
 	return fs
 }
 
+func (net *netService) getHandlerSessionBySid(sid uint64) (*handlerSession, error) {
+	if hs, ok := net.fsessionMap[sid]; ok && hs != nil {
+		return hs, nil
+	} else {
+		return nil, errors.New("handler session id " + string(sid) + " not exists!")
+	}
+}
+
 // Create backend session via netService
-func (net *netService) createBackendSession(conn net.Conn) *backendSession {
+func (net *netService) createRemoteSession(conn net.Conn) *remoteSession {
 	net.buuidLock.Lock()
 	id := net.fsessionUUID
 	net.fsessionUUID++
 	net.buuidLock.Unlock()
-	bs := newBackendSession(id, conn)
+	bs := newRemoteSession(id, conn)
 	// add to maps
 	net.bsmLock.Lock()
 	net.bsessionMap[id] = bs
 	net.bsmLock.Unlock()
 	return bs
+}
+
+func (net *netService) getRemoteSessionBySid(sid uint64) (*remoteSession, error) {
+	if rs, ok := net.bsessionMap[sid]; ok && rs != nil {
+		return rs, nil
+	}else {
+		return nil, errors.New("remote session id " + string(sid) + " not exists!")
+	}
 }
 
 // Send packet data
@@ -93,10 +110,6 @@ func (net *netService) Broadcast(route string, data []byte) {
 		for _, s := range net.fsessionMap {
 			net.Push(s.userSession, route, data)
 		}
-	} else {
-		for _, s := range net.bsessionMap {
-			net.Push(s.userSession, route, data)
-		}
 	}
 }
 
@@ -133,18 +146,11 @@ func (net *netService) heartbeat() {
 				session.heartbeat()
 			}
 		}
-	} else {
-		for _, session := range net.bsessionMap {
-			if session.status == SS_WORKING {
-				session.send(pack(PACKET_HEARTBEAT, nil))
-				session.heartbeat()
-			}
-		}
 	}
 }
 
 // Dump all frontend sessions
-func (net *netService) dumpFrontendSessions() {
+func (net *netService) dumpHandlerSessions() {
 	net.fsmLock.RLock()
 	defer net.fsmLock.RUnlock()
 	Info(fmt.Sprintf("current frontend session count: %d", len(net.fsessionMap)))
@@ -154,7 +160,7 @@ func (net *netService) dumpFrontendSessions() {
 }
 
 // Dump all backend sessions
-func (net *netService) dumpBackendSessions() {
+func (net *netService) dumpRemoteSessions() {
 	net.bsmLock.RLock()
 	defer net.bsmLock.RUnlock()
 	Info(fmt.Sprintf("current backen session count: %d", len(net.bsessionMap)))

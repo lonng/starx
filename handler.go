@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"starx/rpc"
 	"sync"
 	"unicode"
 	"unicode/utf8"
@@ -48,7 +49,7 @@ func newHandler() *handlerService {
 func (handler *handlerService) handle(conn net.Conn) {
 	defer conn.Close()
 	// message buffer
-	packetChan := make(chan *unhandledFrontendPacket, packetBufferSize)
+	packetChan := make(chan *unhandledPacket, packetBufferSize)
 	// all user logic will be handled in single goroutine
 	// synchronized in below routine
 	go func() {
@@ -57,9 +58,9 @@ func (handler *handlerService) handle(conn net.Conn) {
 		}
 	}()
 	// register new session when new connection connected in
-	fs := Net.createFrontendSession(conn)
-	Net.dumpFrontendSessions()
-	tmp := make([]byte, 512) // save truncated data
+	fs := Net.createHandlerSession(conn)
+	Net.dumpHandlerSessions()
+	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)
 	for {
 		n, err := conn.Read(buf)
@@ -67,7 +68,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 			Info("session closed(" + err.Error() + ")")
 			fs.status = SS_CLOSED
 			Net.closeSession(fs.userSession)
-			Net.dumpFrontendSessions()
+			Net.dumpHandlerSessions()
 			break
 		}
 		tmp = append(tmp, buf[:n]...)
@@ -76,7 +77,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 		// Refactor this loop
 		for len(tmp) > headLength {
 			if pkg, tmp = unpack(tmp); pkg != nil {
-				packetChan <- &unhandledFrontendPacket{fs, pkg}
+				packetChan <- &unhandledPacket{fs, pkg}
 			} else {
 				break
 			}
@@ -84,7 +85,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 	}
 }
 
-func (handler *handlerService) processPacket(fs *frontendSession, pkg *Packet) {
+func (handler *handlerService) processPacket(fs *handlerSession, pkg *Packet) {
 	switch pkg.Type {
 	case PACKET_HANDSHAKE:
 		{
@@ -151,13 +152,32 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, msg *Message) {
 	if msg.Type == MT_REQUEST {
 		session.reqId = msg.ID
-		remote.request(ri, session, msg)
+		remote.request("sys", ri, session, msg.Body)
 	} else if msg.Type == MT_NOTIFY {
 		session.reqId = 0
-		remote.request(ri, session, msg)
+		remote.request("sys", ri, session, msg.Body)
 	} else {
 		Info("invalid message type")
 		return
+	}
+}
+
+func (handler *handlerService) processRemotePush(resp *rpc.Response) {
+	hsession, err := Net.getHandlerSessionBySid(resp.Sid)
+	if err != nil {
+		Error(err.Error())
+		return
+	} else {
+		hsession.userSession.Push(resp.Route, resp.Reply)
+	}
+}
+
+func (handler *handlerService) processRemoteResponse(resp *rpc.Response) {
+	hsession, err := Net.getHandlerSessionBySid(resp.Sid)
+	if err != nil {
+		return
+	} else {
+		hsession.userSession.Response(resp.Reply)
 	}
 }
 
@@ -265,7 +285,7 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 		replyType := mtype.In(2)
 		if replyType.Kind() != reflect.Slice {
 			if reportErr {
-				fmt.Println("method", mname, "reply type not a pointer:", replyType)
+				fmt.Println("method", mname, "reply type not a slice:", replyType)
 			}
 			continue
 		}

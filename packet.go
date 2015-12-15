@@ -26,13 +26,8 @@ type Packet struct {
 	session *Session
 }
 
-type unhandledFrontendPacket struct {
-	fs     *frontendSession
-	packet *Packet
-}
-
-type unhandledBackendPacket struct {
-	bs     *backendSession
+type unhandledPacket struct {
+	fs     *handlerSession
 	packet *Packet
 }
 
