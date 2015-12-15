@@ -1,13 +1,9 @@
-// Copyright 2009 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 package rpc
 
 import (
-	"bufio"
-	"encoding/gob"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -22,32 +18,39 @@ func (e ServerError) Error() string {
 	return string(e)
 }
 
-var ErrShutdown = errors.New("connection is shut down")
+var (
+	ErrShutdown        = errors.New("connection is shut down")
+	ErrRequestOverFlow = errors.New("request too long")
+	ErrEmptyBuffer     = errors.New("empty buffer")
+	ErrTruncedBuffer   = errors.New("buffer length less than response length")
+)
 
 // Call represents an active RPC.
 type Call struct {
-	ServiceMethod string      // The name of the service and method to call.
-	Args          interface{} // The argument to the function (*struct).
-	Reply         interface{} // The reply from the function (*struct).
-	Error         error       // After completion, the error status.
-	Done          chan *Call  // Strobes when call is complete.
+	ServiceMethod string     // The name of the service and method to call.
+	Args          []byte     // The argument to the function (*struct).
+	Sid           uint64     // Frontend server session id
+	Reply         *[]byte    // The reply from the function (*struct).
+	Error         error      // After completion, the error status.
+	Done          chan *Call // Strobes when call is complete.
 }
 
 // Client represents an RPC Client.
 // There may be multiple outstanding Calls associated
-// with a single Client, and a Client may be used by
+// with a single Client, and a Client may be used byßß
 // multiple goroutines simultaneously.
 type Client struct {
-	codec ClientCodec
+	codec *clientCodec
 
 	reqMutex sync.Mutex // protects following
 	request  Request
 
-	mutex    sync.Mutex // protects following
-	seq      uint64
-	pending  map[uint64]*Call
-	closing  bool // user has called Close
-	shutdown bool // server has told us to stop
+	mutex        sync.Mutex // protects following
+	seq          uint64
+	pending      map[uint64]*Call
+	closing      bool           // user has called Close
+	shutdown     bool           // server has told us to stop
+	ResponseChan chan *Response // rpc response handler
 }
 
 // A ClientCodec implements writing of RPC requests and
@@ -58,16 +61,65 @@ type Client struct {
 // connection. ReadResponseBody may be called with a nil
 // argument to force the body of the response to be read and then
 // discarded.
-type ClientCodec interface {
-	// WriteRequest must be safe for concurrent use by multiple goroutines.
-	WriteRequest(*Request, interface{}) error
-	ReadResponseHeader(*Response) error
-	ReadResponseBody(interface{}) error
-
-	Close() error
+type clientCodec struct {
+	rw  io.ReadWriteCloser
+	buf []byte // save buffer data
 }
 
-func (client *Client) send(call *Call) {
+// TODO
+func (codec *clientCodec) writeRequest(request *Request) error {
+	data, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
+	buf := make([]byte, 0)
+	length := len(data)
+	for {
+		b := byte(length % 128)
+		length >>= 7
+		if length != 0 {
+			buf = append(buf, b+128)
+		} else {
+			buf = append(buf, b)
+			break
+		}
+	}
+	buf = append(buf, data...)
+	codec.rw.Write(buf)
+	return nil
+}
+
+// TODO
+func (codec *clientCodec) readResponse(response *Response) error {
+	if len(codec.buf) == 0 {
+		return ErrEmptyBuffer
+	}
+	var length uint
+	var offset = 0
+	for i := 0; i < len(codec.buf); i++ {
+		b := codec.buf[i]
+		length += (uint(b&0x7F) << uint(7*(i)))
+		if b < 128 {
+			offset = i + 1
+			break
+		}
+	}
+	if len(codec.buf) < (int(length) + offset) {
+		return ErrTruncedBuffer
+	}
+	err := json.Unmarshal(codec.buf[offset:(offset+int(length))], &response)
+	if err != nil {
+		return err
+	}
+	codec.buf = codec.buf[(offset + int(length)):]
+	return nil
+}
+
+func (codec *clientCodec) close() error {
+	return codec.rw.Close()
+}
+
+func (client *Client) send(ns string, call *Call) {
 	client.reqMutex.Lock()
 	defer client.reqMutex.Unlock()
 
@@ -87,7 +139,10 @@ func (client *Client) send(call *Call) {
 	// Encode and send the request.
 	client.request.Seq = seq
 	client.request.ServiceMethod = call.ServiceMethod
-	err := client.codec.WriteRequest(&client.request, call.Args)
+	client.request.Args = call.Args
+	client.request.Namespace = ns
+	client.request.Sid = call.Sid
+	err := client.codec.writeRequest(&client.request)
 	if err != nil {
 		client.mutex.Lock()
 		call = client.pending[seq]
@@ -102,46 +157,54 @@ func (client *Client) send(call *Call) {
 
 func (client *Client) input() {
 	var err error
-	var response Response
+	var response *Response
+	var tmp = make([]byte, 512)
 	for err == nil {
-		response = Response{}
-		err = client.codec.ReadResponseHeader(&response)
+		n, err := client.codec.rw.Read(tmp)
 		if err != nil {
+			fmt.Println(err.Error())
 			break
 		}
-		seq := response.Seq
-		client.mutex.Lock()
-		call := client.pending[seq]
-		delete(client.pending, seq)
-		client.mutex.Unlock()
+		client.codec.buf = append(client.codec.buf, tmp[:n]...)
+		for {
+			response = &Response{}
+			err = client.codec.readResponse(response)
+			if err != nil {
+				break
+			}
+			if response.ResponseType == RPC_HANDLER_PUSH || response.ResponseType == RPC_HANDLER_RESPONSE {
+				client.ResponseChan <- response
+				continue
+			}
+			seq := response.Seq
+			client.mutex.Lock()
+			call := client.pending[seq]
+			delete(client.pending, seq)
+			client.mutex.Unlock()
 
-		switch {
-		case call == nil:
-			// We've got no pending call. That usually means that
-			// WriteRequest partially failed, and call was already
-			// removed; response is a server telling us about an
-			// error reading request body. We should still attempt
-			// to read error body, but there's no one to give it to.
-			err = client.codec.ReadResponseBody(nil)
-			if err != nil {
-				err = errors.New("reading error body: " + err.Error())
+			switch {
+			case call == nil:
+				// We've got no pending call. That usually means that
+				// WriteRequest partially failed, and call was already
+				// removed; response is a server telling us about an
+				// error reading request body. We should still attempt
+				// to read error body, but there's no one to give it to.
+				// err = errors.New("reading error body")
+			case response.Error != "":
+				// We've got an error response. Give this to the request;
+				// any subsequent requests will get the ReadResponseBody
+				// error if there is one.
+				call.Error = ServerError(response.Error)
+				if err != nil {
+					err = errors.New("reading error body: " + err.Error())
+				}
+				call.done()
+			default:
+				if err != nil {
+					call.Error = errors.New("reading body " + err.Error())
+				}
+				call.done()
 			}
-		case response.Error != "":
-			// We've got an error response. Give this to the request;
-			// any subsequent requests will get the ReadResponseBody
-			// error if there is one.
-			call.Error = ServerError(response.Error)
-			err = client.codec.ReadResponseBody(nil)
-			if err != nil {
-				err = errors.New("reading error body: " + err.Error())
-			}
-			call.done()
-		default:
-			err = client.codec.ReadResponseBody(call.Reply)
-			if err != nil {
-				call.Error = errors.New("reading body " + err.Error())
-			}
-			call.done()
 		}
 	}
 	// Terminate pending calls.
@@ -185,49 +248,13 @@ func (call *Call) done() {
 // It adds a buffer to the write side of the connection so
 // the header and payload are sent as a unit.
 func NewClient(conn io.ReadWriteCloser) *Client {
-	encBuf := bufio.NewWriter(conn)
-	client := &gobClientCodec{conn, gob.NewDecoder(conn), gob.NewEncoder(encBuf), encBuf}
-	return NewClientWithCodec(client)
-}
-
-// NewClientWithCodec is like NewClient but uses the specified
-// codec to encode requests and decode responses.
-func NewClientWithCodec(codec ClientCodec) *Client {
 	client := &Client{
-		codec:   codec,
-		pending: make(map[uint64]*Call),
+		codec:        &clientCodec{conn, make([]byte, 0)},
+		pending:      make(map[uint64]*Call),
+		ResponseChan: make(chan *Response, 2 << 10),
 	}
 	go client.input()
 	return client
-}
-
-type gobClientCodec struct {
-	rwc    io.ReadWriteCloser
-	dec    *gob.Decoder
-	enc    *gob.Encoder
-	encBuf *bufio.Writer
-}
-
-func (c *gobClientCodec) WriteRequest(r *Request, body interface{}) (err error) {
-	if err = c.enc.Encode(r); err != nil {
-		return
-	}
-	if err = c.enc.Encode(body); err != nil {
-		return
-	}
-	return c.encBuf.Flush()
-}
-
-func (c *gobClientCodec) ReadResponseHeader(r *Response) error {
-	return c.dec.Decode(r)
-}
-
-func (c *gobClientCodec) ReadResponseBody(body interface{}) error {
-	return c.dec.Decode(body)
-}
-
-func (c *gobClientCodec) Close() error {
-	return c.rwc.Close()
 }
 
 // Dial connects to an RPC server at the specified network address.
@@ -247,18 +274,19 @@ func (client *Client) Close() error {
 	}
 	client.closing = true
 	client.mutex.Unlock()
-	return client.codec.Close()
+	return client.codec.close()
 }
 
 // Go invokes the function asynchronously.  It returns the Call structure representing
 // the invocation.  The done channel will signal when the call is complete by returning
 // the same Call object.  If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
-func (client *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
+func (client *Client) Go(ns string, service string, method string, sid uint64, reply *[]byte, done chan *Call, args []byte) *Call {
 	call := new(Call)
-	call.ServiceMethod = serviceMethod
+	call.ServiceMethod = service + "." + method
 	call.Args = args
 	call.Reply = reply
+	call.Sid = sid
 	if done == nil {
 		done = make(chan *Call, 10) // buffered.
 	} else {
@@ -271,12 +299,12 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 		}
 	}
 	call.Done = done
-	client.send(call)
+	client.send(ns, call)
 	return call
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
-func (client *Client) Call(serviceMethod string, args interface{}, reply interface{}) error {
-	call := <-client.Go(serviceMethod, args, reply, make(chan *Call, 1)).Done
+func (client *Client) Call(ns string, service string, method string, sid uint64, reply *[]byte, args []byte) error {
+	call := <-client.Go(ns, service, method, sid, reply, make(chan *Call, 1), args).Done
 	return call.Error
 }

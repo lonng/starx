@@ -1,10 +1,13 @@
 package starx
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"sync"
 	"time"
+	"starx/rpc"
 )
 
 type SessionStatus byte
@@ -17,6 +20,10 @@ const (
 	SS_CLOSED
 )
 
+var (
+	ErrRPCLocal = errors.New("RPC object must location in different server type")
+)
+
 // This session type as argument pass to Handler method, is a proxy session
 // for frontend session in frontend server or backend session in backend
 // server, correspond frontend session or backend session id as a field
@@ -24,7 +31,7 @@ const (
 //
 // This is user sessions, not contain raw sockets information
 type Session struct {
-	Id           int           // session global uniqe id
+	Id           uint64        // session global uniqe id
 	Uid          int           // binding user id
 	reqId        uint          // last request id
 	status       SessionStatus // session current time
@@ -34,7 +41,7 @@ type Session struct {
 
 // Session for frontend server, used for store raw socket information
 // only used in package internal, can not accessible by other package
-type frontendSession struct {
+type handlerSession struct {
 	id          uint64
 	socket      net.Conn
 	status      SessionStatus
@@ -44,14 +51,14 @@ type frontendSession struct {
 
 // Session for backend server, used for store raw socket information
 // only used in package internal, can not accessible by other package
-type backendSession struct {
-	id                uint64
-	socket            net.Conn
-	status            SessionStatus
-	sessionMap        map[uint64]*Session
-	userSession       *Session
-	lastTime          int64 // last heartbeat unix time stamp
-	frontendSessionId uint64
+type remoteSession struct {
+	id            uint64
+	socket        net.Conn
+	status        SessionStatus
+	sessionMap    map[uint64]*Session
+	fsessionIdMap map[uint64]uint64 // session id map(frontend session id -> backend session id)
+	bsessionIdMap map[uint64]uint64 // session id map(backend session id -> frontend session id)
+	lastTime      int64 // last heartbeat unix time stamp
 }
 
 // Create new session instance
@@ -63,25 +70,28 @@ func newSession() *Session {
 }
 
 // Create new frontend session instance
-func newFrontendSession(id uint64, conn net.Conn) *frontendSession {
-	fs := &frontendSession{
+func newHandlerSession(id uint64, conn net.Conn) *handlerSession {
+	hs := &handlerSession{
 		id:       id,
 		socket:   conn,
 		status:   SS_START,
 		lastTime: time.Now().Unix()}
 	session := newSession()
-	session.rawSessionId = fs.id
-	fs.userSession = session
-	return fs
+	session.rawSessionId = hs.id
+	hs.userSession = session
+	return hs
 }
 
 // Create new backend session instance
-func newBackendSession(id uint64, conn net.Conn) *backendSession {
-	return &backendSession{
-		id:       id,
-		socket:   conn,
-		status:   SS_START,
-		lastTime: time.Now().Unix()}
+func newRemoteSession(id uint64, conn net.Conn) *remoteSession {
+	return &remoteSession{
+		id:            id,
+		socket:        conn,
+		status:        SS_START,
+		sessionMap:    make(map[uint64]*Session),
+		fsessionIdMap: make(map[uint64]uint64),
+		bsessionIdMap: make(map[uint64]uint64),
+		lastTime:      time.Now().Unix()}
 }
 
 // Session send packet data
@@ -91,44 +101,94 @@ func (session *Session) Send(data []byte) {
 
 // Push message to session
 func (session *Session) Push(route string, data []byte) {
-	Net.Push(session, route, data)
+	if App.Config.IsFrontend{
+		Net.Push(session, route, data)
+	} else {
+		rs, err := Net.getRemoteSessionBySid(session.rawSessionId)
+		if err != nil {
+			Error(err.Error())
+		}else{
+			sid, ok := rs.bsessionIdMap[session.Id]
+			if !ok {
+				Error("sid not exists")
+				return
+			}
+			resp := rpc.Response{}
+			resp.Route = route
+			resp.ResponseType = rpc.RPC_HANDLER_PUSH
+			resp.Reply = data
+			resp.Sid = sid
+			writeResponse(rs, &resp)
+		}
+	}
 }
 
 // Response message to session
 func (session *Session) Response(data []byte) {
-	Net.Response(session, data)
+	if App.Config.IsFrontend {
+		Net.Response(session, data)
+	} else {
+		rs, err := Net.getRemoteSessionBySid(session.rawSessionId)
+		if err != nil {
+			Error(err.Error())
+		}else{
+			sid, ok := rs.bsessionIdMap[session.Id]
+			if !ok {
+				Error("sid not exists")
+				return
+			}
+			resp := rpc.Response{}
+			resp.ResponseType = rpc.RPC_HANDLER_RESPONSE
+			resp.Reply = data
+			resp.Sid = sid
+			writeResponse(rs, &resp)
+		}
+	}
 }
 
 // Implement Stringer interface
-func (fs *frontendSession) String() string {
+func (hs *handlerSession) String() string {
 	return fmt.Sprintf("id: %d, remote address: %s, last time: %d",
-		fs.id,
-		fs.socket.RemoteAddr().String(),
-		fs.lastTime)
+		hs.id,
+		hs.socket.RemoteAddr().String(),
+		hs.lastTime)
 }
 
-func (fs *frontendSession) send(data []byte) {
-	fs.socket.Write(data)
+func (hs *handlerSession) send(data []byte) {
+	hs.socket.Write(data)
 }
 
-func (fs *frontendSession) heartbeat() {
-	fs.lastTime = time.Now().Unix()
+func (hs *handlerSession) heartbeat() {
+	hs.lastTime = time.Now().Unix()
 }
 
 // Implement Stringer interface
-func (bs *backendSession) String() string {
+func (rs *remoteSession) String() string {
 	return fmt.Sprintf("id: %d, remote address: %s, last time: %d",
-		bs.id,
-		bs.socket.RemoteAddr().String(),
-		bs.lastTime)
+		rs.id,
+		rs.socket.RemoteAddr().String(),
+		rs.lastTime)
 }
 
-func (bs *backendSession) send(data []byte) {
-	bs.socket.Write(data)
+func (rs *remoteSession) send(data []byte) {
+	rs.socket.Write(data)
 }
 
-func (bs *backendSession) heartbeat() {
-	bs.lastTime = time.Now().Unix()
+func (rs *remoteSession) heartbeat() {
+	rs.lastTime = time.Now().Unix()
+}
+
+func (rs *remoteSession) GetUserSession(sid uint64) *Session {
+	if bsid, ok := rs.fsessionIdMap[sid]; ok && bsid > 0 {
+		return rs.sessionMap[bsid]
+	} else {
+		session := newSession()
+		session.rawSessionId = rs.id
+		rs.fsessionIdMap[sid] = session.Id
+		rs.sessionMap[session.Id] = session
+		rs.bsessionIdMap[session.Id] = sid
+		return session
+	}
 }
 
 func (session *Session) Bind(uid int) {
@@ -149,34 +209,25 @@ func (session *Session) heartbeat() {
 	session.lastTime = time.Now().Unix()
 }
 
-func (session *Session) AsyncRPC(route string, args ...interface{}) {
+func (session *Session) AsyncRPC(route string, args ...interface{}) error {
 	ri, err := decodeRouteInfo(route)
 	if err != nil {
-		Error(err.Error())
-		return
+		return err
+	}
+	encodeArgs, err := json.Marshal(args)
+	if err != nil {
+		return err
 	}
 	if App.Config.Type == ri.server {
-		msg := NewMessage()
-		msg.Type = MT_REQUEST
-		handler.localProcess(session, ri, msg)
+		return ErrRPCLocal
 	} else {
-		remote.request(ri, session, args)
+		remote.request("user", ri, session, encodeArgs)
+		return nil
 	}
 }
 
-func (session *Session) RPC(route string, args ...interface{}) {
-	ri, err := decodeRouteInfo(route)
-	if err != nil {
-		Error(err.Error())
-		return
-	}
-	if App.Config.Type == ri.server {
-		msg := NewMessage()
-		msg.Type = MT_NOTIFY
-		handler.localProcess(session, ri, msg)
-	} else {
-		remote.request(ri, session, args)
-	}
+func (session *Session) RPC(route string, args ...interface{}) error {
+	return session.AsyncRPC(route, args)
 }
 
 // Sync session setting to frontend server

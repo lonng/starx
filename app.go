@@ -6,8 +6,8 @@ import (
 )
 
 type _app struct {
-	Master     *ServerConfig      // master server config
-	Config     *ServerConfig      // current server info
+	Master *ServerConfig // master server config
+	Config *ServerConfig // current server info
 }
 
 func newApp() *_app {
@@ -15,12 +15,12 @@ func newApp() *_app {
 }
 
 func (app *_app) start() {
-	var endRunning = make(chan bool, 1)
 	app.loadDefaultComps()
 	// enable heartbeat service
 	go heartbeatService.start()
 	// enable port listener
 	app.listenPort()
+	// waiting for application shutdown
 	<-endRunning
 	Info("server: " + app.Config.Id + " is stopping...")
 	// close all channels
@@ -55,5 +55,5 @@ func (app *_app) listenPort() {
 }
 
 func (app *_app) loadDefaultComps() {
-	remote.register(new(Manager))
+	remote.register("sys", new(Manager))
 }
