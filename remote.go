@@ -243,15 +243,18 @@ func (this *remoteService) getClientById(svrId string) (*rpc.Client, error) {
 		if err != nil {
 			return nil, err
 		}
+		// handle sys rpc push/response
 		go func() {
 			for resp := range client.ResponseChan {
+				hsession, err := Net.getHandlerSessionBySid(resp.Sid)
+				if err != nil {
+					Error(err.Error())
+					continue
+				}
 				if resp.ResponseType == rpc.RPC_HANDLER_PUSH {
-					handler.processRemotePush(resp)
+					hsession.userSession.Push(resp.Route, resp.Reply)
 				} else if resp.ResponseType == rpc.RPC_HANDLER_RESPONSE {
-					handler.processRemoteResponse(resp)
-				} else {
-					// todo
-					// invalid response type
+					hsession.userSession.Response(resp.Reply)
 				}
 			}
 		}()

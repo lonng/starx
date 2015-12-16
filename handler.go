@@ -162,25 +162,6 @@ func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, ms
 	}
 }
 
-func (handler *handlerService) processRemotePush(resp *rpc.Response) {
-	hsession, err := Net.getHandlerSessionBySid(resp.Sid)
-	if err != nil {
-		Error(err.Error())
-		return
-	} else {
-		hsession.userSession.Push(resp.Route, resp.Reply)
-	}
-}
-
-func (handler *handlerService) processRemoteResponse(resp *rpc.Response) {
-	hsession, err := Net.getHandlerSessionBySid(resp.Sid)
-	if err != nil {
-		return
-	} else {
-		hsession.userSession.Response(resp.Reply)
-	}
-}
-
 // Register publishes in the service the set of methods of the
 // receiver value that satisfy the following conditions:
 //	- exported method of exported type
