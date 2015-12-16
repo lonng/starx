@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"reflect"
-	"starx/rpc"
 	"sync"
 	"unicode"
 	"unicode/utf8"
