@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"starx/rpc"
 	"sync"
 	"unicode"
 	"unicode/utf8"
-	"starx/rpc"
 )
 
 // Unhandled message buffer size
@@ -152,10 +152,10 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, msg *Message) {
 	if msg.Type == MT_REQUEST {
 		session.reqId = msg.ID
-		remote.request(rpc.RPC_NAMESPACE_SYS, ri, session, msg.Body)
+		remote.request(rpc.SysRpc, ri, session, msg.Body)
 	} else if msg.Type == MT_NOTIFY {
 		session.reqId = 0
-		remote.request(rpc.RPC_NAMESPACE_SYS, ri, session, msg.Body)
+		remote.request(rpc.SysRpc, ri, session, msg.Body)
 	} else {
 		Info("invalid message type")
 		return

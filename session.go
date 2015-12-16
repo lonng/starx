@@ -66,7 +66,7 @@ func (session *Session) Push(route string, data []byte) {
 			}
 			resp := rpc.Response{}
 			resp.Route = route
-			resp.ResponseType = rpc.RPC_HANDLER_PUSH
+			resp.Kind = rpc.HandlerPush
 			resp.Reply = data
 			resp.Sid = sid
 			writeResponse(rs, &resp)
@@ -89,7 +89,7 @@ func (session *Session) Response(data []byte) {
 				return
 			}
 			resp := rpc.Response{}
-			resp.ResponseType = rpc.RPC_HANDLER_RESPONSE
+			resp.Kind = rpc.HandlerResponse
 			resp.Reply = data
 			resp.Sid = sid
 			writeResponse(rs, &resp)
@@ -127,7 +127,7 @@ func (session *Session) AsyncRPC(route string, args ...interface{}) error {
 	if App.Config.Type == ri.server {
 		return ErrRPCLocal
 	} else {
-		remote.request(rpc.RPC_NAMESPACE_USER, ri, session, encodeArgs)
+		remote.request(rpc.UserRpc, ri, session, encodeArgs)
 		return nil
 	}
 }

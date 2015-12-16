@@ -37,7 +37,7 @@ func newRemote() *remoteService {
 		Status:       RPC_STATUS_UNINIT}
 }
 
-func (rs *remoteService) register(ns rpc.RpcNamespace, comp RpcComponent) {
+func (rs *remoteService) register(ns rpc.RpcKind, comp RpcComponent) {
 	comp.Setup()
 	rpc.Register(comp)
 }
@@ -74,7 +74,6 @@ func (rs *remoteService) handle(conn net.Conn) {
 		// read all request from buffer, and send to handle queue
 		for len(tmp) > headLength {
 			if rr, tmp = readRequest(tmp); rr != nil {
-				fmt.Println("readRequest loop")
 				requestChan <- &unhandledRequest{bs, rr}
 			} else {
 				break
@@ -129,7 +128,7 @@ func writeResponse(bs *remoteSession, response *rpc.Response) {
 }
 
 func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
-	if rr.Namespace == rpc.RPC_NAMESPACE_SYS {
+	if rr.Kind == rpc.SysRpc {
 		fmt.Println(string(rr.Args))
 		session := bs.GetUserSession(rr.Sid)
 		returnValues, err := rpc.DefaultServer.Call(rr.ServiceMethod, []reflect.Value{reflect.ValueOf(session), reflect.ValueOf(rr.Args)})
@@ -137,7 +136,7 @@ func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
 		response.ServiceMethod = rr.ServiceMethod
 		response.Seq = rr.Seq
 		response.Sid = rr.Sid
-		response.ResponseType = rpc.RPC_REMOTE_RESPONSE
+		response.Kind = rpc.RemoteResponse
 		if err != nil {
 			response.Error = err.Error()
 		} else {
@@ -148,7 +147,7 @@ func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
 			}
 		}
 		writeResponse(bs, response)
-	} else if rr.Namespace == rpc.RPC_NAMESPACE_USER {
+	} else if rr.Kind == rpc.UserRpc {
 		var args interface{}
 		json.Unmarshal(rr.Args, &args)
 		fmt.Printf("%#v\n", args)
@@ -163,7 +162,7 @@ func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args .
 
 // Client send request
 // First argument is namespace, can be set `user` or `sys`
-func (this *remoteService) request(ns rpc.RpcNamespace, route *routeInfo, session *Session, args []byte) ([]byte, error) {
+func (this *remoteService) request(ns rpc.RpcKind, route *routeInfo, session *Session, args []byte) ([]byte, error) {
 	client, err := this.getClientByType(route.server, session)
 	if err != nil {
 		Info(err.Error())
@@ -251,9 +250,9 @@ func (this *remoteService) getClientById(svrId string) (*rpc.Client, error) {
 					Error(err.Error())
 					continue
 				}
-				if resp.ResponseType == rpc.RPC_HANDLER_PUSH {
+				if resp.Kind == rpc.HandlerPush {
 					hsession.userSession.Push(resp.Route, resp.Reply)
-				} else if resp.ResponseType == rpc.RPC_HANDLER_RESPONSE {
+				} else if resp.Kind == rpc.HandlerResponse {
 					hsession.userSession.Response(resp.Reply)
 				}
 			}

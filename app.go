@@ -56,5 +56,5 @@ func (app *_app) listenPort() {
 }
 
 func (app *_app) loadDefaultComps() {
-	remote.register(rpc.RPC_NAMESPACE_SYS, new(Manager))
+	remote.register(rpc.SysRpc, new(Manager))
 }

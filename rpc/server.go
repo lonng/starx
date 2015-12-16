@@ -4,28 +4,28 @@ import (
 	"errors"
 	"log"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"unicode"
 	"unicode/utf8"
-	"strconv"
 )
 
-type RpcResponseType byte
+type ResponseKind byte
 
 const (
-	_                    RpcResponseType = iota
-	RPC_HANDLER_RESPONSE                 // handler session response
-	RPC_HANDLER_PUSH                     // handler session push
-	RPC_REMOTE_RESPONSE                  // remote request normal response, represent whether rpc call successfully
+	_               ResponseKind = iota
+	HandlerResponse              // handler session response
+	HandlerPush                  // handler session push
+	RemoteResponse               // remote request normal response, represent whether rpc call successfully
 )
 
-type RpcNamespace byte
+type RpcKind byte
 
 const (
-	_                  RpcNamespace = iota
-	RPC_NAMESPACE_SYS               // sys namespace rpc
-	RPC_NAMESPACE_USER              // user namespace rpc
+	_       RpcKind = iota
+	SysRpc          // sys namespace rpc
+	UserRpc         // user namespace rpc
 )
 
 // Precompute the reflect type for error.  Can't use error directly
@@ -55,7 +55,7 @@ type Request struct {
 	Seq           uint64   // sequence number chosen by client
 	Sid           uint64   // frontend session id
 	Args          []byte   // for args
-	Namespace     RpcNamespace   // namespace
+	Kind          RpcKind  // namespace
 	next          *Request // for free list in Server
 }
 
@@ -63,14 +63,14 @@ type Request struct {
 // but documented here as an aid to debugging, such as when analyzing
 // network traffic.
 type Response struct {
-	ResponseType  RpcResponseType // rpc response type
-	ServiceMethod string          // echoes that of the Request
-	Seq           uint64          // echoes that of the request
-	Sid           uint64          // frontend session id
-	Reply         []byte          // save reply value
-	Error         string          // error, if any.
-	Route         string          // exists when ResponseType equal RPC_HANDLER_PUSH
-	next          *Response       // for free list in Server
+	Kind          ResponseKind // rpc response type
+	ServiceMethod string       // echoes that of the Request
+	Seq           uint64       // echoes that of the request
+	Sid           uint64       // frontend session id
+	Reply         []byte       // save reply value
+	Error         string       // error, if any.
+	Route         string       // exists when ResponseType equal RPC_HANDLER_PUSH
+	next          *Response    // for free list in Server
 }
 
 // Server represents an RPC Server.
@@ -294,14 +294,13 @@ func RegisterName(name string, rcvr interface{}) error {
 	return DefaultServer.RegisterName(name, rcvr)
 }
 
-
 var rpcResponseTypeNames = []string{
-	RPC_HANDLER_RESPONSE: "RPC_HANDLER_RESPONSE",
-	RPC_HANDLER_PUSH: "RPC_HANDLER_PUSH",
-	RPC_REMOTE_RESPONSE: "RPC_REMOTE_RESPONSE",
+	HandlerResponse: "HandlerResponse",
+	HandlerPush:     "HandlerPush",
+	RemoteResponse:  "RemoteResponse",
 }
 
-func (k RpcResponseType) String() string {
+func (k ResponseKind) String() string {
 	if int(k) < len(rpcResponseTypeNames) {
 		return rpcResponseTypeNames[k]
 	}
@@ -309,11 +308,11 @@ func (k RpcResponseType) String() string {
 }
 
 var rpcNamespaceNames = []string{
-	RPC_NAMESPACE_SYS: "RPC_NAMESPACE_SYS",
-	RPC_NAMESPACE_USER: "RPC_NAMESPACE_USER",
+	SysRpc:  "SysRpc",  // system rpc
+	UserRpc: "UserRpc", // user rpc
 }
 
-func (k RpcNamespace) String() string {
+func (k RpcKind) String() string {
 	if int(k) < len(rpcNamespaceNames) {
 		return rpcNamespaceNames[k]
 	}
