@@ -88,8 +88,10 @@ func NewServer() *Server {
 	return &Server{serviceMap: make(map[string]*service)}
 }
 
-// DefaultServer is the default instance of *Server.
-var DefaultServer = NewServer()
+// SysRpcServer is the system namespace rpc instance of *Server.
+var SysRpcServer = NewServer()
+// UserRpcServer is the user namespace rpc instance of *Server
+var UserRpcServer = NewServer()
 
 // Is this an exported - upper case - name?
 func isExported(name string) bool {
@@ -283,15 +285,6 @@ func (server *Server) Call(serviceMethod string, args []reflect.Value) ([]reflec
 	} else {
 		return nil, errors.New("rpc: " + sname + "do not exists")
 	}
-}
-
-// Register publishes the receiver's methods in the DefaultServer.
-func Register(rcvr interface{}) error { return DefaultServer.Register(rcvr) }
-
-// RegisterName is like Register but uses the provided name for the type
-// instead of the receiver's concrete type.
-func RegisterName(name string, rcvr interface{}) error {
-	return DefaultServer.RegisterName(name, rcvr)
 }
 
 var rpcResponseTypeNames = []string{

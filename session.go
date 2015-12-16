@@ -111,10 +111,6 @@ func (session *Session) String() string {
 		session.Uid)
 }
 
-func (session *Session) heartbeat() {
-	session.lastTime = time.Now().Unix()
-}
-
 func (session *Session) AsyncRPC(route string, args ...interface{}) error {
 	ri, err := decodeRouteInfo(route)
 	if err != nil {
@@ -124,7 +120,7 @@ func (session *Session) AsyncRPC(route string, args ...interface{}) error {
 	if err != nil {
 		return err
 	}
-	if App.Config.Type == ri.server {
+	if App.Config.Type == ri.serverType {
 		return ErrRPCLocal
 	} else {
 		remote.request(rpc.UserRpc, ri, session, encodeArgs)

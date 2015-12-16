@@ -37,9 +37,13 @@ func newRemote() *remoteService {
 		Status:       RPC_STATUS_UNINIT}
 }
 
-func (rs *remoteService) register(ns rpc.RpcKind, comp RpcComponent) {
+func (rs *remoteService) register(rpcKind rpc.RpcKind, comp RpcComponent) {
 	comp.Setup()
-	rpc.Register(comp)
+	if rpcKind == rpc.SysRpc {
+		rpc.SysRpcServer.Register(comp)
+	}else if rpcKind == rpc.UserRpc {
+		rpc.UserRpcServer.Register(comp)
+	}
 }
 
 // Server handle request
@@ -131,7 +135,7 @@ func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
 	if rr.Kind == rpc.SysRpc {
 		fmt.Println(string(rr.Args))
 		session := bs.GetUserSession(rr.Sid)
-		returnValues, err := rpc.DefaultServer.Call(rr.ServiceMethod, []reflect.Value{reflect.ValueOf(session), reflect.ValueOf(rr.Args)})
+		returnValues, err := rpc.SysRpcServer.Call(rr.ServiceMethod, []reflect.Value{reflect.ValueOf(session), reflect.ValueOf(rr.Args)})
 		response := &rpc.Response{}
 		response.ServiceMethod = rr.ServiceMethod
 		response.Seq = rr.Seq
@@ -163,7 +167,7 @@ func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args .
 // Client send request
 // First argument is namespace, can be set `user` or `sys`
 func (this *remoteService) request(ns rpc.RpcKind, route *routeInfo, session *Session, args []byte) ([]byte, error) {
-	client, err := this.getClientByType(route.server, session)
+	client, err := this.getClientByType(route.serverType, session)
 	if err != nil {
 		Info(err.Error())
 		return nil, err
