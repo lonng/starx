@@ -3,6 +3,7 @@ package starx
 import (
 	"fmt"
 	"strings"
+	"starx/rpc"
 )
 
 func Start() {
@@ -47,7 +48,7 @@ func Handler(comp Component) {
 	if App.Config.IsFrontend {
 		handler.register(comp)
 	} else {
-		remote.register("sys", comp)
+		remote.register(rpc.RPC_NAMESPACE_SYS, comp)
 	}
 }
 
@@ -55,6 +56,6 @@ func Remote(comp Component) {
 	if App.Config.IsFrontend {
 		Error("current server is frontend server")
 	} else {
-		remote.register("user", comp)
+		remote.register(rpc.RPC_NAMESPACE_USER, comp)
 	}
 }

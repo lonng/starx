@@ -37,7 +37,7 @@ func newRemote() *remoteService {
 		Status:       RPC_STATUS_UNINIT}
 }
 
-func (rs *remoteService) register(ns string, comp RpcComponent) {
+func (rs *remoteService) register(ns rpc.RpcNamespace, comp RpcComponent) {
 	comp.Setup()
 	rpc.Register(comp)
 }
@@ -129,7 +129,7 @@ func writeResponse(bs *remoteSession, response *rpc.Response) {
 }
 
 func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
-	if rr.Namespace == "sys" {
+	if rr.Namespace == rpc.RPC_NAMESPACE_SYS {
 		fmt.Println(string(rr.Args))
 		session := bs.GetUserSession(rr.Sid)
 		returnValues, err := rpc.DefaultServer.Call(rr.ServiceMethod, []reflect.Value{reflect.ValueOf(session), reflect.ValueOf(rr.Args)})
@@ -148,7 +148,7 @@ func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
 			}
 		}
 		writeResponse(bs, response)
-	} else if rr.Namespace == "user" {
+	} else if rr.Namespace == rpc.RPC_NAMESPACE_USER {
 		var args interface{}
 		json.Unmarshal(rr.Args, &args)
 		fmt.Printf("%#v\n", args)
@@ -163,7 +163,7 @@ func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args .
 
 // Client send request
 // First argument is namespace, can be set `user` or `sys`
-func (this *remoteService) request(ns string, route *routeInfo, session *Session, args []byte) ([]byte, error) {
+func (this *remoteService) request(ns rpc.RpcNamespace, route *routeInfo, session *Session, args []byte) ([]byte, error) {
 	client, err := this.getClientByType(route.server, session)
 	if err != nil {
 		Info(err.Error())

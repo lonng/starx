@@ -127,7 +127,7 @@ func (session *Session) AsyncRPC(route string, args ...interface{}) error {
 	if App.Config.Type == ri.server {
 		return ErrRPCLocal
 	} else {
-		remote.request("user", ri, session, encodeArgs)
+		remote.request(rpc.RPC_NAMESPACE_USER, ri, session, encodeArgs)
 		return nil
 	}
 }

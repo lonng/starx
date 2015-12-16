@@ -119,7 +119,7 @@ func (codec *clientCodec) close() error {
 	return codec.rw.Close()
 }
 
-func (client *Client) send(ns string, call *Call) {
+func (client *Client) send(ns RpcNamespace, call *Call) {
 	client.reqMutex.Lock()
 	defer client.reqMutex.Unlock()
 
@@ -281,7 +281,7 @@ func (client *Client) Close() error {
 // the invocation.  The done channel will signal when the call is complete by returning
 // the same Call object.  If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
-func (client *Client) Go(ns string, service string, method string, sid uint64, reply *[]byte, done chan *Call, args []byte) *Call {
+func (client *Client) Go(ns RpcNamespace, service string, method string, sid uint64, reply *[]byte, done chan *Call, args []byte) *Call {
 	call := new(Call)
 	call.ServiceMethod = service + "." + method
 	call.Args = args
@@ -304,7 +304,7 @@ func (client *Client) Go(ns string, service string, method string, sid uint64, r
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
-func (client *Client) Call(ns string, service string, method string, sid uint64, reply *[]byte, args []byte) error {
+func (client *Client) Call(ns RpcNamespace, service string, method string, sid uint64, reply *[]byte, args []byte) error {
 	call := <-client.Go(ns, service, method, sid, reply, make(chan *Call, 1), args).Done
 	return call.Error
 }

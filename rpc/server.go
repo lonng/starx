@@ -10,12 +10,6 @@ import (
 	"unicode/utf8"
 )
 
-const (
-	// Defaults used by HandleHTTP
-	DefaultRPCPath   = "/_goRPC_"
-	DefaultDebugPath = "/debug/rpc"
-)
-
 type RpcResponseType byte
 
 const (
@@ -23,6 +17,14 @@ const (
 	RPC_HANDLER_RESPONSE                 // handler session response
 	RPC_HANDLER_PUSH                     // handler session push
 	RPC_REMOTE_RESPONSE                  // remote request normal response, represent whether rpc call successfully
+)
+
+type RpcNamespace byte
+
+const (
+	_                  RpcNamespace = iota
+	RPC_NAMESPACE_SYS               // sys namespace rpc
+	RPC_NAMESPACE_USER              // user namespace rpc
 )
 
 // Precompute the reflect type for error.  Can't use error directly
@@ -52,7 +54,7 @@ type Request struct {
 	Seq           uint64   // sequence number chosen by client
 	Sid           uint64   // frontend session id
 	Args          []byte   // for args
-	Namespace     string   // namespace
+	Namespace     RpcNamespace   // namespace
 	next          *Request // for free list in Server
 }
 

@@ -3,6 +3,7 @@ package starx
 import (
 	"fmt"
 	"net"
+	"starx/rpc"
 )
 
 type _app struct {
@@ -55,5 +56,5 @@ func (app *_app) listenPort() {
 }
 
 func (app *_app) loadDefaultComps() {
-	remote.register("sys", new(Manager))
+	remote.register(rpc.RPC_NAMESPACE_SYS, new(Manager))
 }
