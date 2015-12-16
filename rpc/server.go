@@ -8,6 +8,7 @@ import (
 	"sync"
 	"unicode"
 	"unicode/utf8"
+	"strconv"
 )
 
 type RpcResponseType byte
@@ -291,4 +292,30 @@ func Register(rcvr interface{}) error { return DefaultServer.Register(rcvr) }
 // instead of the receiver's concrete type.
 func RegisterName(name string, rcvr interface{}) error {
 	return DefaultServer.RegisterName(name, rcvr)
+}
+
+
+var rpcResponseTypeNames = []string{
+	RPC_HANDLER_RESPONSE: "RPC_HANDLER_RESPONSE",
+	RPC_HANDLER_PUSH: "RPC_HANDLER_PUSH",
+	RPC_REMOTE_RESPONSE: "RPC_REMOTE_RESPONSE",
+}
+
+func (k RpcResponseType) String() string {
+	if int(k) < len(rpcResponseTypeNames) {
+		return rpcResponseTypeNames[k]
+	}
+	return strconv.Itoa(int(k))
+}
+
+var rpcNamespaceNames = []string{
+	RPC_NAMESPACE_SYS: "RPC_NAMESPACE_SYS",
+	RPC_NAMESPACE_USER: "RPC_NAMESPACE_USER",
+}
+
+func (k RpcNamespace) String() string {
+	if int(k) < len(rpcNamespaceNames) {
+		return rpcNamespaceNames[k]
+	}
+	return strconv.Itoa(int(k))
 }
