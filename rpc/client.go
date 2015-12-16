@@ -251,7 +251,7 @@ func NewClient(conn io.ReadWriteCloser) *Client {
 	client := &Client{
 		codec:        &clientCodec{conn, make([]byte, 0)},
 		pending:      make(map[uint64]*Call),
-		ResponseChan: make(chan *Response, 2 << 10),
+		ResponseChan: make(chan *Response, 2<<10),
 	}
 	go client.input()
 	return client

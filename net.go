@@ -69,7 +69,7 @@ func (net *netService) createRemoteSession(conn net.Conn) *remoteSession {
 func (net *netService) getRemoteSessionBySid(sid uint64) (*remoteSession, error) {
 	if rs, ok := net.bsessionMap[sid]; ok && rs != nil {
 		return rs, nil
-	}else {
+	} else {
 		return nil, errors.New("remote session id " + string(sid) + " not exists!")
 	}
 }

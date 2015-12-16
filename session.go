@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 	"starx/rpc"
+	"time"
 )
 
 type SessionStatus byte
@@ -52,13 +52,13 @@ func (session *Session) Send(data []byte) {
 
 // Push message to session
 func (session *Session) Push(route string, data []byte) {
-	if App.Config.IsFrontend{
+	if App.Config.IsFrontend {
 		Net.Push(session, route, data)
 	} else {
 		rs, err := Net.getRemoteSessionBySid(session.rawSessionId)
 		if err != nil {
 			Error(err.Error())
-		}else{
+		} else {
 			sid, ok := rs.bsessionIdMap[session.Id]
 			if !ok {
 				Error("sid not exists")
@@ -82,7 +82,7 @@ func (session *Session) Response(data []byte) {
 		rs, err := Net.getRemoteSessionBySid(session.rawSessionId)
 		if err != nil {
 			Error(err.Error())
-		}else{
+		} else {
 			sid, ok := rs.bsessionIdMap[session.Id]
 			if !ok {
 				Error("sid not exists")

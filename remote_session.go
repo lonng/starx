@@ -1,9 +1,9 @@
 package starx
 
 import (
+	"fmt"
 	"net"
 	"time"
-	"fmt"
 )
 
 // Session for backend server, used for store raw socket information
@@ -15,7 +15,7 @@ type remoteSession struct {
 	sessionMap    map[uint64]*Session
 	fsessionIdMap map[uint64]uint64 // session id map(frontend session id -> backend session id)
 	bsessionIdMap map[uint64]uint64 // session id map(backend session id -> frontend session id)
-	lastTime      int64 // last heartbeat unix time stamp
+	lastTime      int64             // last heartbeat unix time stamp
 }
 
 // Create new backend session instance
@@ -29,7 +29,6 @@ func newRemoteSession(id uint64, conn net.Conn) *remoteSession {
 		bsessionIdMap: make(map[uint64]uint64),
 		lastTime:      time.Now().Unix()}
 }
-
 
 // Implement Stringer interface
 func (rs *remoteSession) String() string {

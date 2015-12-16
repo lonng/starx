@@ -1,10 +1,11 @@
 package starx
 
 import (
+	"fmt"
 	"net"
 	"time"
-	"fmt"
 )
+
 // Session for frontend server, used for store raw socket information
 // only used in package internal, can not accessible by other package
 type handlerSession struct {
