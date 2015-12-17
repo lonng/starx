@@ -41,7 +41,7 @@ func (rs *remoteService) register(rpcKind rpc.RpcKind, comp RpcComponent) {
 	comp.Setup()
 	if rpcKind == rpc.SysRpc {
 		rpc.SysRpcServer.Register(comp)
-	}else if rpcKind == rpc.UserRpc {
+	} else if rpcKind == rpc.UserRpc {
 		rpc.UserRpcServer.Register(comp)
 	}
 }
