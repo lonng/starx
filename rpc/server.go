@@ -90,6 +90,7 @@ func NewServer() *Server {
 
 // SysRpcServer is the system namespace rpc instance of *Server.
 var SysRpcServer = NewServer()
+
 // UserRpcServer is the user namespace rpc instance of *Server
 var UserRpcServer = NewServer()
 
@@ -287,27 +288,27 @@ func (server *Server) Call(serviceMethod string, args []reflect.Value) ([]reflec
 	}
 }
 
-var rpcResponseTypeNames = []string{
+var rpcResponseKindNames = []string{
 	HandlerResponse: "HandlerResponse",
 	HandlerPush:     "HandlerPush",
 	RemoteResponse:  "RemoteResponse",
 }
 
 func (k ResponseKind) String() string {
-	if int(k) < len(rpcResponseTypeNames) {
-		return rpcResponseTypeNames[k]
+	if int(k) < len(rpcResponseKindNames) {
+		return rpcResponseKindNames[k]
 	}
 	return strconv.Itoa(int(k))
 }
 
-var rpcNamespaceNames = []string{
+var rpcKindNames = []string{
 	SysRpc:  "SysRpc",  // system rpc
 	UserRpc: "UserRpc", // user rpc
 }
 
 func (k RpcKind) String() string {
-	if int(k) < len(rpcNamespaceNames) {
-		return rpcNamespaceNames[k]
+	if int(k) < len(rpcKindNames) {
+		return rpcKindNames[k]
 	}
 	return strconv.Itoa(int(k))
 }
