@@ -43,6 +43,8 @@ func (rs *remoteService) register(rpcKind rpc.RpcKind, comp RpcComponent) {
 		rpc.SysRpcServer.Register(comp)
 	} else if rpcKind == rpc.UserRpc {
 		rpc.UserRpcServer.Register(comp)
+	}else {
+		Error("invalid rpc kind")
 	}
 }
 
@@ -152,9 +154,30 @@ func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
 		}
 		writeResponse(bs, response)
 	} else if rr.Kind == rpc.UserRpc {
-		var args interface{}
+		var args []interface{}
+		var params = []reflect.Value{}
 		json.Unmarshal(rr.Args, &args)
+		for arg := range args {
+			params = append(params, reflect.ValueOf(arg))
+		}
+		returnValues, err := rpc.UserRpcServer.Call(rr.ServiceMethod, params)
+		response := &rpc.Response{}
+		response.ServiceMethod = rr.ServiceMethod
+		response.Seq = rr.Seq
+		response.Sid = rr.Sid
+		response.Kind = rpc.RemoteResponse
+		if err != nil {
+			response.Error = err.Error()
+		} else {
+			// handler method encounter error
+			errInter := returnValues[1].Interface()
+			if errInter != nil {
+				response.Error = errInter.(error).Error()
+			}
+		}
+		writeResponse(bs, response)
 		fmt.Printf("%#v\n", args)
+		fmt.Printf("%#v\n", params)
 	} else {
 		Error("invalid rpc namespace")
 	}
@@ -166,19 +189,17 @@ func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args .
 
 // Client send request
 // First argument is namespace, can be set `user` or `sys`
-func (this *remoteService) request(ns rpc.RpcKind, route *routeInfo, session *Session, args []byte) ([]byte, error) {
+func (this *remoteService) request(rpcKind rpc.RpcKind, route *routeInfo, session *Session, args []byte) ([]byte, error) {
 	client, err := this.getClientByType(route.serverType, session)
 	if err != nil {
 		Info(err.Error())
 		return nil, err
 	}
 	reply := new([]byte)
-	fmt.Println(ns)
-	err = client.Call(ns, route.service, route.method, session.rawSessionId, reply, args)
+	err = client.Call(rpcKind, route.service, route.method, session.rawSessionId, reply, args)
 	if err != nil {
 		return nil, errors.New(err.Error())
 	}
-	fmt.Println("rpc returned")
 	return *reply, nil
 }
 
@@ -246,6 +267,7 @@ func (this *remoteService) getClientById(svrId string) (*rpc.Client, error) {
 		if err != nil {
 			return nil, err
 		}
+		this.ClientIdMaps[svr.Id] = client
 		// handle sys rpc push/response
 		go func() {
 			for resp := range client.ResponseChan {
@@ -258,10 +280,11 @@ func (this *remoteService) getClientById(svrId string) (*rpc.Client, error) {
 					hsession.userSession.Push(resp.Route, resp.Reply)
 				} else if resp.Kind == rpc.HandlerResponse {
 					hsession.userSession.Response(resp.Reply)
+				} else {
+					Error("invalid response kind")
 				}
 			}
 		}()
-		this.ClientIdMaps[svr.Id] = client
 		Info(fmt.Sprintf("%s establish rpc client successful.", svr.Id))
 		this.dumpClientIdMaps()
 		return client, nil
