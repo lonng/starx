@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"reflect"
 	"strconv"
@@ -31,7 +32,7 @@ const (
 // Precompute the reflect type for error.  Can't use error directly
 // because Typeof takes an empty interface value.  This is annoying.
 var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
-var typeOfBytes = reflect.TypeOf(([]byte)(nil)).Elem()
+var typeOfBytes = reflect.TypeOf(([]byte)(nil))
 
 type methodType struct {
 	sync.Mutex // protects counters
@@ -257,6 +258,7 @@ func suitableMethods(kind RpcKind, typ reflect.Type, reportErr bool) map[string]
 			}
 			// The return type of the method must be error.
 			if returnType := mtype.Out(0); returnType != typeOfBytes {
+				fmt.Println(returnType, typeOfBytes)
 				if reportErr {
 					log.Println("method", mname, "returns", returnType.String(), "not error")
 				}
@@ -324,7 +326,7 @@ func (server *Server) Call(serviceMethod string, args []reflect.Value) ([]reflec
 			return nil, errors.New("rpc: " + smethod + " do not exists")
 		}
 	} else {
-		return nil, errors.New("rpc: " + sname + "do not exists")
+		return nil, errors.New("rpc: " + sname + " do not exists")
 	}
 }
 

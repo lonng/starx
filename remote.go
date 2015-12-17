@@ -43,7 +43,7 @@ func (rs *remoteService) register(rpcKind rpc.RpcKind, comp RpcComponent) {
 		rpc.SysRpcServer.Register(comp)
 	} else if rpcKind == rpc.UserRpc {
 		rpc.UserRpcServer.Register(comp)
-	}else {
+	} else {
 		Error("invalid rpc kind")
 	}
 }
@@ -154,12 +154,19 @@ func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
 		}
 		writeResponse(bs, response)
 	} else if rr.Kind == rpc.UserRpc {
-		var args []interface{}
+		var args interface{}
 		var params = []reflect.Value{}
 		json.Unmarshal(rr.Args, &args)
-		for arg := range args {
-			params = append(params, reflect.ValueOf(arg))
+		switch args.(type) {
+		case []interface{}:
+			for _, arg := range args.([]interface{}) {
+				fmt.Println(fmt.Sprintf("%+v", arg))
+				params = append(params, reflect.ValueOf(arg))
+			}
+		default:
+			fmt.Println("invalid rpc argument")
 		}
+		fmt.Println(len(params))
 		returnValues, err := rpc.UserRpcServer.Call(rr.ServiceMethod, params)
 		response := &rpc.Response{}
 		response.ServiceMethod = rr.ServiceMethod
@@ -178,6 +185,7 @@ func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
 		writeResponse(bs, response)
 		fmt.Printf("%#v\n", args)
 		fmt.Printf("%#v\n", params)
+		fmt.Printf("%#v\n", response)
 	} else {
 		Error("invalid rpc namespace")
 	}
