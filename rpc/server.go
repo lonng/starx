@@ -320,8 +320,8 @@ func (server *Server) Call(serviceMethod string, args []reflect.Value) ([]reflec
 	if s, present := server.serviceMap[sname]; present && s != nil {
 		if m, present := s.method[smethod]; present && m != nil {
 			args = append([]reflect.Value{s.rcvr}, args...)
-			data := m.method.Func.Call(args)
-			return data, nil
+			rets := m.method.Func.Call(args)
+			return rets, nil
 		} else {
 			return nil, errors.New("rpc: " + smethod + " do not exists")
 		}

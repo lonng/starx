@@ -128,8 +128,20 @@ func (session *Session) AsyncRPC(route string, args ...interface{}) error {
 	}
 }
 
-func (session *Session) RPC(route string, args ...interface{}) error {
-	return session.AsyncRPC(route, args)
+func (session *Session) RPC(route string, args ...interface{}) ([]byte, error) {
+	ri, err := decodeRouteInfo(route)
+	if err != nil {
+		return nil, err
+	}
+	encodeArgs, err := json.Marshal(args)
+	if err != nil {
+		return nil, err
+	}
+	if App.Config.Type == ri.serverType {
+		return nil, ErrRPCLocal
+	} else {
+		return remote.request(rpc.UserRpc, ri, session, encodeArgs)
+	}
 }
 
 // Sync session setting to frontend server

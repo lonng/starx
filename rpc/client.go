@@ -203,6 +203,7 @@ func (client *Client) input() {
 				if err != nil {
 					call.Error = errors.New("reading body " + err.Error())
 				}
+				*call.Reply = response.Reply
 				call.done()
 			}
 		}

@@ -111,7 +111,6 @@ func writeResponse(bs *remoteSession, response *rpc.Response) {
 	if response == nil {
 		return
 	}
-	fmt.Println(fmt.Sprintf("%+v", response))
 	resp, err := json.Marshal(response)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -160,14 +159,12 @@ func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
 		switch args.(type) {
 		case []interface{}:
 			for _, arg := range args.([]interface{}) {
-				fmt.Println(fmt.Sprintf("%+v", arg))
 				params = append(params, reflect.ValueOf(arg))
 			}
 		default:
 			fmt.Println("invalid rpc argument")
 		}
-		fmt.Println(len(params))
-		returnValues, err := rpc.UserRpcServer.Call(rr.ServiceMethod, params)
+		rets, err := rpc.UserRpcServer.Call(rr.ServiceMethod, params)
 		response := &rpc.Response{}
 		response.ServiceMethod = rr.ServiceMethod
 		response.Seq = rr.Seq
@@ -177,15 +174,14 @@ func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
 			response.Error = err.Error()
 		} else {
 			// handler method encounter error
-			errInter := returnValues[1].Interface()
+			errInter := rets[1].Interface()
 			if errInter != nil {
 				response.Error = errInter.(error).Error()
+			} else {
+				response.Reply = rets[0].Bytes()
 			}
 		}
 		writeResponse(bs, response)
-		fmt.Printf("%#v\n", args)
-		fmt.Printf("%#v\n", params)
-		fmt.Printf("%#v\n", response)
 	} else {
 		Error("invalid rpc namespace")
 	}
@@ -261,7 +257,6 @@ func (this *remoteService) getClientByType(svrType string, session *Session) (*r
 func (this *remoteService) getClientById(svrId string) (*rpc.Client, error) {
 	client := this.ClientIdMaps[svrId]
 	if client != nil {
-		Info("already exists")
 		return client, nil
 	}
 	if svr, ok := SvrIdMaps[svrId]; ok && svr != nil {
