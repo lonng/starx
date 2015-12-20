@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// Start application
 func Start() {
 	parseConfig()
 	loadSettings()
@@ -18,13 +19,13 @@ func Router(svrType string, fn func(*Session) string) {
 	}
 }
 
-// Server setting function
-// Usage:
-//	mello.Set("gate", func() {
+// Set special server initial setting function
+// Example:
+//	starx.Set("gate", func() {
 //		// setting just valid for gate
 //	})
 //
-//	mello.Set("gate|connector" func() {
+//	starx.Set("gate|connector" func() {
 //		// setting valid for gate & connector
 //	})
 func Set(svrTypes string, fn func()) {
@@ -44,6 +45,7 @@ func loadSettings() {
 	}
 }
 
+// Handler register
 func Handler(comp Component) {
 	if App.Config.IsFrontend {
 		handler.register(comp)
@@ -52,6 +54,7 @@ func Handler(comp Component) {
 	}
 }
 
+// Remote register
 func Remote(comp Component) {
 	if App.Config.IsFrontend {
 		Error("current server is frontend server")
