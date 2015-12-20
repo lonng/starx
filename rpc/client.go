@@ -119,7 +119,7 @@ func (codec *clientCodec) close() error {
 	return codec.rw.Close()
 }
 
-func (client *Client) send(ns string, call *Call) {
+func (client *Client) send(rpcKind RpcKind, call *Call) {
 	client.reqMutex.Lock()
 	defer client.reqMutex.Unlock()
 
@@ -140,7 +140,7 @@ func (client *Client) send(ns string, call *Call) {
 	client.request.Seq = seq
 	client.request.ServiceMethod = call.ServiceMethod
 	client.request.Args = call.Args
-	client.request.Namespace = ns
+	client.request.Kind = rpcKind
 	client.request.Sid = call.Sid
 	err := client.codec.writeRequest(&client.request)
 	if err != nil {
@@ -172,7 +172,7 @@ func (client *Client) input() {
 			if err != nil {
 				break
 			}
-			if response.ResponseType == RPC_HANDLER_PUSH || response.ResponseType == RPC_HANDLER_RESPONSE {
+			if response.Kind == HandlerPush || response.Kind == HandlerResponse {
 				client.ResponseChan <- response
 				continue
 			}
@@ -203,6 +203,7 @@ func (client *Client) input() {
 				if err != nil {
 					call.Error = errors.New("reading body " + err.Error())
 				}
+				*call.Reply = response.Reply
 				call.done()
 			}
 		}
@@ -251,7 +252,7 @@ func NewClient(conn io.ReadWriteCloser) *Client {
 	client := &Client{
 		codec:        &clientCodec{conn, make([]byte, 0)},
 		pending:      make(map[uint64]*Call),
-		ResponseChan: make(chan *Response, 2 << 10),
+		ResponseChan: make(chan *Response, 2<<10),
 	}
 	go client.input()
 	return client
@@ -281,7 +282,7 @@ func (client *Client) Close() error {
 // the invocation.  The done channel will signal when the call is complete by returning
 // the same Call object.  If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
-func (client *Client) Go(ns string, service string, method string, sid uint64, reply *[]byte, done chan *Call, args []byte) *Call {
+func (client *Client) Go(rpcKind RpcKind, service string, method string, sid uint64, reply *[]byte, done chan *Call, args []byte) *Call {
 	call := new(Call)
 	call.ServiceMethod = service + "." + method
 	call.Args = args
@@ -299,12 +300,12 @@ func (client *Client) Go(ns string, service string, method string, sid uint64, r
 		}
 	}
 	call.Done = done
-	client.send(ns, call)
+	client.send(rpcKind, call)
 	return call
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
-func (client *Client) Call(ns string, service string, method string, sid uint64, reply *[]byte, args []byte) error {
-	call := <-client.Go(ns, service, method, sid, reply, make(chan *Call, 1), args).Done
+func (client *Client) Call(rpcKind RpcKind, service string, method string, sid uint64, reply *[]byte, args []byte) error {
+	call := <-client.Go(rpcKind, service, method, sid, reply, make(chan *Call, 1), args).Done
 	return call.Error
 }

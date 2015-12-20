@@ -120,7 +120,7 @@ func (handler *handlerService) processMessage(session *Session, msg *Message) {
 	if err != nil {
 		return
 	}
-	if ri.server == App.Config.Type {
+	if ri.serverType == App.Config.Type {
 		handler.localProcess(session, ri, msg)
 	} else {
 		handler.remoteProcess(session, ri, msg)
@@ -152,32 +152,13 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, msg *Message) {
 	if msg.Type == MT_REQUEST {
 		session.reqId = msg.ID
-		remote.request("sys", ri, session, msg.Body)
+		remote.request(rpc.SysRpc, ri, session, msg.Body)
 	} else if msg.Type == MT_NOTIFY {
 		session.reqId = 0
-		remote.request("sys", ri, session, msg.Body)
+		remote.request(rpc.SysRpc, ri, session, msg.Body)
 	} else {
 		Info("invalid message type")
 		return
-	}
-}
-
-func (handler *handlerService) processRemotePush(resp *rpc.Response) {
-	hsession, err := Net.getHandlerSessionBySid(resp.Sid)
-	if err != nil {
-		Error(err.Error())
-		return
-	} else {
-		hsession.userSession.Push(resp.Route, resp.Reply)
-	}
-}
-
-func (handler *handlerService) processRemoteResponse(resp *rpc.Response) {
-	hsession, err := Net.getHandlerSessionBySid(resp.Sid)
-	if err != nil {
-		return
-	} else {
-		hsession.userSession.Response(resp.Reply)
 	}
 }
 

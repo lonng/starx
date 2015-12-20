@@ -7,9 +7,9 @@ import (
 )
 
 type routeInfo struct {
-	server  string
-	service string
-	method  string
+	serverType string
+	service    string
+	method     string
 }
 
 func newRouteInfo(server, service, method string) *routeInfo {
@@ -17,7 +17,7 @@ func newRouteInfo(server, service, method string) *routeInfo {
 }
 
 func (r *routeInfo) String() string {
-	return fmt.Sprintf("%s.%s.%s", r.server, r.service, r.method)
+	return fmt.Sprintf("%s.%s.%s", r.serverType, r.service, r.method)
 }
 
 func decodeRouteInfo(route string) (*routeInfo, error) {
