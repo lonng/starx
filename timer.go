@@ -9,7 +9,7 @@ type Timer struct {
 	Tickers []*time.Ticker
 }
 
-func NewTimer() Timer {
+func newTimer() Timer {
 	return Timer{Name: "TimerComponent"}
 }
 

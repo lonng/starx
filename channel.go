@@ -67,7 +67,7 @@ type ChannelServive struct {
 	channels map[string]*Channel // all server channels
 }
 
-func NewChannelServive() *ChannelServive {
+func newChannelServive() *ChannelServive {
 	return &ChannelServive{}
 }
 

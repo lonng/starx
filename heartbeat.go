@@ -8,7 +8,7 @@ type HeartbeatService struct {
 	ticker *time.Ticker
 }
 
-func NewHeartbeatService() *HeartbeatService {
+func newHeartbeatService() *HeartbeatService {
 	return &HeartbeatService{ticker: time.NewTicker(heartbeatInternal)}
 }
 
