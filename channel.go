@@ -18,11 +18,11 @@ func (c *Channel) GetMembers() []int {
 }
 
 func (c *Channel) PushMessageByUids(uids []int, route string, data []byte) {
-	Net.Multcast(uids, route, data)
+	netService.Multcast(uids, route, data)
 }
 
 func (c *Channel) Broadcast(route string, data []byte) {
-	Net.Multcast(c.uids, route, data)
+	netService.Multcast(c.uids, route, data)
 }
 
 func (c *Channel) IsContain(uid int) bool {

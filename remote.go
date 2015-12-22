@@ -61,8 +61,8 @@ func (rs *remoteService) handle(conn net.Conn) {
 		}
 	}()
 
-	bs := Net.createRemoteSession(conn)
-	Net.dumpRemoteSessions()
+	bs := netService.createRemoteSession(conn)
+	netService.dumpRemoteSessions()
 	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)
 	for {
@@ -70,7 +70,7 @@ func (rs *remoteService) handle(conn net.Conn) {
 		if err != nil {
 			Info("session closed(" + err.Error() + ")")
 			bs.status = SS_CLOSED
-			Net.dumpHandlerSessions()
+			netService.dumpHandlerSessions()
 			break
 		}
 		tmp = append(tmp, buf[:n]...)
@@ -234,9 +234,9 @@ func (this *remoteService) getClientByType(svrType string, session *Session) (*r
 	if svrType == App.Config.Type {
 		return nil, errors.New(fmt.Sprintf("current server has the same type(Type: %s)", svrType))
 	}
-	svrIds := SvrTypeMaps[svrType]
+	svrIds := svrTypeMaps[svrType]
 	if nums := len(svrIds); nums > 0 {
-		if fn := Route[svrType]; fn != nil {
+		if fn := route[svrType]; fn != nil {
 			// try to get user-define route function
 			return this.getClientById(fn(session))
 		} else {
@@ -259,7 +259,7 @@ func (this *remoteService) getClientById(svrId string) (*rpc.Client, error) {
 	if client != nil {
 		return client, nil
 	}
-	if svr, ok := SvrIdMaps[svrId]; ok && svr != nil {
+	if svr, ok := svrIdMaps[svrId]; ok && svr != nil {
 		if svr.Id == App.Config.Id {
 			return nil, errors.New(svr.Id + " is current server")
 		}
@@ -274,7 +274,7 @@ func (this *remoteService) getClientById(svrId string) (*rpc.Client, error) {
 		// handle sys rpc push/response
 		go func() {
 			for resp := range client.ResponseChan {
-				hsession, err := Net.getHandlerSessionBySid(resp.Sid)
+				hsession, err := netService.getHandlerSessionBySid(resp.Sid)
 				if err != nil {
 					Error(err.Error())
 					continue

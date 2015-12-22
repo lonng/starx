@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-type netService struct {
+type _netService struct {
 	fuuidLock    sync.RWMutex               // protect fsessionUUID
 	fsessionUUID uint64                     // frontend session uuid
 	fsmLock      sync.RWMutex               // protect fsessionMap
@@ -22,8 +22,8 @@ type netService struct {
 }
 
 // Create new netservive
-func newNetService() *netService {
-	return &netService{
+func newNetService() *_netService {
+	return &_netService{
 		fsessionUUID: 1,
 		fsessionMap:  make(map[uint64]*handlerSession),
 		bsessionUUID: 1,
@@ -31,7 +31,7 @@ func newNetService() *netService {
 }
 
 // Create frontend session via netService
-func (net *netService) createHandlerSession(conn net.Conn) *handlerSession {
+func (net *_netService) createHandlerSession(conn net.Conn) *handlerSession {
 	net.fuuidLock.Lock()
 	id := net.fsessionUUID
 	net.fsessionUUID++
@@ -44,7 +44,7 @@ func (net *netService) createHandlerSession(conn net.Conn) *handlerSession {
 	return fs
 }
 
-func (net *netService) getHandlerSessionBySid(sid uint64) (*handlerSession, error) {
+func (net *_netService) getHandlerSessionBySid(sid uint64) (*handlerSession, error) {
 	if hs, ok := net.fsessionMap[sid]; ok && hs != nil {
 		return hs, nil
 	} else {
@@ -53,7 +53,7 @@ func (net *netService) getHandlerSessionBySid(sid uint64) (*handlerSession, erro
 }
 
 // Create backend session via netService
-func (net *netService) createRemoteSession(conn net.Conn) *remoteSession {
+func (net *_netService) createRemoteSession(conn net.Conn) *remoteSession {
 	net.buuidLock.Lock()
 	id := net.fsessionUUID
 	net.fsessionUUID++
@@ -66,7 +66,7 @@ func (net *netService) createRemoteSession(conn net.Conn) *remoteSession {
 	return bs
 }
 
-func (net *netService) getRemoteSessionBySid(sid uint64) (*remoteSession, error) {
+func (net *_netService) getRemoteSessionBySid(sid uint64) (*remoteSession, error) {
 	if rs, ok := net.bsessionMap[sid]; ok && rs != nil {
 		return rs, nil
 	} else {
@@ -76,7 +76,7 @@ func (net *netService) getRemoteSessionBySid(sid uint64) (*remoteSession, error)
 
 // Send packet data
 // call by package internal, the second argument was packaged packet
-func (net *netService) send(session *Session, data []byte) {
+func (net *_netService) send(session *Session, data []byte) {
 	if App.Config.IsFrontend {
 		if fs, ok := net.fsessionMap[session.rawSessionId]; ok && (fs != nil) {
 			go fs.send(data)
@@ -90,14 +90,14 @@ func (net *netService) send(session *Session, data []byte) {
 
 // Message level method
 // call by all package, the last argument was packaged message
-func (net *netService) Push(session *Session, route string, data []byte) {
+func (net *_netService) Push(session *Session, route string, data []byte) {
 	m := encodeMessage(&Message{Type: MessageType(MT_PUSH), Route: route, Body: data})
 	net.send(session, pack(PacketType(PACKET_DATA), m))
 }
 
 // Message level method
 // call by all package, the last argument was packaged message
-func (net *netService) Response(session *Session, data []byte) {
+func (net *_netService) Response(session *Session, data []byte) {
 	m := encodeMessage(&Message{Type: MessageType(MT_RESPONSE), ID: session.reqId, Body: data})
 	net.send(session, pack(PacketType(PACKET_DATA), m))
 }
@@ -105,7 +105,7 @@ func (net *netService) Response(session *Session, data []byte) {
 // Push message to all sessions
 // Message level method
 // call by all package, the last argument was packaged message
-func (net *netService) Broadcast(route string, data []byte) {
+func (net *_netService) Broadcast(route string, data []byte) {
 	if App.Config.IsFrontend {
 		for _, s := range net.fsessionMap {
 			net.Push(s.userSession, route, data)
@@ -114,12 +114,12 @@ func (net *netService) Broadcast(route string, data []byte) {
 }
 
 // TODO
-func (net *netService) Multcast(uids []int, route string, data []byte) {
+func (net *_netService) Multcast(uids []int, route string, data []byte) {
 
 }
 
 // Close session
-func (net *netService) closeSession(session *Session) {
+func (net *_netService) closeSession(session *Session) {
 	if App.Config.IsFrontend {
 		if fs, ok := net.fsessionMap[session.rawSessionId]; ok && (fs != nil) {
 			fs.socket.Close()
@@ -138,7 +138,7 @@ func (net *netService) closeSession(session *Session) {
 }
 
 // Send heartbeat packet
-func (net *netService) heartbeat() {
+func (net *_netService) heartbeat() {
 	if App.Config.IsFrontend {
 		for _, session := range net.fsessionMap {
 			if session.status == SS_WORKING {
@@ -150,7 +150,7 @@ func (net *netService) heartbeat() {
 }
 
 // Dump all frontend sessions
-func (net *netService) dumpHandlerSessions() {
+func (net *_netService) dumpHandlerSessions() {
 	net.fsmLock.RLock()
 	defer net.fsmLock.RUnlock()
 	Info(fmt.Sprintf("current frontend session count: %d", len(net.fsessionMap)))
@@ -160,7 +160,7 @@ func (net *netService) dumpHandlerSessions() {
 }
 
 // Dump all backend sessions
-func (net *netService) dumpRemoteSessions() {
+func (net *_netService) dumpRemoteSessions() {
 	net.bsmLock.RLock()
 	defer net.bsmLock.RUnlock()
 	Info(fmt.Sprintf("current backen session count: %d", len(net.bsessionMap)))

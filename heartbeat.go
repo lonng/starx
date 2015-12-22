@@ -15,6 +15,6 @@ func NewHeartbeatService() *HeartbeatService {
 func (h *HeartbeatService) start() {
 	for {
 		<-h.ticker.C
-		Net.heartbeat()
+		netService.heartbeat()
 	}
 }

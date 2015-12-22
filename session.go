@@ -47,15 +47,15 @@ func newSession() *Session {
 
 // Session send packet data
 func (session *Session) Send(data []byte) {
-	Net.send(session, data)
+	netService.send(session, data)
 }
 
 // Push message to session
 func (session *Session) Push(route string, data []byte) {
 	if App.Config.IsFrontend {
-		Net.Push(session, route, data)
+		netService.Push(session, route, data)
 	} else {
-		rs, err := Net.getRemoteSessionBySid(session.rawSessionId)
+		rs, err := netService.getRemoteSessionBySid(session.rawSessionId)
 		if err != nil {
 			Error(err.Error())
 		} else {
@@ -77,9 +77,9 @@ func (session *Session) Push(route string, data []byte) {
 // Response message to session
 func (session *Session) Response(data []byte) {
 	if App.Config.IsFrontend {
-		Net.Response(session, data)
+		netService.Response(session, data)
 	} else {
-		rs, err := Net.getRemoteSessionBySid(session.rawSessionId)
+		rs, err := netService.getRemoteSessionBySid(session.rawSessionId)
 		if err != nil {
 			Error(err.Error())
 		} else {
