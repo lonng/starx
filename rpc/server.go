@@ -58,7 +58,6 @@ type Request struct {
 	Sid           uint64   // frontend session id
 	Args          []byte   // for args
 	Kind          RpcKind  // namespace
-	next          *Request // for free list in Server
 }
 
 // Response is a header written before every RPC return.  It is used internally
@@ -72,7 +71,6 @@ type Response struct {
 	Reply         []byte       // save reply value
 	Error         string       // error, if any.
 	Route         string       // exists when ResponseType equal RPC_HANDLER_PUSH
-	next          *Response    // for free list in Server
 }
 
 // Server represents an RPC Server.
@@ -80,10 +78,6 @@ type Server struct {
 	Kind       RpcKind             // rpc kind, either SysRpc or UserRpc
 	mu         sync.RWMutex        // protects the serviceMap
 	serviceMap map[string]*service // all service
-	reqLock    sync.Mutex          // protects freeReq
-	freeReq    *Request
-	respLock   sync.Mutex // protects freeResp
-	freeResp   *Response
 }
 
 // NewServer returns a new Server.
@@ -282,33 +276,6 @@ func (m *methodType) NumCalls() (n uint) {
 	n = m.numCalls
 	m.Unlock()
 	return n
-}
-
-func (server *Server) freeRequest(req *Request) {
-	server.reqLock.Lock()
-	req.next = server.freeReq
-	server.freeReq = req
-	server.reqLock.Unlock()
-}
-
-func (server *Server) getResponse() *Response {
-	server.respLock.Lock()
-	resp := server.freeResp
-	if resp == nil {
-		resp = new(Response)
-	} else {
-		server.freeResp = resp.next
-		*resp = Response{}
-	}
-	server.respLock.Unlock()
-	return resp
-}
-
-func (server *Server) freeResponse(resp *Response) {
-	server.respLock.Lock()
-	resp.next = server.freeResp
-	server.freeResp = resp
-	server.respLock.Unlock()
 }
 
 func (server *Server) Call(serviceMethod string, args []reflect.Value) ([]reflect.Value, error) {
