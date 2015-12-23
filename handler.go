@@ -7,8 +7,7 @@ import (
 	"reflect"
 	"starx/rpc"
 	"sync"
-	"unicode"
-	"unicode/utf8"
+	"starx/utils"
 )
 
 // Unhandled message buffer size
@@ -173,22 +172,6 @@ func (handler *handlerService) register(rcvr HandlerComponent) {
 	handler._register(rcvr)
 }
 
-// Is this an exported - upper case - name?
-func isExported(name string) bool {
-	rune, _ := utf8.DecodeRuneInString(name)
-	return unicode.IsUpper(rune)
-}
-
-// Is this type exported or a builtin?
-func isExportedOrBuiltinType(t reflect.Type) bool {
-	for t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-	// PkgPath will be non-empty even for an exported type,
-	// so we need to check the type name as well.
-	return isExported(t.Name()) || t.PkgPath() == ""
-}
-
 func (handler *handlerService) _register(rcvr HandlerComponent) {
 	if handler.serviceMap == nil {
 		handler.serviceMap = make(map[string]*service)
@@ -202,7 +185,7 @@ func (handler *handlerService) _register(rcvr HandlerComponent) {
 		Info(s)
 		return
 	}
-	if !isExported(sname) {
+	if !utils.IsExported(sname) {
 		s := "handler.Register: type " + sname + " is not exported"
 		Info(s)
 		return
@@ -240,44 +223,9 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 		method := typ.Method(m)
 		mtype := method.Type
 		mname := method.Name
-		// Method must be exported.
-		if method.PkgPath != "" {
-			continue
+		if utils.IsHandlerMethod(method) {
+			methods[mname] = &methodType{method: method, Arg1Type: mtype.In(1), Arg2Type: mtype.In(2)}
 		}
-		// Method needs three ins: receiver, *Session, []byte.
-		if mtype.NumIn() != 3 {
-			continue
-		}
-		// First arg need not be *Session.
-		argType := mtype.In(1)
-		if !isExportedOrBuiltinType(argType) {
-			if reportErr {
-				fmt.Println(mname, "argument type not exported:", argType)
-			}
-			continue
-		}
-		if argType.Kind() != reflect.Ptr || argType.Elem().Name() != "Session" {
-			if reportErr {
-				fmt.Println("method", mname, " first argument must be a Session pointer:", argType)
-			}
-			continue
-		}
-		// Second arg must be a pointer.
-		replyType := mtype.In(2)
-		if replyType.Kind() != reflect.Slice {
-			if reportErr {
-				fmt.Println("method", mname, "reply type not a slice:", replyType)
-			}
-			continue
-		}
-		// Reply type must be exported.
-		if !isExportedOrBuiltinType(replyType) {
-			if reportErr {
-				fmt.Println("method", mname, "reply type not exported:", replyType)
-			}
-			continue
-		}
-		methods[mname] = &methodType{method: method, Arg1Type: argType, Arg2Type: replyType}
 	}
 	return methods
 }

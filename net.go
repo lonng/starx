@@ -88,6 +88,7 @@ func (net *_netService) send(session *Session, data []byte) {
 	}
 }
 
+// Push
 // Message level method
 // call by all package, the last argument was packaged message
 func (net *_netService) Push(session *Session, route string, data []byte) {
@@ -95,13 +96,19 @@ func (net *_netService) Push(session *Session, route string, data []byte) {
 	net.send(session, pack(PacketType(PACKET_DATA), m))
 }
 
+// Response
 // Message level method
 // call by all package, the last argument was packaged message
 func (net *_netService) Response(session *Session, data []byte) {
+	// current message is notify message, can not response
+	if session.reqId <= 0 {
+		return
+	}
 	m := encodeMessage(&Message{Type: MessageType(MT_RESPONSE), ID: session.reqId, Body: data})
 	net.send(session, pack(PacketType(PACKET_DATA), m))
 }
 
+// Broadcast
 // Push message to all sessions
 // Message level method
 // call by all package, the last argument was packaged message

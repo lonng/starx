@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"reflect"
 	"strconv"
@@ -10,6 +9,7 @@ import (
 	"sync"
 	"unicode"
 	"unicode/utf8"
+	"starx/utils"
 )
 
 type ResponseKind byte
@@ -28,11 +28,6 @@ const (
 	SysRpc          // sys namespace rpc
 	UserRpc         // user namespace rpc
 )
-
-// Precompute the reflect type for error.  Can't use error directly
-// because Typeof takes an empty interface value.  This is annoying.
-var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
-var typeOfBytes = reflect.TypeOf(([]byte)(nil))
 
 type methodType struct {
 	sync.Mutex // protects counters
@@ -184,88 +179,17 @@ func suitableMethods(kind RpcKind, typ reflect.Type, reportErr bool) map[string]
 			method := typ.Method(m)
 			mtype := method.Type
 			mname := method.Name
-			// Method must be exported.
-			if method.PkgPath != "" {
-				continue
+			if utils.IsHandlerMethod(method) {
+				methods[mname] = &methodType{method: method, ArgType: mtype.In(1), ReplyType: mtype.In(2)}
 			}
-			// Method needs three ins: receiver, *args, *reply.
-			if mtype.NumIn() != 3 {
-				continue
-			}
-			// First arg need not be a pointer.
-			argType := mtype.In(1)
-			if !isExportedOrBuiltinType(argType) {
-				if reportErr {
-					log.Println(mname, "argument type not exported:", argType)
-				}
-				continue
-			} else if argType.Kind() != reflect.Ptr {
-				if reportErr {
-					log.Println("method", mname, "reply type not a pointer:", argType)
-				}
-				continue
-			}
-			// Second arg must be a pointer.
-			replyType := mtype.In(2)
-			// Reply type must be exported.
-			if !isExportedOrBuiltinType(replyType) {
-				if reportErr {
-					log.Println("method", mname, "reply type not exported:", replyType)
-				}
-				continue
-			}
-			// Method needs one out.
-			if mtype.NumOut() != 1 {
-				if reportErr {
-					log.Println("method", mname, "has wrong number of outs:", mtype.NumOut())
-				}
-				continue
-			}
-			// The return type of the method must be error.
-			if returnType := mtype.Out(0); returnType != typeOfError {
-				if reportErr {
-					log.Println("method", mname, "returns", returnType.String(), "not error")
-				}
-				continue
-			}
-			methods[mname] = &methodType{method: method, ArgType: argType, ReplyType: replyType}
 		}
 	} else if kind == UserRpc {
 		for m := 0; m < typ.NumMethod(); m++ {
 			method := typ.Method(m)
-			mtype := method.Type
 			mname := method.Name
-			// Method must be exported.
-			if method.PkgPath != "" {
-				continue
+			if utils.IsRemoteMethod(method){
+				methods[mname] = &methodType{method: method}
 			}
-			// Method needs more than 1 parameter
-			if mtype.NumIn() < 1 {
-				continue
-			}
-			// Method needs two out, ([]byte, error).
-			if mtype.NumOut() != 2 {
-				if reportErr {
-					log.Println("method", mname, "has wrong number of outs:", mtype.NumOut())
-				}
-				continue
-			}
-			// The return type of the method must be error.
-			if returnType := mtype.Out(0); returnType != typeOfBytes {
-				fmt.Println(returnType, typeOfBytes)
-				if reportErr {
-					log.Println("method", mname, "returns", returnType.String(), "not error")
-				}
-				continue
-			}
-			// The return type of the method must be error.
-			if returnType := mtype.Out(1); returnType != typeOfError {
-				if reportErr {
-					log.Println("method", mname, "returns", returnType.String(), "not error")
-				}
-				continue
-			}
-			methods[mname] = &methodType{method: method}
 		}
 	}
 	return methods
