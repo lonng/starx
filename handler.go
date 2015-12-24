@@ -154,10 +154,10 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 		if m, ok := s.method[ri.method]; ok {
 			m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(msg.Body)})
 		} else {
-			Info("method: " + ri.method + " not found")
+			Info("handler: " + ri.service + " does not contain method: " + ri.method)
 		}
 	} else {
-		Info("service: " + ri.service + " not found")
+		Info("handler: service: " + ri.service + " not found")
 	}
 }
 
