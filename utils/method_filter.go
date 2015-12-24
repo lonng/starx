@@ -2,8 +2,8 @@ package utils
 
 import (
 	"reflect"
-	"unicode/utf8"
 	"unicode"
+	"unicode/utf8"
 )
 
 var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
@@ -63,8 +63,9 @@ func IsRemoteMethod(method reflect.Method) bool {
 		return false
 	}
 
-	if mtype.Out(1) != typeOfBytes || mtype.Out(2) != typeOfError {
+	if mtype.Out(0) != typeOfBytes || mtype.Out(1) != typeOfError {
 		return false
 	}
+
 	return true
 }
