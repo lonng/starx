@@ -53,11 +53,18 @@ func (rs *remoteService) handle(conn net.Conn) {
 	defer conn.Close()
 	// message buffer
 	requestChan := make(chan *unhandledRequest, packetBufferSize)
+	endChan := make(chan bool, 1)
 	// all user logic will be handled in single goroutine
 	// synchronized in below routine
 	go func() {
-		for r := range requestChan {
-			rs.processRequest(r.bs, r.rr)
+		for {
+			select {
+			case r := <-requestChan:
+				rs.processRequest(r.bs, r.rr)
+			case <-endChan:
+				close(requestChan)
+				return
+			}
 		}
 	}()
 
