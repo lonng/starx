@@ -6,8 +6,8 @@ import (
 	"net"
 	"reflect"
 	"starx/rpc"
-	"sync"
 	"starx/utils"
+	"sync"
 )
 
 // Unhandled message buffer size
@@ -49,12 +49,24 @@ func (handler *handlerService) handle(conn net.Conn) {
 	defer conn.Close()
 	// message buffer
 	packetChan := make(chan *unhandledPacket, packetBufferSize)
+	endChan := make(chan bool, 1)
 	// all user logic will be handled in single goroutine
 	// synchronized in below routine
 	go func() {
-		for cpkg := range packetChan {
-			handler.processPacket(cpkg.fs, cpkg.packet)
+		for {
+			select {
+			case cpkg := <-packetChan:
+				{
+					handler.processPacket(cpkg.fs, cpkg.packet)
+				}
+			case <-endChan:
+				{
+					close(packetChan)
+					return
+				}
+			}
 		}
+
 	}()
 	// register new session when new connection connected in
 	fs := netService.createHandlerSession(conn)
@@ -68,6 +80,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 			fs.status = SS_CLOSED
 			netService.closeSession(fs.userSession)
 			netService.dumpHandlerSessions()
+			endChan <- true
 			break
 		}
 		tmp = append(tmp, buf[:n]...)
@@ -82,6 +95,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 			}
 		}
 	}
+	Info("end reading conn")
 }
 
 func (handler *handlerService) processPacket(fs *handlerSession, pkg *Packet) {
