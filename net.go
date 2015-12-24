@@ -134,6 +134,7 @@ func (net *_netService) closeSession(session *Session) {
 			delete(net.fsessionMap, session.rawSessionId)
 			net.fsmLock.Unlock()
 		}
+		netService.dumpHandlerSessions()
 	} else {
 		if bs, ok := net.bsessionMap[session.rawSessionId]; ok && (bs != nil) {
 			bs.socket.Close()
@@ -141,6 +142,7 @@ func (net *_netService) closeSession(session *Session) {
 			delete(net.bsessionMap, session.rawSessionId)
 			net.bsmLock.Unlock()
 		}
+		netService.dumpRemoteSessions()
 	}
 }
 

@@ -73,16 +73,12 @@ func (handler *handlerService) handle(conn net.Conn) {
 		n, err := conn.Read(buf)
 		if err != nil {
 			Info("session closed(" + err.Error() + ")")
-			fs.status = SS_CLOSED
-			netService.closeSession(fs.userSession)
-			netService.dumpHandlerSessions()
+			fs.close()
 			endChan <- true
 			break
 		}
 		tmp = append(tmp, buf[:n]...)
 		var pkg *Packet // save decoded packet
-		// TODO
-		// Refactor this loop
 		for len(tmp) > headLength {
 			if pkg, tmp = unpack(tmp); pkg != nil {
 				packetChan <- &unhandledPacket{fs, pkg}
@@ -91,7 +87,6 @@ func (handler *handlerService) handle(conn net.Conn) {
 			}
 		}
 	}
-	Info("end reading conn")
 }
 
 func (handler *handlerService) processPacket(fs *handlerSession, pkg *Packet) {
@@ -112,12 +107,16 @@ func (handler *handlerService) processPacket(fs *handlerSession, pkg *Packet) {
 		if msg := decodeMessage(pkg.Body); msg != nil {
 			handler.processMessage(fs.userSession, msg)
 		}
+	default:
+		Info("invalid packet type")
+		fs.close()
 	}
 }
 
 func (handler *handlerService) processMessage(session *Session, msg *Message) {
 	ri, err := decodeRouteInfo(msg.Route)
 	if err != nil {
+		Error(err.Error())
 		return
 	}
 	if ri.serverType == App.Config.Type {
@@ -134,7 +133,7 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 	} else if msg.Type == MT_NOTIFY {
 		session.reqId = 0
 	} else {
-		Info("invalid message type")
+		Error("invalid message type")
 		return
 	}
 	if s, present := handler.serviceMap[ri.service]; present {

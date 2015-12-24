@@ -29,6 +29,7 @@ func newHandlerSession(id uint64, conn net.Conn) *handlerSession {
 	return hs
 }
 
+// String
 // Implement Stringer interface
 func (hs *handlerSession) String() string {
 	return fmt.Sprintf("id: %d, remote address: %s, last time: %d",
@@ -43,4 +44,9 @@ func (hs *handlerSession) send(data []byte) {
 
 func (hs *handlerSession) heartbeat() {
 	hs.lastTime = time.Now().Unix()
+}
+
+func (hs *handlerSession) close() {
+	hs.status = SS_CLOSED
+	netService.closeSession(hs.userSession)
 }
