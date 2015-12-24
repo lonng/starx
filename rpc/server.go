@@ -4,12 +4,12 @@ import (
 	"errors"
 	"log"
 	"reflect"
+	"starx/utils"
 	"strconv"
 	"strings"
 	"sync"
 	"unicode"
 	"unicode/utf8"
-	"starx/utils"
 )
 
 type ResponseKind byte
@@ -48,11 +48,11 @@ type service struct {
 // but documented here as an aid to debugging, such as when analyzing
 // network traffic.
 type Request struct {
-	ServiceMethod string   // format: "Service.Method"
-	Seq           uint64   // sequence number chosen by client
-	Sid           uint64   // frontend session id
-	Args          []byte   // for args
-	Kind          RpcKind  // namespace
+	ServiceMethod string  // format: "Service.Method"
+	Seq           uint64  // sequence number chosen by client
+	Sid           uint64  // frontend session id
+	Args          []byte  // for args
+	Kind          RpcKind // namespace
 }
 
 // Response is a header written before every RPC return.  It is used internally
@@ -187,7 +187,7 @@ func suitableMethods(kind RpcKind, typ reflect.Type, reportErr bool) map[string]
 		for m := 0; m < typ.NumMethod(); m++ {
 			method := typ.Method(m)
 			mname := method.Name
-			if utils.IsRemoteMethod(method){
+			if utils.IsRemoteMethod(method) {
 				methods[mname] = &methodType{method: method}
 			}
 		}
@@ -214,10 +214,10 @@ func (server *Server) Call(serviceMethod string, args []reflect.Value) ([]reflec
 			rets := m.method.Func.Call(args)
 			return rets, nil
 		} else {
-			return nil, errors.New("rpc: " + smethod + " do not exists")
+			return nil, errors.New("rpc: service " + sname + "does not cotain " + smethod + " method")
 		}
 	} else {
-		return nil, errors.New("rpc: " + sname + " do not exists")
+		return nil, errors.New("rpc: servive " + sname + " does not exists")
 	}
 }
 
