@@ -56,14 +56,10 @@ func (handler *handlerService) handle(conn net.Conn) {
 		for {
 			select {
 			case cpkg := <-packetChan:
-				{
-					handler.processPacket(cpkg.fs, cpkg.packet)
-				}
+				handler.processPacket(cpkg.fs, cpkg.packet)
 			case <-endChan:
-				{
-					close(packetChan)
-					return
-				}
+				close(packetChan)
+				return
 			}
 		}
 
@@ -101,29 +97,20 @@ func (handler *handlerService) handle(conn net.Conn) {
 func (handler *handlerService) processPacket(fs *handlerSession, pkg *Packet) {
 	switch pkg.Type {
 	case PACKET_HANDSHAKE:
-		{
-			fs.status = SS_HANDSHAKING
-			data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
-			if err != nil {
-				Info(err.Error())
-			}
-			fs.send(pack(PACKET_HANDSHAKE, data))
+		fs.status = SS_HANDSHAKING
+		data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
+		if err != nil {
+			Info(err.Error())
 		}
+		fs.send(pack(PACKET_HANDSHAKE, data))
 	case PACKET_HANDSHAKE_ACK:
-		{
-			fs.status = SS_WORKING
-		}
+		fs.status = SS_WORKING
 	case PACKET_HEARTBEAT:
-		{
-			go fs.heartbeat()
-		}
+		go fs.heartbeat()
 	case PACKET_DATA:
-		{
-			go fs.heartbeat()
-			msg := decodeMessage(pkg.Body)
-			if msg != nil {
-				handler.processMessage(fs.userSession, msg)
-			}
+		go fs.heartbeat()
+		if msg := decodeMessage(pkg.Body); msg != nil {
+			handler.processMessage(fs.userSession, msg)
 		}
 	}
 }
