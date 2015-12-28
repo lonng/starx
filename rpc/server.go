@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"errors"
-	"log"
 	"reflect"
 	"starx/utils"
 	"strconv"
@@ -136,17 +135,13 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		sname = name
 	}
 	if sname == "" {
-		s := "remote.Register: no service name for type " + s.typ.String()
-		log.Print(s)
-		return errors.New(s)
+		return errors.New("rpc.Register: no service name for type " + s.typ.String())
 	}
 	if !isExported(sname) && !useName {
-		s := "remote.Register: type " + sname + " is not exported"
-		log.Print(s)
-		return errors.New(s)
+		return errors.New("rpc.Register: type " + sname + " is not exported")
 	}
 	if _, present := server.serviceMap[sname]; present {
-		return errors.New("remote: service already defined: " + sname)
+		return errors.New("rpc: service already defined: " + sname)
 	}
 	s.name = sname
 
@@ -159,11 +154,10 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		// To help the user, see if a pointer receiver would work.
 		method := suitableMethods(server.Kind, reflect.PtrTo(s.typ), false)
 		if len(method) != 0 {
-			str = "remote.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
+			str = "rpc.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
 		} else {
-			str = "remote.Register: type " + sname + " has no exported methods of suitable type"
+			str = "rpc.Register: type " + sname + " has no exported methods of suitable type"
 		}
-		log.Print(str)
 		return errors.New(str)
 	}
 	server.serviceMap[s.name] = s
@@ -205,7 +199,7 @@ func (m *methodType) NumCalls() (n uint) {
 func (server *Server) Call(serviceMethod string, args []reflect.Value) ([]reflect.Value, error) {
 	parts := strings.Split(serviceMethod, ".")
 	if len(parts) != 2 {
-		return nil, errors.New("wrong route string: " + serviceMethod)
+		return nil, errors.New("wrong route string")
 	}
 	sname, smethod := parts[0], parts[1]
 	if s, present := server.serviceMap[sname]; present && s != nil {
@@ -214,10 +208,10 @@ func (server *Server) Call(serviceMethod string, args []reflect.Value) ([]reflec
 			rets := m.method.Func.Call(args)
 			return rets, nil
 		} else {
-			return nil, errors.New("remote: service " + sname + "does not contain method: " + smethod)
+			return nil, errors.New("rpc: service " + sname + "does not cotain " + smethod + " method")
 		}
 	} else {
-		return nil, errors.New("remote: servive " + sname + " does not exists")
+		return nil, errors.New("rpc: servive " + sname + " does not exists")
 	}
 }
 
