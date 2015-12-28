@@ -8,6 +8,7 @@ import (
 	"net"
 	"reflect"
 	"starx/rpc"
+	"sync"
 )
 
 type RpcStatus int32
@@ -19,6 +20,7 @@ const (
 
 type remoteService struct {
 	Name         string
+	lock         sync.RWMutex // protect ClientIdMaps
 	ClientIdMaps map[string]*rpc.Client
 	Route        map[string]func(string) uint32
 	Status       RpcStatus
@@ -216,7 +218,9 @@ func (this *remoteService) request(rpcKind rpc.RpcKind, route *routeInfo, sessio
 
 func (this *remoteService) closeClient(svrId string) {
 	if client, ok := this.ClientIdMaps[svrId]; ok {
+		this.lock.Lock()
 		delete(this.ClientIdMaps, svrId)
+		this.lock.Unlock()
 		client.Close()
 	} else {
 		Info(fmt.Sprintf("%s not found in rpc client list", svrId))
@@ -262,7 +266,9 @@ func (this *remoteService) getClientByType(svrType string, session *Session) (*r
 // by now, and return a nil value when server id not found or target machine
 // refuse it.
 func (this *remoteService) getClientById(svrId string) (*rpc.Client, error) {
+	this.lock.RLock()
 	client := this.ClientIdMaps[svrId]
+	this.lock.RUnlock()
 	if client != nil {
 		return client, nil
 	}
@@ -277,7 +283,13 @@ func (this *remoteService) getClientById(svrId string) (*rpc.Client, error) {
 		if err != nil {
 			return nil, err
 		}
+		// on client shutdown
+		client.OnShutdown(func() {
+			removeServer(svr.Id)
+		})
+		this.lock.Lock()
 		this.ClientIdMaps[svr.Id] = client
+		this.lock.Unlock()
 		// handle sys rpc push/response
 		go func() {
 			for resp := range client.ResponseChan {
