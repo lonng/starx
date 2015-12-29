@@ -42,4 +42,5 @@ func (m *Manager) RemoveServer(session *Session, data []byte) error {
 		return err
 	}
 	removeServer(srvId)
+	return nil
 }

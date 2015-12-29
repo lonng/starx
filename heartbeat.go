@@ -13,6 +13,7 @@ func newHeartbeatService() *HeartbeatService {
 }
 
 func (h *HeartbeatService) start() {
+	Info("enable heartbeat service")
 	for {
 		<-h.ticker.C
 		netService.heartbeat()

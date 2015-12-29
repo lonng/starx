@@ -19,7 +19,9 @@ func (app *_app) start() {
 	app.loadDefaultComps()
 
 	// enable all app service
-	go heartbeatService.start()
+	if app.Config.IsFrontend {
+		go heartbeatService.start()
+	}
 	app.listenAndServe()
 
 	// stop server
