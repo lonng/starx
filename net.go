@@ -148,12 +148,13 @@ func (net *_netService) closeSession(session *Session) {
 
 // Send heartbeat packet
 func (net *_netService) heartbeat() {
-	if App.Config.IsFrontend {
-		for _, session := range net.fsessionMap {
-			if session.status == SS_WORKING {
-				session.send(pack(PACKET_HEARTBEAT, nil))
-				session.heartbeat()
-			}
+	if !App.Config.IsFrontend || net.fsessionMap == nil {
+		return
+	}
+	for _, session := range net.fsessionMap {
+		if session.status == SS_WORKING {
+			session.send(pack(PACKET_HEARTBEAT, nil))
+			session.heartbeat()
 		}
 	}
 }
