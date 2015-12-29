@@ -130,6 +130,14 @@ func removeServer(svrId string) {
 	}
 }
 
+func updateServer(newSvr ServerConfig) {
+	if srv, ok := svrIdMaps[newSvr.Id]; ok && srv != nil {
+		svrIdMaps[srv.Id] = &newSvr
+	} else {
+		Error(newSvr.Id + " not exists")
+	}
+}
+
 func init() {
 	App = newApp()
 	svrTypeMaps = make(map[string][]string)

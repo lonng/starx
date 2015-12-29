@@ -1,7 +1,7 @@
 package starx
 
 import (
-	"fmt"
+	"encoding/json"
 )
 
 type Manager struct {
@@ -14,8 +14,32 @@ func (this *Manager) Setup() {
 	Info("manager component initialized")
 }
 
-func (this *Manager) Test(g string, replay *int) error {
-	this.Counter++
-	Info(fmt.Sprintf("%s, %d", g, this.Counter))
+func (m *Manager) UpdateServer(session *Session, data []byte) error {
+	var newServerInfo ServerConfig
+	err := json.Unmarshal(data, &newServerInfo)
+	if err != nil {
+		return err
+	}
+	updateServer(newServerInfo)
 	return nil
+}
+
+func (m *Manager) RegisterServer(session *Session, data []byte) error {
+	var newServerInfo ServerConfig
+	err := json.Unmarshal(data, &newServerInfo)
+	if err != nil {
+		return err
+	}
+	Info("new server connected in")
+	registerServer(newServerInfo)
+	return nil
+}
+
+func (m *Manager) RemoveServer(session *Session, data []byte) error {
+	var srvId string
+	err := json.Unmarshal(data, &srvId)
+	if err != nil {
+		return err
+	}
+	removeServer(srvId)
 }

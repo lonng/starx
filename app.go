@@ -20,7 +20,7 @@ func (app *_app) start() {
 
 	// enable all app service
 	go heartbeatService.start()
-	app.listenPort()
+	app.listenAndServe()
 
 	// stop server
 	<-endRunning
@@ -29,7 +29,7 @@ func (app *_app) start() {
 }
 
 // Enable current server accept connection
-func (app *_app) listenPort() {
+func (app *_app) listenAndServe() {
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", app.Config.Host, app.Config.Port))
 	if err != nil {
 		Error(err.Error())
