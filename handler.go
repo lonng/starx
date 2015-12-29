@@ -2,6 +2,7 @@ package starx
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"reflect"
@@ -186,7 +187,7 @@ func (handler *handlerService) register(rcvr HandlerComponent) {
 	handler._register(rcvr)
 }
 
-func (handler *handlerService) _register(rcvr HandlerComponent) {
+func (handler *handlerService) _register(rcvr HandlerComponent) error {
 	if handler.serviceMap == nil {
 		handler.serviceMap = make(map[string]*service)
 	}
@@ -195,18 +196,14 @@ func (handler *handlerService) _register(rcvr HandlerComponent) {
 	s.rcvr = reflect.ValueOf(rcvr)
 	sname := reflect.Indirect(s.rcvr).Type().Name()
 	if sname == "" {
-		s := "handler.Register: no service name for type " + s.typ.String()
-		Info(s)
-		return
+		return errors.New("handler.Register: no service name for type " + s.typ.String())
 	}
 	if !utils.IsExported(sname) {
-		s := "handler.Register: type " + sname + " is not exported"
-		Info(s)
-		return
+		return errors.New("handler.Register: type " + sname + " is not exported")
+
 	}
 	if _, present := handler.serviceMap[sname]; present {
-		Info("handler: service already defined: " + sname)
-		return
+		return errors.New("handler: service already defined: " + sname)
 	}
 	s.name = sname
 
@@ -223,10 +220,11 @@ func (handler *handlerService) _register(rcvr HandlerComponent) {
 		} else {
 			str = "handler.Register: type " + sname + " has no exported methods of suitable type"
 		}
-		Info(str)
+		return errors.New(str)
 	}
 	handler.serviceMap[s.name] = s
 	handler.dumpServiceMap()
+	return nil
 }
 
 // suitableMethods returns suitable methods of typ, it will report

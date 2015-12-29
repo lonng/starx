@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"errors"
-	"log"
 	"reflect"
 	"starx/utils"
 	"strconv"
@@ -136,14 +135,10 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		sname = name
 	}
 	if sname == "" {
-		s := "rpc.Register: no service name for type " + s.typ.String()
-		log.Print(s)
-		return errors.New(s)
+		return errors.New("rpc.Register: no service name for type " + s.typ.String())
 	}
 	if !isExported(sname) && !useName {
-		s := "rpc.Register: type " + sname + " is not exported"
-		log.Print(s)
-		return errors.New(s)
+		return errors.New("rpc.Register: type " + sname + " is not exported")
 	}
 	if _, present := server.serviceMap[sname]; present {
 		return errors.New("rpc: service already defined: " + sname)
@@ -163,7 +158,6 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		} else {
 			str = "rpc.Register: type " + sname + " has no exported methods of suitable type"
 		}
-		log.Print(str)
 		return errors.New(str)
 	}
 	server.serviceMap[s.name] = s
