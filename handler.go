@@ -79,7 +79,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 			break
 		}
 		tmp = append(tmp, buf[:n]...)
-		var pkg *Packet // save decoded packet
+		var pkg *packet // save decoded packet
 		for len(tmp) > headLength {
 			if pkg, tmp = unpack(tmp); pkg != nil {
 				packetChan <- &unhandledPacket{fs, pkg}
@@ -90,22 +90,22 @@ func (handler *handlerService) handle(conn net.Conn) {
 	}
 }
 
-func (handler *handlerService) processPacket(fs *handlerSession, pkg *Packet) {
-	switch pkg.Type {
-	case PACKET_HANDSHAKE:
-		fs.status = SS_HANDSHAKING
+func (handler *handlerService) processPacket(fs *handlerSession, pkg *packet) {
+	switch pkg.kind {
+	case _PACKET_HANDSHAKE:
+		fs.status = _SS_HANDSHAKING
 		data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
 		if err != nil {
 			Info(err.Error())
 		}
-		fs.send(pack(PACKET_HANDSHAKE, data))
-	case PACKET_HANDSHAKE_ACK:
-		fs.status = SS_WORKING
-	case PACKET_HEARTBEAT:
+		fs.send(pack(_PACKET_HANDSHAKE, data))
+	case _PACKET_HANDSHAKE_ACK:
+		fs.status = _SS_WORKING
+	case _PACKET_HEARTBEAT:
 		go fs.heartbeat()
-	case PACKET_DATA:
+	case _PACKET_DATA:
 		go fs.heartbeat()
-		if msg := decodeMessage(pkg.Body); msg != nil {
+		if msg := decodeMessage(pkg.body); msg != nil {
 			handler.processMessage(fs.userSession, msg)
 		}
 	default:
@@ -114,8 +114,8 @@ func (handler *handlerService) processPacket(fs *handlerSession, pkg *Packet) {
 	}
 }
 
-func (handler *handlerService) processMessage(session *Session, msg *Message) {
-	ri, err := decodeRouteInfo(msg.Route)
+func (handler *handlerService) processMessage(session *Session, msg *message) {
+	ri, err := decodeRouteInfo(msg.route)
 	if err != nil {
 		Error(err.Error())
 		return
@@ -128,10 +128,10 @@ func (handler *handlerService) processMessage(session *Session, msg *Message) {
 }
 
 // TODO: implement request protocol
-func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg *Message) {
-	if msg.Type == MT_REQUEST {
-		session.reqId = msg.ID
-	} else if msg.Type == MT_NOTIFY {
+func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg *message) {
+	if msg.kind == _MT_REQUEST {
+		session.reqId = msg.id
+	} else if msg.kind == _MT_NOTIFY {
 		session.reqId = 0
 	} else {
 		Error("invalid message type")
@@ -139,7 +139,7 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 	}
 	if s, present := handler.serviceMap[ri.service]; present {
 		if m, ok := s.method[ri.method]; ok {
-			m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(msg.Body)})
+			m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(msg.body)})
 		} else {
 			Info("handler: " + ri.service + " does not contain method: " + ri.method)
 		}
@@ -149,13 +149,13 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 }
 
 // TODO: implemention
-func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, msg *Message) {
-	if msg.Type == MT_REQUEST {
-		session.reqId = msg.ID
-		remote.request(rpc.SysRpc, ri, session, msg.Body)
-	} else if msg.Type == MT_NOTIFY {
+func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, msg *message) {
+	if msg.kind == _MT_REQUEST {
+		session.reqId = msg.id
+		remote.request(rpc.SysRpc, ri, session, msg.body)
+	} else if msg.kind == _MT_NOTIFY {
 		session.reqId = 0
-		remote.request(rpc.SysRpc, ri, session, msg.Body)
+		remote.request(rpc.SysRpc, ri, session, msg.body)
 	} else {
 		Info("invalid message type")
 		return

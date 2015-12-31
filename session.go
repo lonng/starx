@@ -8,14 +8,14 @@ import (
 	"time"
 )
 
-type SessionStatus byte
+type sessionStatus byte
 
 const (
-	_ SessionStatus = iota
-	SS_START
-	SS_HANDSHAKING
-	SS_WORKING
-	SS_CLOSED
+	_ sessionStatus = iota
+	_SS_START
+	_SS_HANDSHAKING
+	_SS_WORKING
+	_SS_CLOSED
 )
 
 var (
@@ -32,7 +32,7 @@ type Session struct {
 	Id           uint64        // session global uniqe id
 	Uid          int           // binding user id
 	reqId        uint          // last request id
-	status       SessionStatus // session current time
+	status       sessionStatus // session current time
 	lastTime     int64         // last heartbeat time
 	rawSessionId uint64        // raw session id, frontendSession in frontend server, or backendSession in backend server
 }
@@ -41,7 +41,7 @@ type Session struct {
 func newSession() *Session {
 	return &Session{
 		Id:       ConnectionService.getNewSessionUUID(),
-		status:   SS_START,
+		status:   _SS_START,
 		lastTime: time.Now().Unix()}
 }
 

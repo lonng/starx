@@ -11,7 +11,7 @@ import (
 type handlerSession struct {
 	id          uint64
 	socket      net.Conn
-	status      SessionStatus
+	status      sessionStatus
 	userSession *Session
 	lastTime    int64 // last heartbeat unix time stamp
 }
@@ -21,7 +21,7 @@ func newHandlerSession(id uint64, conn net.Conn) *handlerSession {
 	hs := &handlerSession{
 		id:       id,
 		socket:   conn,
-		status:   SS_START,
+		status:   _SS_START,
 		lastTime: time.Now().Unix()}
 	session := newSession()
 	session.rawSessionId = hs.id
@@ -47,6 +47,6 @@ func (hs *handlerSession) heartbeat() {
 }
 
 func (hs *handlerSession) close() {
-	hs.status = SS_CLOSED
+	hs.status = _SS_CLOSED
 	netService.closeSession(hs.userSession)
 }

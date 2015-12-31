@@ -34,7 +34,6 @@ var (
 	route             map[string]func(*Session) string                   // server route function
 	channelServive    *ChannelServive                                    // channel service component
 	ConnectionService *connectionService                                 // connection service component
-	protocolState     ProtocolState                                      // current protocol state
 	heartbeatInternal time.Duration                    = time.Second * 8 // beatheart time internal, second unit
 	heartbeatService  *HeartbeatService                                  // beatheart service
 	endRunning        chan bool                                          // wait for end application
@@ -152,7 +151,6 @@ func init() {
 	TimerManager = newTimer()
 	channelServive = newChannelServive()
 	ConnectionService = newConnectionService()
-	protocolState = PROTOCOL_START
 	heartbeatService = newHeartbeatService()
 	endRunning = make(chan bool, 1)
 
