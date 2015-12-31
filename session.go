@@ -55,7 +55,7 @@ func (session *Session) Push(route string, data []byte) {
 	if App.Config.IsFrontend {
 		netService.Push(session, route, data)
 	} else {
-		rs, err := netService.getRemoteSessionBySid(session.rawSessionId)
+		rs, err := netService.getBackendSessionBySid(session.rawSessionId)
 		if err != nil {
 			Error(err.Error())
 		} else {
@@ -79,7 +79,7 @@ func (session *Session) Response(data []byte) {
 	if App.Config.IsFrontend {
 		netService.Response(session, data)
 	} else {
-		rs, err := netService.getRemoteSessionBySid(session.rawSessionId)
+		rs, err := netService.getBackendSessionBySid(session.rawSessionId)
 		if err != nil {
 			Error(err.Error())
 		} else {

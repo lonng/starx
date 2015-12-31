@@ -70,7 +70,7 @@ func (rs *remoteService) handle(conn net.Conn) {
 		}
 	}()
 
-	bs := netService.createRemoteSession(conn)
+	bs := netService.createBackendSession(conn)
 	netService.dumpRemoteSessions()
 	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)
@@ -293,7 +293,7 @@ func (this *remoteService) getClientById(svrId string) (*rpc.Client, error) {
 		// handle sys rpc push/response
 		go func() {
 			for resp := range client.ResponseChan {
-				hsession, err := netService.getHandlerSessionBySid(resp.Sid)
+				hsession, err := netService.getFrontendSessionBySid(resp.Sid)
 				if err != nil {
 					Error(err.Error())
 					continue

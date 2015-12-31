@@ -31,7 +31,7 @@ func newNetService() *_netService {
 }
 
 // Create frontend session via netService
-func (net *_netService) createHandlerSession(conn net.Conn) *handlerSession {
+func (net *_netService) createFrontendSession(conn net.Conn) *handlerSession {
 	net.fuuidLock.Lock()
 	id := net.fsessionUUID
 	net.fsessionUUID++
@@ -44,7 +44,7 @@ func (net *_netService) createHandlerSession(conn net.Conn) *handlerSession {
 	return fs
 }
 
-func (net *_netService) getHandlerSessionBySid(sid uint64) (*handlerSession, error) {
+func (net *_netService) getFrontendSessionBySid(sid uint64) (*handlerSession, error) {
 	if hs, ok := net.fsessionMap[sid]; ok && hs != nil {
 		return hs, nil
 	} else {
@@ -53,7 +53,7 @@ func (net *_netService) getHandlerSessionBySid(sid uint64) (*handlerSession, err
 }
 
 // Create backend session via netService
-func (net *_netService) createRemoteSession(conn net.Conn) *remoteSession {
+func (net *_netService) createBackendSession(conn net.Conn) *remoteSession {
 	net.buuidLock.Lock()
 	id := net.fsessionUUID
 	net.fsessionUUID++
@@ -66,7 +66,7 @@ func (net *_netService) createRemoteSession(conn net.Conn) *remoteSession {
 	return bs
 }
 
-func (net *_netService) getRemoteSessionBySid(sid uint64) (*remoteSession, error) {
+func (net *_netService) getBackendSessionBySid(sid uint64) (*remoteSession, error) {
 	if rs, ok := net.bsessionMap[sid]; ok && rs != nil {
 		return rs, nil
 	} else {
