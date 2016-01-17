@@ -19,22 +19,21 @@ var (
 	AppName           string
 	AppPath           string
 	workPath          string
-	AppConfigPath     string
-	ServerConfigPath  string
-	MasterConfigPath  string
+	appConfigPath     string
+	serverConfigPath  string
+	masterConfigPath  string
 	StartTime         time.Time
-	SvrTypes          []string                                           // all server type
-	SvrTypeMaps       map[string][]string                                // all servers type maps
-	SvrIdMaps         map[string]*ServerConfig                           // all servers id maps
-	Settings          map[string][]func()                                // all settiings
+	svrTypes          []string                                           // all server type
+	svrTypeMaps       map[string][]string                                // all servers type maps
+	svrIdMaps         map[string]*ServerConfig                           // all servers id maps
+	settings          map[string][]func()                                // all settiings
 	remote            *remoteService                                     // remote service
 	handler           *handlerService                                    // hander
-	Net               *netService                                        // net service
+	netService        *_netService                                       // net service
 	TimerManager      Timer                                              // timer component
-	Route             map[string]func(*Session) string                   // server route function
+	route             map[string]func(*Session) string                   // server route function
 	channelServive    *ChannelServive                                    // channel service component
-	connectionService *ConnectionService                                 // connection service component
-	protocolState     ProtocolState                                      // current protocol state
+	ConnectionService *connectionService                                 // connection service component
 	heartbeatInternal time.Duration                    = time.Second * 8 // beatheart time internal, second unit
 	heartbeatService  *HeartbeatService                                  // beatheart service
 	endRunning        chan bool                                          // wait for end application
@@ -60,14 +59,14 @@ func (this *ServerConfig) String() string {
 }
 
 func dumpSvrIdMaps() {
-	for _, v := range SvrIdMaps {
+	for _, v := range svrIdMaps {
 		Info(fmt.Sprintf("id: %s(%s)", v.Id, v.String()))
 	}
 }
 
 func dumpSvrTypeMaps() {
-	for _, t := range SvrTypes {
-		svrs := SvrTypeMaps[t]
+	for _, t := range svrTypes {
+		svrs := svrTypeMaps[t]
 		if len(svrs) == 0 {
 			continue
 		}
@@ -79,37 +78,37 @@ func dumpSvrTypeMaps() {
 
 func registerServer(server ServerConfig) {
 	// server exists
-	if _, ok := SvrIdMaps[server.Id]; ok {
+	if _, ok := svrIdMaps[server.Id]; ok {
 		Info(fmt.Sprintf("serverId: %s already existed(%s)", server.Id, server.String()))
 		return
 	}
 	svr := &server
-	if len(SvrTypes) > 0 {
-		for k, t := range SvrTypes {
+	if len(svrTypes) > 0 {
+		for k, t := range svrTypes {
 			// duplicate
 			if t == svr.Type {
 				break
 			}
 			// arrive slice end
-			if k == len(SvrTypes)-1 {
-				SvrTypes = append(SvrTypes, svr.Type)
+			if k == len(svrTypes)-1 {
+				svrTypes = append(svrTypes, svr.Type)
 			}
 		}
 	} else {
-		SvrTypes = append(SvrTypes, svr.Type)
+		svrTypes = append(svrTypes, svr.Type)
 	}
-	SvrIdMaps[svr.Id] = svr
-	SvrTypeMaps[svr.Type] = append(SvrTypeMaps[svr.Type], svr.Id)
+	svrIdMaps[svr.Id] = svr
+	svrTypeMaps[svr.Type] = append(svrTypeMaps[svr.Type], svr.Id)
 }
 
 func removeServer(svrId string) {
 
-	if _, ok := SvrIdMaps[svrId]; ok {
+	if _, ok := svrIdMaps[svrId]; ok {
 		// remove from ServerIdMaps map
-		typ := SvrIdMaps[svrId].Type
-		if svrs, ok := SvrTypeMaps[typ]; ok && len(svrs) > 0 {
+		typ := svrIdMaps[svrId].Type
+		if svrs, ok := svrTypeMaps[typ]; ok && len(svrs) > 0 {
 			if len(svrs) == 1 { // array only one element, remove it directly
-				delete(SvrTypeMaps, typ)
+				delete(svrTypeMaps, typ)
 			} else {
 				var tempSvrs []string
 				for idx, id := range svrs {
@@ -119,33 +118,40 @@ func removeServer(svrId string) {
 						break
 					}
 				}
-				SvrTypeMaps[typ] = tempSvrs
+				svrTypeMaps[typ] = tempSvrs
 			}
 		}
 		// remove from ServerIdMaps
-		delete(SvrIdMaps, svrId)
+		delete(svrIdMaps, svrId)
 		remote.closeClient(svrId)
 	} else {
 		Info(fmt.Sprintf("serverId: %s not found", svrId))
 	}
 }
 
+func updateServer(newSvr ServerConfig) {
+	if srv, ok := svrIdMaps[newSvr.Id]; ok && srv != nil {
+		svrIdMaps[srv.Id] = &newSvr
+	} else {
+		Error(newSvr.Id + " not exists")
+	}
+}
+
 func init() {
 	App = newApp()
-	SvrTypeMaps = make(map[string][]string)
-	SvrIdMaps = make(map[string]*ServerConfig)
-	Settings = make(map[string][]func())
+	svrTypeMaps = make(map[string][]string)
+	svrIdMaps = make(map[string]*ServerConfig)
+	settings = make(map[string][]func())
 	StartTime = time.Now()
 	Log = log.New(os.Stdout, "", log.LstdFlags)
 	remote = newRemote()
 	handler = newHandler()
-	Net = newNetService()
-	Route = make(map[string]func(*Session) string)
-	TimerManager = NewTimer()
-	channelServive = NewChannelServive()
-	connectionService = NewConnectionService()
-	protocolState = PROTOCOL_START
-	heartbeatService = NewHeartbeatService()
+	netService = newNetService()
+	route = make(map[string]func(*Session) string)
+	TimerManager = newTimer()
+	channelServive = newChannelServive()
+	ConnectionService = newConnectionService()
+	heartbeatService = newHeartbeatService()
 	endRunning = make(chan bool, 1)
 
 	workPath, _ = os.Getwd()
@@ -153,36 +159,36 @@ func init() {
 	// initialize default configurations
 	AppPath, _ = filepath.Abs(filepath.Dir(os.Args[0]))
 
-	AppConfigPath = filepath.Join(AppPath, "conf", "app.json")
-	ServerConfigPath = filepath.Join(AppPath, "conf", "servers.json")
-	MasterConfigPath = filepath.Join(AppPath, "conf", "master.json")
+	appConfigPath = filepath.Join(AppPath, "conf", "app.json")
+	serverConfigPath = filepath.Join(AppPath, "conf", "servers.json")
+	masterConfigPath = filepath.Join(AppPath, "conf", "master.json")
 	if workPath != AppPath {
-		if utils.FileExists(AppConfigPath) {
+		if utils.FileExists(appConfigPath) {
 			os.Chdir(AppPath)
 		} else {
-			AppConfigPath = filepath.Join(workPath, "conf", "app.json")
+			appConfigPath = filepath.Join(workPath, "conf", "app.json")
 		}
 
-		if utils.FileExists(ServerConfigPath) {
+		if utils.FileExists(serverConfigPath) {
 			os.Chdir(AppPath)
 		} else {
-			ServerConfigPath = filepath.Join(workPath, "conf", "servers.json")
+			serverConfigPath = filepath.Join(workPath, "conf", "servers.json")
 		}
 
-		if utils.FileExists(MasterConfigPath) {
+		if utils.FileExists(masterConfigPath) {
 			os.Chdir(AppPath)
 		} else {
-			MasterConfigPath = filepath.Join(workPath, "conf", "master.json")
+			masterConfigPath = filepath.Join(workPath, "conf", "master.json")
 		}
 	}
 }
 
 func parseConfig() {
 	// initialize master server config
-	if !utils.FileExists(MasterConfigPath) {
-		panic(fmt.Sprintf("%s not found", MasterConfigPath))
+	if !utils.FileExists(masterConfigPath) {
+		panic(fmt.Sprintf("%s not found", masterConfigPath))
 	} else {
-		f, _ := os.Open(MasterConfigPath)
+		f, _ := os.Open(masterConfigPath)
 		defer f.Close()
 
 		reader := json.NewDecoder(f)
@@ -202,10 +208,10 @@ func parseConfig() {
 	}
 
 	// initialize servers config
-	if !utils.FileExists(ServerConfigPath) {
-		panic(fmt.Sprintf("%s not found", ServerConfigPath))
+	if !utils.FileExists(serverConfigPath) {
+		panic(fmt.Sprintf("%s not found", serverConfigPath))
 	} else {
-		f, _ := os.Open(ServerConfigPath)
+		f, _ := os.Open(serverConfigPath)
 		defer f.Close()
 
 		reader := json.NewDecoder(f)
@@ -228,7 +234,7 @@ func parseConfig() {
 	}
 
 	if App.Master == nil {
-		panic(fmt.Sprintf("wrong master server config file(%s)", MasterConfigPath))
+		panic(fmt.Sprintf("wrong master server config file(%s)", masterConfigPath))
 	}
 
 	defaultServerId := "master-server-1"
@@ -238,9 +244,9 @@ func parseConfig() {
 	if serverId == defaultServerId { // master server
 		App.Config = App.Master
 	} else { // other server
-		App.Config = SvrIdMaps[serverId]
+		App.Config = svrIdMaps[serverId]
 		if App.Config == nil {
-			panic(fmt.Sprintf("%s infomation not found in %s", serverId, ServerConfigPath))
+			panic(fmt.Sprintf("%s infomation not found in %s", serverId, serverConfigPath))
 		}
 	}
 }

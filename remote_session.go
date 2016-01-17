@@ -11,7 +11,7 @@ import (
 type remoteSession struct {
 	id            uint64
 	socket        net.Conn
-	status        SessionStatus
+	status        sessionStatus
 	sessionMap    map[uint64]*Session
 	fsessionIdMap map[uint64]uint64 // session id map(frontend session id -> backend session id)
 	bsessionIdMap map[uint64]uint64 // session id map(backend session id -> frontend session id)
@@ -23,7 +23,7 @@ func newRemoteSession(id uint64, conn net.Conn) *remoteSession {
 	return &remoteSession{
 		id:            id,
 		socket:        conn,
-		status:        SS_START,
+		status:        _SS_START,
 		sessionMap:    make(map[uint64]*Session),
 		fsessionIdMap: make(map[uint64]uint64),
 		bsessionIdMap: make(map[uint64]uint64),

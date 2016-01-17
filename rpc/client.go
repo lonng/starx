@@ -45,12 +45,13 @@ type Client struct {
 	reqMutex sync.Mutex // protects following
 	request  Request
 
-	mutex        sync.Mutex // protects following
-	seq          uint64
-	pending      map[uint64]*Call
-	closing      bool           // user has called Close
-	shutdown     bool           // server has told us to stop
-	ResponseChan chan *Response // rpc response handler
+	mutex            sync.Mutex // protects following
+	seq              uint64
+	pending          map[uint64]*Call
+	closing          bool           // user has called Close
+	shutdown         bool           // server has told us to stop
+	shutdownCallback func()         // callback on client shutdown
+	ResponseChan     chan *Response // rpc response handler
 }
 
 // A ClientCodec implements writing of RPC requests and
@@ -229,6 +230,9 @@ func (client *Client) input() {
 	if debugLog && err != io.EOF && !closing {
 		log.Println("rpc: client protocol error:", err)
 	}
+	if client.shutdownCallback != nil {
+		client.shutdownCallback()
+	}
 }
 
 func (call *Call) done() {
@@ -265,6 +269,11 @@ func Dial(network, address string) (*Client, error) {
 		return nil, err
 	}
 	return NewClient(conn), nil
+}
+
+// client shutdown callback function
+func (client *Client) OnShutdown(callback func()) {
+	client.shutdownCallback = callback
 }
 
 func (client *Client) Close() error {

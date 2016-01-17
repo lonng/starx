@@ -8,13 +8,14 @@ type HeartbeatService struct {
 	ticker *time.Ticker
 }
 
-func NewHeartbeatService() *HeartbeatService {
+func newHeartbeatService() *HeartbeatService {
 	return &HeartbeatService{ticker: time.NewTicker(heartbeatInternal)}
 }
 
 func (h *HeartbeatService) start() {
+	Info("enable heartbeat service")
 	for {
 		<-h.ticker.C
-		Net.heartbeat()
+		netService.heartbeat()
 	}
 }

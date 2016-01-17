@@ -11,7 +11,7 @@ import (
 type handlerSession struct {
 	id          uint64
 	socket      net.Conn
-	status      SessionStatus
+	status      sessionStatus
 	userSession *Session
 	lastTime    int64 // last heartbeat unix time stamp
 }
@@ -21,7 +21,7 @@ func newHandlerSession(id uint64, conn net.Conn) *handlerSession {
 	hs := &handlerSession{
 		id:       id,
 		socket:   conn,
-		status:   SS_START,
+		status:   _SS_START,
 		lastTime: time.Now().Unix()}
 	session := newSession()
 	session.rawSessionId = hs.id
@@ -29,6 +29,7 @@ func newHandlerSession(id uint64, conn net.Conn) *handlerSession {
 	return hs
 }
 
+// String
 // Implement Stringer interface
 func (hs *handlerSession) String() string {
 	return fmt.Sprintf("id: %d, remote address: %s, last time: %d",
@@ -43,4 +44,9 @@ func (hs *handlerSession) send(data []byte) {
 
 func (hs *handlerSession) heartbeat() {
 	hs.lastTime = time.Now().Unix()
+}
+
+func (hs *handlerSession) close() {
+	hs.status = _SS_CLOSED
+	netService.closeSession(hs.userSession)
 }

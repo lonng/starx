@@ -10,10 +10,7 @@ package rpc
 */
 
 import (
-	"fmt"
 	"html/template"
-	"net/http"
-	"sort"
 )
 
 const debugText = `<html>
@@ -66,28 +63,4 @@ func (m methodArray) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
 
 type debugHTTP struct {
 	*Server
-}
-
-// Runs at /debug/rpc
-func (server debugHTTP) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	// Build a sorted version of the data.
-	var services = make(serviceArray, len(server.serviceMap))
-	i := 0
-	server.mu.Lock()
-	for sname, service := range server.serviceMap {
-		services[i] = debugService{service, sname, make(methodArray, len(service.method))}
-		j := 0
-		for mname, method := range service.method {
-			services[i].Method[j] = debugMethod{method, mname}
-			j++
-		}
-		sort.Sort(services[i].Method)
-		i++
-	}
-	server.mu.Unlock()
-	sort.Sort(services)
-	err := debug.Execute(w, services)
-	if err != nil {
-		fmt.Fprintln(w, "rpc: error executing template:", err.Error())
-	}
 }

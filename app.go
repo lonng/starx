@@ -8,7 +8,7 @@ import (
 
 type _app struct {
 	Master *ServerConfig // master server config
-	Config *ServerConfig // current server info
+	Config *ServerConfig // current server information
 }
 
 func newApp() *_app {
@@ -17,21 +17,21 @@ func newApp() *_app {
 
 func (app *_app) start() {
 	app.loadDefaultComps()
-	// enable heartbeat service
-	go heartbeatService.start()
-	// enable port listener
-	app.listenPort()
-	// waiting for application shutdown
+
+	// enable all app service
+	if app.Config.IsFrontend {
+		go heartbeatService.start()
+	}
+	app.listenAndServe()
+
+	// stop server
 	<-endRunning
 	Info("server: " + app.Config.Id + " is stopping...")
-	// close all channels
 	close(endRunning)
-	// close all of components
-	remote.close()
 }
 
-// Enable current server backend listener
-func (app *_app) listenPort() {
+// Enable current server accept connection
+func (app *_app) listenAndServe() {
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", app.Config.Host, app.Config.Port))
 	if err != nil {
 		Error(err.Error())
@@ -45,6 +45,7 @@ func (app *_app) listenPort() {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
+			Error(err.Error())
 			continue
 		}
 		if app.Config.IsFrontend {
