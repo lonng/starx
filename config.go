@@ -24,9 +24,9 @@ var (
 	masterConfigPath  string
 	StartTime         time.Time
 	cluster           *clusterService                                    // cluster service
-	settings          map[string][]func()                                // all settiings
+	settings          map[string][]func()                                // all settings
 	remote            *remoteService                                     // remote service
-	handler           *handlerService                                    // hander
+	handler           *handlerService                                    // handler service
 	netService        *_netService                                       // net service
 	TimerManager      Timer                                              // timer component
 	route             map[string]func(*Session) string                   // server route function
