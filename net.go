@@ -11,66 +11,67 @@ import (
 )
 
 type _netService struct {
-	fuuidLock    sync.RWMutex               // protect fsessionUUID
-	fsessionUUID uint64                     // frontend session uuid
-	fsmLock      sync.RWMutex               // protect fsessionMap
-	fsessionMap  map[uint64]*handlerSession // frontend id to session map
-	buuidLock    sync.RWMutex               // protect bsessionUUID
-	bsessionUUID uint64                     // backend session uuid
-	bsmLock      sync.RWMutex               // protect bsessionMap
-	bsessionMap  map[uint64]*remoteSession  // backend id to session map
+	agentUidLock    sync.RWMutex         // protect agentUid
+	agentUid        uint64               // agent unique id
+	agentMapLock    sync.RWMutex         // protect agentMap
+	agentMap        map[uint64]*agent    // agents map
+	acceptorUidLock sync.RWMutex         // protect acceptorUid
+	acceptorUid     uint64               // acceptor unique id
+	acceptorMapLock sync.RWMutex         // protect acceptorMap
+	acceptorMap     map[uint64]*acceptor // acceptor map
 }
 
 // Create new netservive
 func newNetService() *_netService {
 	return &_netService{
-		fsessionUUID: 1,
-		fsessionMap:  make(map[uint64]*handlerSession),
-		bsessionUUID: 1,
-		bsessionMap:  make(map[uint64]*remoteSession)}
+		agentUid:    1,
+		agentMap:    make(map[uint64]*agent),
+		acceptorUid: 1,
+		acceptorMap: make(map[uint64]*acceptor)}
 }
 
-// Create frontend session via netService
-func (net *_netService) createFrontendSession(conn net.Conn) *handlerSession {
-	net.fuuidLock.Lock()
-	id := net.fsessionUUID
-	net.fsessionUUID++
-	net.fuuidLock.Unlock()
-	fs := newHandlerSession(id, conn)
+// Create agent via netService
+func (net *_netService) createAgent(conn net.Conn) *agent {
+	net.agentUidLock.Lock()
+	id := net.agentUid
+	net.agentUid++
+	net.agentUidLock.Unlock()
+	a := newAgent(id, conn)
 	// add to maps
-	net.fsmLock.Lock()
-	net.fsessionMap[id] = fs
-	net.fsmLock.Unlock()
-	return fs
+	net.agentMapLock.Lock()
+	net.agentMap[id] = a
+	net.agentMapLock.Unlock()
+	return a
 }
 
-func (net *_netService) getFrontendSessionBySid(sid uint64) (*handlerSession, error) {
-	if hs, ok := net.fsessionMap[sid]; ok && hs != nil {
-		return hs, nil
+// get agent by session id
+func (net *_netService) getAgent(sid uint64) (*agent, error) {
+	if a, ok := net.agentMap[sid]; ok && a != nil {
+		return a, nil
 	} else {
-		return nil, errors.New("handler session id " + string(sid) + " not exists!")
+		return nil, errors.New("agent id: " + string(sid) + " not exists!")
 	}
 }
 
-// Create backend session via netService
-func (net *_netService) createBackendSession(conn net.Conn) *remoteSession {
-	net.buuidLock.Lock()
-	id := net.fsessionUUID
-	net.fsessionUUID++
-	net.buuidLock.Unlock()
-	bs := newRemoteSession(id, conn)
+// Create acceptor via netService
+func (net *_netService) createAcceptor(conn net.Conn) *acceptor {
+	net.acceptorUidLock.Lock()
+	id := net.agentUid
+	net.agentUid++
+	net.acceptorUidLock.Unlock()
+	a := newAcceptor(id, conn)
 	// add to maps
-	net.bsmLock.Lock()
-	net.bsessionMap[id] = bs
-	net.bsmLock.Unlock()
-	return bs
+	net.acceptorMapLock.Lock()
+	net.acceptorMap[id] = a
+	net.acceptorMapLock.Unlock()
+	return a
 }
 
-func (net *_netService) getBackendSessionBySid(sid uint64) (*remoteSession, error) {
-	if rs, ok := net.bsessionMap[sid]; ok && rs != nil {
+func (net *_netService) getAcceptor(sid uint64) (*acceptor, error) {
+	if rs, ok := net.acceptorMap[sid]; ok && rs != nil {
 		return rs, nil
 	} else {
-		return nil, errors.New("remote session id " + string(sid) + " not exists!")
+		return nil, errors.New("acceptor id: " + string(sid) + " not exists!")
 	}
 }
 
@@ -78,11 +79,11 @@ func (net *_netService) getBackendSessionBySid(sid uint64) (*remoteSession, erro
 // call by package internal, the second argument was packaged packet
 func (net *_netService) send(session *Session, data []byte) {
 	if App.Config.IsFrontend {
-		if fs, ok := net.fsessionMap[session.rawSessionId]; ok && (fs != nil) {
+		if fs, ok := net.agentMap[session.entityID]; ok && (fs != nil) {
 			go fs.send(data)
 		}
 	} else {
-		if bs, ok := net.bsessionMap[session.rawSessionId]; ok && (bs != nil) {
+		if bs, ok := net.acceptorMap[session.entityID]; ok && (bs != nil) {
 			go bs.send(data)
 		}
 	}
@@ -114,8 +115,8 @@ func (net *_netService) Response(session *Session, data []byte) {
 // call by all package, the last argument was packaged message
 func (net *_netService) Broadcast(route string, data []byte) {
 	if App.Config.IsFrontend {
-		for _, s := range net.fsessionMap {
-			net.Push(s.userSession, route, data)
+		for _, s := range net.agentMap {
+			net.Push(s.session, route, data)
 		}
 	}
 }
@@ -128,53 +129,53 @@ func (net *_netService) Multcast(uids []int, route string, data []byte) {
 // Close session
 func (net *_netService) closeSession(session *Session) {
 	if App.Config.IsFrontend {
-		if fs, ok := net.fsessionMap[session.rawSessionId]; ok && (fs != nil) {
+		if fs, ok := net.agentMap[session.entityID]; ok && (fs != nil) {
 			fs.socket.Close()
-			net.fsmLock.Lock()
-			delete(net.fsessionMap, session.rawSessionId)
-			net.fsmLock.Unlock()
+			net.agentMapLock.Lock()
+			delete(net.agentMap, session.entityID)
+			net.agentMapLock.Unlock()
 		}
-		netService.dumpHandlerSessions()
+		netService.dumpAgents()
 	} else {
-		if bs, ok := net.bsessionMap[session.rawSessionId]; ok && (bs != nil) {
+		if bs, ok := net.acceptorMap[session.entityID]; ok && (bs != nil) {
 			bs.socket.Close()
-			net.bsmLock.Lock()
-			delete(net.bsessionMap, session.rawSessionId)
-			net.bsmLock.Unlock()
+			net.acceptorMapLock.Lock()
+			delete(net.acceptorMap, session.entityID)
+			net.acceptorMapLock.Unlock()
 		}
-		netService.dumpRemoteSessions()
+		netService.dumpAcceptor()
 	}
 }
 
 // Send heartbeat packet
 func (net *_netService) heartbeat() {
-	if !App.Config.IsFrontend || net.fsessionMap == nil {
+	if !App.Config.IsFrontend || net.agentMap == nil {
 		return
 	}
-	for _, session := range net.fsessionMap {
-		if session.status == _SS_WORKING {
+	for _, session := range net.agentMap {
+		if session.status == _STATUS_WORKING {
 			session.send(pack(_PACKET_HEARTBEAT, nil))
 			session.heartbeat()
 		}
 	}
 }
 
-// Dump all frontend sessions
-func (net *_netService) dumpHandlerSessions() {
-	net.fsmLock.RLock()
-	defer net.fsmLock.RUnlock()
-	Info(fmt.Sprintf("current frontend session count: %d", len(net.fsessionMap)))
-	for _, ses := range net.fsessionMap {
+// Dump all agents
+func (net *_netService) dumpAgents() {
+	net.agentMapLock.RLock()
+	defer net.agentMapLock.RUnlock()
+	Info(fmt.Sprintf("current agent count: %d", len(net.agentMap)))
+	for _, ses := range net.agentMap {
 		Info("session: " + ses.String())
 	}
 }
 
-// Dump all backend sessions
-func (net *_netService) dumpRemoteSessions() {
-	net.bsmLock.RLock()
-	defer net.bsmLock.RUnlock()
-	Info(fmt.Sprintf("current backen session count: %d", len(net.bsessionMap)))
-	for _, ses := range net.bsessionMap {
+// Dump all acceptor
+func (net *_netService) dumpAcceptor() {
+	net.acceptorMapLock.RLock()
+	defer net.acceptorMapLock.RUnlock()
+	Info(fmt.Sprintf("current acceptor count: %d", len(net.acceptorMap)))
+	for _, ses := range net.acceptorMap {
 		Info("session: " + ses.String())
 	}
 }

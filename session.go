@@ -8,14 +8,14 @@ import (
 	"time"
 )
 
-type sessionStatus byte
+type networkStatus byte
 
 const (
-	_ sessionStatus = iota
-	_SS_START
-	_SS_HANDSHAKING
-	_SS_WORKING
-	_SS_CLOSED
+	_ networkStatus = iota
+	_STATUS_START
+	_STATUS_HANDSHAKING
+	_STATUS_WORKING
+	_STATUS_CLOSED
 )
 
 var (
@@ -29,19 +29,17 @@ var (
 //
 // This is user sessions, not contain raw sockets information
 type Session struct {
-	Id           uint64        // session global uniqe id
-	Uid          int           // binding user id
-	reqId        uint          // last request id
-	status       sessionStatus // session current time
-	lastTime     int64         // last heartbeat time
-	rawSessionId uint64        // raw session id, frontendSession in frontend server, or backendSession in backend server
+	Id       uint64 // session global uniqe id
+	Uid      int    // binding user id
+	reqId    uint   // last request id
+	lastTime int64  // last heartbeat time
+	entityID uint64 // raw session id, frontendSession in frontend server, or backendSession in backend server
 }
 
 // Create new session instance
 func newSession() *Session {
 	return &Session{
 		Id:       ConnectionService.getNewSessionUUID(),
-		status:   _SS_START,
 		lastTime: time.Now().Unix()}
 }
 
@@ -55,11 +53,11 @@ func (session *Session) Push(route string, data []byte) {
 	if App.Config.IsFrontend {
 		netService.Push(session, route, data)
 	} else {
-		rs, err := netService.getBackendSessionBySid(session.rawSessionId)
+		rs, err := netService.getAcceptor(session.entityID)
 		if err != nil {
 			Error(err.Error())
 		} else {
-			sid, ok := rs.bsessionIdMap[session.Id]
+			sid, ok := rs.btfMap[session.Id]
 			if !ok {
 				Error("sid not exists")
 				return
@@ -79,11 +77,11 @@ func (session *Session) Response(data []byte) {
 	if App.Config.IsFrontend {
 		netService.Response(session, data)
 	} else {
-		rs, err := netService.getBackendSessionBySid(session.rawSessionId)
+		rs, err := netService.getAcceptor(session.entityID)
 		if err != nil {
 			Error(err.Error())
 		} else {
-			sid, ok := rs.bsessionIdMap[session.Id]
+			sid, ok := rs.btfMap[session.Id]
 			if !ok {
 				Error("sid not exists")
 				return

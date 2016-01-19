@@ -66,8 +66,8 @@ func (handler *handlerService) handle(conn net.Conn) {
 
 	}()
 	// register new session when new connection connected in
-	fs := netService.createFrontendSession(conn)
-	netService.dumpHandlerSessions()
+	fs := netService.createAgent(conn)
+	netService.dumpAgents()
 	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)
 	for {
@@ -90,23 +90,23 @@ func (handler *handlerService) handle(conn net.Conn) {
 	}
 }
 
-func (handler *handlerService) processPacket(fs *handlerSession, pkg *packet) {
+func (handler *handlerService) processPacket(fs *agent, pkg *packet) {
 	switch pkg.kind {
 	case _PACKET_HANDSHAKE:
-		fs.status = _SS_HANDSHAKING
+		fs.status = _STATUS_HANDSHAKING
 		data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
 		if err != nil {
 			Info(err.Error())
 		}
 		fs.send(pack(_PACKET_HANDSHAKE, data))
 	case _PACKET_HANDSHAKE_ACK:
-		fs.status = _SS_WORKING
+		fs.status = _STATUS_WORKING
 	case _PACKET_HEARTBEAT:
 		go fs.heartbeat()
 	case _PACKET_DATA:
 		go fs.heartbeat()
 		if msg := decodeMessage(pkg.body); msg != nil {
-			handler.processMessage(fs.userSession, msg)
+			handler.processMessage(fs.session, msg)
 		}
 	default:
 		Info("invalid packet type")

@@ -23,9 +23,7 @@ var (
 	serverConfigPath  string
 	masterConfigPath  string
 	StartTime         time.Time
-	svrTypes          []string                                           // all server type
-	svrTypeMaps       map[string][]string                                // all servers type maps
-	svrIdMaps         map[string]*ServerConfig                           // all servers id maps
+	cluster           *clusterService                                    // cluster service
 	settings          map[string][]func()                                // all settiings
 	remote            *remoteService                                     // remote service
 	handler           *handlerService                                    // hander
@@ -58,89 +56,9 @@ func (this *ServerConfig) String() string {
 		this.IsMaster)
 }
 
-func dumpSvrIdMaps() {
-	for _, v := range svrIdMaps {
-		Info(fmt.Sprintf("id: %s(%s)", v.Id, v.String()))
-	}
-}
-
-func dumpSvrTypeMaps() {
-	for _, t := range svrTypes {
-		svrs := svrTypeMaps[t]
-		if len(svrs) == 0 {
-			continue
-		}
-		for _, svrId := range svrs {
-			Info(svrId)
-		}
-	}
-}
-
-func registerServer(server ServerConfig) {
-	// server exists
-	if _, ok := svrIdMaps[server.Id]; ok {
-		Info(fmt.Sprintf("serverId: %s already existed(%s)", server.Id, server.String()))
-		return
-	}
-	svr := &server
-	if len(svrTypes) > 0 {
-		for k, t := range svrTypes {
-			// duplicate
-			if t == svr.Type {
-				break
-			}
-			// arrive slice end
-			if k == len(svrTypes)-1 {
-				svrTypes = append(svrTypes, svr.Type)
-			}
-		}
-	} else {
-		svrTypes = append(svrTypes, svr.Type)
-	}
-	svrIdMaps[svr.Id] = svr
-	svrTypeMaps[svr.Type] = append(svrTypeMaps[svr.Type], svr.Id)
-}
-
-func removeServer(svrId string) {
-
-	if _, ok := svrIdMaps[svrId]; ok {
-		// remove from ServerIdMaps map
-		typ := svrIdMaps[svrId].Type
-		if svrs, ok := svrTypeMaps[typ]; ok && len(svrs) > 0 {
-			if len(svrs) == 1 { // array only one element, remove it directly
-				delete(svrTypeMaps, typ)
-			} else {
-				var tempSvrs []string
-				for idx, id := range svrs {
-					if id == svrId {
-						tempSvrs = append(tempSvrs, svrs[:idx]...)
-						tempSvrs = append(tempSvrs, svrs[(idx+1):]...)
-						break
-					}
-				}
-				svrTypeMaps[typ] = tempSvrs
-			}
-		}
-		// remove from ServerIdMaps
-		delete(svrIdMaps, svrId)
-		remote.closeClient(svrId)
-	} else {
-		Info(fmt.Sprintf("serverId: %s not found", svrId))
-	}
-}
-
-func updateServer(newSvr ServerConfig) {
-	if srv, ok := svrIdMaps[newSvr.Id]; ok && srv != nil {
-		svrIdMaps[srv.Id] = &newSvr
-	} else {
-		Error(newSvr.Id + " not exists")
-	}
-}
-
 func init() {
 	App = newApp()
-	svrTypeMaps = make(map[string][]string)
-	svrIdMaps = make(map[string]*ServerConfig)
+	cluster = newClusterService()
 	settings = make(map[string][]func())
 	StartTime = time.Now()
 	Log = log.New(os.Stdout, "", log.LstdFlags)
@@ -204,7 +122,7 @@ func parseConfig() {
 		master.Type = "master"
 		master.IsMaster = true
 		App.Master = &master
-		registerServer(master)
+		cluster.registerServer(master)
 	}
 
 	// initialize servers config
@@ -227,10 +145,10 @@ func parseConfig() {
 		for svrType, svrs := range servers {
 			for _, svr := range svrs {
 				svr.Type = svrType
-				registerServer(svr)
+				cluster.registerServer(svr)
 			}
 		}
-		dumpSvrTypeMaps()
+		cluster.dumpSvrTypeMaps()
 	}
 
 	if App.Master == nil {
@@ -244,7 +162,7 @@ func parseConfig() {
 	if serverId == defaultServerId { // master server
 		App.Config = App.Master
 	} else { // other server
-		App.Config = svrIdMaps[serverId]
+		App.Config = cluster.svrIdMaps[serverId]
 		if App.Config == nil {
 			panic(fmt.Sprintf("%s infomation not found in %s", serverId, serverConfigPath))
 		}

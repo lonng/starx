@@ -20,7 +20,7 @@ func (m *Manager) UpdateServer(session *Session, data []byte) error {
 	if err != nil {
 		return err
 	}
-	updateServer(newServerInfo)
+	cluster.updateServer(newServerInfo)
 	return nil
 }
 
@@ -31,7 +31,7 @@ func (m *Manager) RegisterServer(session *Session, data []byte) error {
 		return err
 	}
 	Info("new server connected in")
-	registerServer(newServerInfo)
+	cluster.registerServer(newServerInfo)
 	return nil
 }
 
@@ -41,6 +41,6 @@ func (m *Manager) RemoveServer(session *Session, data []byte) error {
 	if err != nil {
 		return err
 	}
-	removeServer(srvId)
+	cluster.removeServer(srvId)
 	return nil
 }

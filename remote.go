@@ -4,11 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net"
 	"reflect"
 	"starx/rpc"
-	"sync"
 )
 
 type rpcStatus int32
@@ -19,24 +17,21 @@ const (
 )
 
 type remoteService struct {
-	name         string
-	lock         sync.RWMutex // protect ClientIdMaps
-	clientIdMaps map[string]*rpc.Client
-	route        map[string]func(string) uint32
-	status       rpcStatus
+	name   string
+	route  map[string]func(string) uint32
+	status rpcStatus
 }
 
 type unhandledRequest struct {
-	bs *remoteSession
+	bs *acceptor
 	rr *rpc.Request
 }
 
 func newRemote() *remoteService {
 	return &remoteService{
-		name:         "RpcComponent",
-		clientIdMaps: make(map[string]*rpc.Client),
-		route:        make(map[string]func(string) uint32),
-		status:       _RPC_STATUS_UNINIT}
+		name:   "RpcComponent",
+		route:  make(map[string]func(string) uint32),
+		status: _RPC_STATUS_UNINIT}
 }
 
 func (rs *remoteService) register(rpcKind rpc.RpcKind, comp RpcComponent) {
@@ -70,16 +65,16 @@ func (rs *remoteService) handle(conn net.Conn) {
 		}
 	}()
 
-	bs := netService.createBackendSession(conn)
-	netService.dumpRemoteSessions()
+	bs := netService.createAcceptor(conn)
+	netService.dumpAcceptor()
 	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
 			Info("session closed(" + err.Error() + ")")
-			bs.status = _SS_CLOSED
-			netService.dumpHandlerSessions()
+			bs.status = _STATUS_CLOSED
+			netService.dumpAgents()
 			break
 		}
 		tmp = append(tmp, buf[:n]...)
@@ -116,7 +111,7 @@ func readRequest(data []byte) (*rpc.Request, []byte) {
 	return &request, data[(offset + int(length)):]
 }
 
-func writeResponse(bs *remoteSession, response *rpc.Response) {
+func writeResponse(bs *acceptor, response *rpc.Response) {
 	if response == nil {
 		return
 	}
@@ -141,7 +136,7 @@ func writeResponse(bs *remoteSession, response *rpc.Response) {
 	bs.socket.Write(buf)
 }
 
-func (rs *remoteService) processRequest(bs *remoteSession, rr *rpc.Request) {
+func (rs *remoteService) processRequest(bs *acceptor, rr *rpc.Request) {
 	if rr.Kind == rpc.SysRpc {
 		fmt.Println(string(rr.Args))
 		session := bs.GetUserSession(rr.Sid)
@@ -203,120 +198,15 @@ func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args .
 // Client send request
 // First argument is namespace, can be set `user` or `sys`
 func (this *remoteService) request(rpcKind rpc.RpcKind, route *routeInfo, session *Session, args []byte) ([]byte, error) {
-	client, err := this.getClientByType(route.serverType, session)
+	client, err := cluster.getClientByType(route.serverType, session)
 	if err != nil {
 		Info(err.Error())
 		return nil, err
 	}
 	reply := new([]byte)
-	err = client.Call(rpcKind, route.service, route.method, session.rawSessionId, reply, args)
+	err = client.Call(rpcKind, route.service, route.method, session.entityID, reply, args)
 	if err != nil {
 		return nil, errors.New(err.Error())
 	}
 	return *reply, nil
-}
-
-func (this *remoteService) closeClient(svrId string) {
-	if client, ok := this.clientIdMaps[svrId]; ok {
-		this.lock.Lock()
-		delete(this.clientIdMaps, svrId)
-		this.lock.Unlock()
-		client.Close()
-	} else {
-		Info(fmt.Sprintf("%s not found in rpc client list", svrId))
-	}
-
-	Info(fmt.Sprintf("%s rpc client has been removed.", svrId))
-	this.dumpClientIdMaps()
-}
-
-func (rs *remoteService) close() {
-	// close rpc clients
-	Info("close all of socket connections")
-	for svrId, _ := range rs.clientIdMaps {
-		rs.closeClient(svrId)
-	}
-}
-
-// TODO: add another argment session, to select a exact server when the
-// server type has more than one server
-// all established `rpc.Client` will be disconnected in `App.Stop()`
-func (this *remoteService) getClientByType(svrType string, session *Session) (*rpc.Client, error) {
-	if svrType == App.Config.Type {
-		return nil, errors.New(fmt.Sprintf("current server has the same type(Type: %s)", svrType))
-	}
-	svrIds := svrTypeMaps[svrType]
-	if nums := len(svrIds); nums > 0 {
-		if fn := route[svrType]; fn != nil {
-			// try to get user-define route function
-			return this.getClientById(fn(session))
-		} else {
-			// if can not abtain user-define route function,
-			// select a random server establish rpc connection
-			random := rand.Intn(nums)
-			return this.getClientById(svrIds[random])
-		}
-	}
-	return nil, errors.New("not found rpc client")
-}
-
-// Get rpc client by server id(`connector-server-1`), return correspond rpc
-// client if remote server connection has established already, or try to
-// connect remote server when remote server network connectoin has not made
-// by now, and return a nil value when server id not found or target machine
-// refuse it.
-func (this *remoteService) getClientById(svrId string) (*rpc.Client, error) {
-	this.lock.RLock()
-	client := this.clientIdMaps[svrId]
-	this.lock.RUnlock()
-	if client != nil {
-		return client, nil
-	}
-	if svr, ok := svrIdMaps[svrId]; ok && svr != nil {
-		if svr.Id == App.Config.Id {
-			return nil, errors.New(svr.Id + " is current server")
-		}
-		if svr.IsFrontend {
-			return nil, errors.New(svr.Id + " is frontend server, can handle rpc request")
-		}
-		client, err := rpc.Dial("tcp4", fmt.Sprintf("%s:%d", svr.Host, svr.Port))
-		if err != nil {
-			return nil, err
-		}
-		// on client shutdown
-		client.OnShutdown(func() {
-			removeServer(svr.Id)
-		})
-		this.lock.Lock()
-		this.clientIdMaps[svr.Id] = client
-		this.lock.Unlock()
-		// handle sys rpc push/response
-		go func() {
-			for resp := range client.ResponseChan {
-				hsession, err := netService.getFrontendSessionBySid(resp.Sid)
-				if err != nil {
-					Error(err.Error())
-					continue
-				}
-				if resp.Kind == rpc.HandlerPush {
-					hsession.userSession.Push(resp.Route, resp.Reply)
-				} else if resp.Kind == rpc.HandlerResponse {
-					hsession.userSession.Response(resp.Reply)
-				} else {
-					Error("invalid response kind")
-				}
-			}
-		}()
-		Info(fmt.Sprintf("%s establish rpc client successful.", svr.Id))
-		this.dumpClientIdMaps()
-		return client, nil
-	}
-	return nil, errors.New(fmt.Sprintf("server id does not exists(Id: %s)", svrId))
-}
-
-// Dump all clients that has established netword connection with remote server
-func (this *remoteService) dumpClientIdMaps() {
-	for id, _ := range this.clientIdMaps {
-		Info(fmt.Sprintf("[%s] is contained in rpc client list", id))
-	}
 }
