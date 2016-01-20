@@ -65,7 +65,7 @@ func (session *Session) Push(route string, data []byte) {
 			resp := rpc.Response{}
 			resp.Route = route
 			resp.Kind = rpc.HandlerPush
-			resp.Reply = data
+			resp.Data = data
 			resp.Sid = sid
 			writeResponse(rs, &resp)
 		}
@@ -88,7 +88,7 @@ func (session *Session) Response(data []byte) {
 			}
 			resp := rpc.Response{}
 			resp.Kind = rpc.HandlerResponse
-			resp.Reply = data
+			resp.Data = data
 			resp.Sid = sid
 			writeResponse(rs, &resp)
 		}

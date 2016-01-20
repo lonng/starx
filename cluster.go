@@ -170,15 +170,18 @@ func (c *clusterService) getClientById(svrId string) (*rpc.Client, error) {
 		// handle sys rpc push/response
 		go func() {
 			for resp := range client.ResponseChan {
-				hsession, err := defaultNetService.getAgent(resp.Sid)
+				agent, err := defaultNetService.getAgent(resp.Sid)
 				if err != nil {
 					Error(err.Error())
 					continue
 				}
 				if resp.Kind == rpc.HandlerPush {
-					hsession.session.Push(resp.Route, resp.Reply)
+					agent.session.Push(resp.Route, resp.Data)
 				} else if resp.Kind == rpc.HandlerResponse {
-					hsession.session.Response(resp.Reply)
+					agent.session.Response(resp.Data)
+				} else if resp.Kind == rpc.RemotePush {
+					// TODO
+					// remote server push data
 				} else {
 					Error("invalid response kind")
 				}

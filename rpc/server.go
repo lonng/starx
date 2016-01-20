@@ -18,6 +18,7 @@ const (
 	HandlerResponse              // handler session response
 	HandlerPush                  // handler session push
 	RemoteResponse               // remote request normal response, represent whether rpc call successfully
+	RemotePush                   // using remote server push message to current server
 )
 
 type RpcKind byte
@@ -62,7 +63,7 @@ type Response struct {
 	ServiceMethod string       // echoes that of the Request
 	Seq           uint64       // echoes that of the request
 	Sid           uint64       // frontend session id
-	Reply         []byte       // save reply value
+	Data          []byte       // save response value
 	Error         string       // error, if any.
 	Route         string       // exists when ResponseType equal RPC_HANDLER_PUSH
 }
