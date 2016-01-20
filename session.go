@@ -45,15 +45,15 @@ func newSession() *Session {
 
 // Session send packet data
 func (session *Session) Send(data []byte) {
-	netService.send(session, data)
+	defaultNetService.send(session, data)
 }
 
 // Push message to session
 func (session *Session) Push(route string, data []byte) {
 	if App.Config.IsFrontend {
-		netService.Push(session, route, data)
+		defaultNetService.Push(session, route, data)
 	} else {
-		rs, err := netService.getAcceptor(session.entityID)
+		rs, err := defaultNetService.getAcceptor(session.entityID)
 		if err != nil {
 			Error(err.Error())
 		} else {
@@ -75,9 +75,9 @@ func (session *Session) Push(route string, data []byte) {
 // Response message to session
 func (session *Session) Response(data []byte) {
 	if App.Config.IsFrontend {
-		netService.Response(session, data)
+		defaultNetService.Response(session, data)
 	} else {
-		rs, err := netService.getAcceptor(session.entityID)
+		rs, err := defaultNetService.getAcceptor(session.entityID)
 		if err != nil {
 			Error(err.Error())
 		} else {

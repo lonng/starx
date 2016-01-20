@@ -6,16 +6,16 @@ import (
 	"starx/rpc"
 )
 
-type _app struct {
+type starxApp struct {
 	Master *ServerConfig // master server config
 	Config *ServerConfig // current server information
 }
 
-func newApp() *_app {
-	return &_app{}
+func newApp() *starxApp {
+	return &starxApp{}
 }
 
-func (app *_app) start() {
+func (app *starxApp) start() {
 	app.loadDefaultComps()
 
 	// enable all app service
@@ -31,7 +31,7 @@ func (app *_app) start() {
 }
 
 // Enable current server accept connection
-func (app *_app) listenAndServe() {
+func (app *starxApp) listenAndServe() {
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", app.Config.Host, app.Config.Port))
 	if err != nil {
 		Error(err.Error())
@@ -56,6 +56,6 @@ func (app *_app) listenAndServe() {
 	}
 }
 
-func (app *_app) loadDefaultComps() {
+func (app *starxApp) loadDefaultComps() {
 	remote.register(rpc.SysRpc, new(Manager))
 }

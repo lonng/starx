@@ -66,8 +66,8 @@ func (handler *handlerService) handle(conn net.Conn) {
 
 	}()
 	// register new session when new connection connected in
-	fs := netService.createAgent(conn)
-	netService.dumpAgents()
+	fs := defaultNetService.createAgent(conn)
+	defaultNetService.dumpAgents()
 	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)
 	for {

@@ -65,8 +65,8 @@ func (rs *remoteService) handle(conn net.Conn) {
 		}
 	}()
 
-	bs := netService.createAcceptor(conn)
-	netService.dumpAcceptor()
+	bs := defaultNetService.createAcceptor(conn)
+	defaultNetService.dumpAcceptor()
 	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)
 	for {
@@ -74,7 +74,7 @@ func (rs *remoteService) handle(conn net.Conn) {
 		if err != nil {
 			Info("session closed(" + err.Error() + ")")
 			bs.status = _STATUS_CLOSED
-			netService.dumpAgents()
+			defaultNetService.dumpAgents()
 			break
 		}
 		tmp = append(tmp, buf[:n]...)

@@ -48,5 +48,5 @@ func (a *agent) heartbeat() {
 
 func (a *agent) close() {
 	a.status = _STATUS_CLOSED
-	netService.closeSession(a.session)
+	defaultNetService.closeSession(a.session)
 }

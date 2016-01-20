@@ -15,7 +15,7 @@ import (
 var VERSION = "0.0.1"
 
 var (
-	App               *_app // starx application
+	App               *starxApp // starx application
 	AppName           string
 	AppPath           string
 	workPath          string
@@ -27,7 +27,7 @@ var (
 	settings          map[string][]func()                                // all settings
 	remote            *remoteService                                     // remote service
 	handler           *handlerService                                    // handler service
-	netService        *_netService                                       // net service
+	defaultNetService *netService                                        // net service
 	TimerManager      Timer                                              // timer component
 	route             map[string]func(*Session) string                   // server route function
 	channelServive    *ChannelServive                                    // channel service component
@@ -64,7 +64,7 @@ func init() {
 	Log = log.New(os.Stdout, "", log.LstdFlags)
 	remote = newRemote()
 	handler = newHandler()
-	netService = newNetService()
+	defaultNetService = newNetService()
 	route = make(map[string]func(*Session) string)
 	TimerManager = newTimer()
 	channelServive = newChannelServive()

@@ -170,7 +170,7 @@ func (c *clusterService) getClientById(svrId string) (*rpc.Client, error) {
 		// handle sys rpc push/response
 		go func() {
 			for resp := range client.ResponseChan {
-				hsession, err := netService.getAgent(resp.Sid)
+				hsession, err := defaultNetService.getAgent(resp.Sid)
 				if err != nil {
 					Error(err.Error())
 					continue
