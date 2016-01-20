@@ -128,7 +128,7 @@ func (handler *handlerService) processMessage(session *Session, msg *message) {
 	}
 }
 
-// TODO: implement request protocol
+// current message handle in local server
 func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg *message) {
 	if msg.kind == _MT_REQUEST {
 		session.reqId = msg.id
@@ -149,7 +149,7 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 	}
 }
 
-// TODO: implemention
+// current message handle in remote server
 func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, msg *message) {
 	if msg.kind == _MT_REQUEST {
 		session.reqId = msg.id
