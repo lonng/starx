@@ -18,11 +18,11 @@ func (c *Channel) GetMembers() []int {
 }
 
 func (c *Channel) PushMessageByUids(uids []int, route string, data []byte) {
-	Net.Multcast(uids, route, data)
+	defaultNetService.Multcast(uids, route, data)
 }
 
 func (c *Channel) Broadcast(route string, data []byte) {
-	Net.Multcast(c.uids, route, data)
+	defaultNetService.Multcast(c.uids, route, data)
 }
 
 func (c *Channel) IsContain(uid int) bool {
@@ -61,39 +61,4 @@ func (c *Channel) GetCount() int {
 
 func (c *Channel) Destroy() {
 	delete(c.channelServive.channels, c.name)
-}
-
-type ChannelServive struct {
-	channels map[string]*Channel // all server channels
-}
-
-func NewChannelServive() *ChannelServive {
-	return &ChannelServive{}
-}
-
-func (c *ChannelServive) NewChannel(name string) *Channel {
-	channel := NewChannel(name, c)
-	c.channels[name] = channel
-	return channel
-}
-
-// Get channel by channel name
-func (c *ChannelServive) GetChannel(name string) (*Channel, bool) {
-	channel, exists := c.channels[name]
-	return channel, exists
-}
-
-// Get all members in channel by channel name
-func (c *ChannelServive) GetMembers(name string) []int {
-	if channel, ok := c.channels[name]; ok {
-		return channel.GetMembers()
-	}
-	return make([]int, 0)
-}
-
-// Destroy channel by channel name
-func (c *ChannelServive) DestroyChannel(name string) {
-	if channel, ok := c.channels[name]; ok {
-		channel.Destroy()
-	}
 }

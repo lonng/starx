@@ -2,13 +2,13 @@ package starx
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"reflect"
 	"starx/rpc"
+	"starx/utils"
 	"sync"
-	"unicode"
-	"unicode/utf8"
 )
 
 // Unhandled message buffer size
@@ -50,31 +50,36 @@ func (handler *handlerService) handle(conn net.Conn) {
 	defer conn.Close()
 	// message buffer
 	packetChan := make(chan *unhandledPacket, packetBufferSize)
+	endChan := make(chan bool, 1)
 	// all user logic will be handled in single goroutine
 	// synchronized in below routine
 	go func() {
-		for cpkg := range packetChan {
-			handler.processPacket(cpkg.fs, cpkg.packet)
+		for {
+			select {
+			case cpkg := <-packetChan:
+				handler.processPacket(cpkg.fs, cpkg.packet)
+			case <-endChan:
+				close(packetChan)
+				return
+			}
 		}
+
 	}()
 	// register new session when new connection connected in
-	fs := Net.createHandlerSession(conn)
-	Net.dumpHandlerSessions()
+	fs := defaultNetService.createAgent(conn)
+	defaultNetService.dumpAgents()
 	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
 			Info("session closed(" + err.Error() + ")")
-			fs.status = SS_CLOSED
-			Net.closeSession(fs.userSession)
-			Net.dumpHandlerSessions()
+			fs.close()
+			endChan <- true
 			break
 		}
 		tmp = append(tmp, buf[:n]...)
-		var pkg *Packet // save decoded packet
-		// TODO
-		// Refactor this loop
+		var pkg *packet // save decoded packet
 		for len(tmp) > headLength {
 			if pkg, tmp = unpack(tmp); pkg != nil {
 				packetChan <- &unhandledPacket{fs, pkg}
@@ -85,77 +90,73 @@ func (handler *handlerService) handle(conn net.Conn) {
 	}
 }
 
-func (handler *handlerService) processPacket(fs *handlerSession, pkg *Packet) {
-	switch pkg.Type {
-	case PACKET_HANDSHAKE:
-		{
-			fs.status = SS_HANDSHAKING
-			data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
-			if err != nil {
-				Info(err.Error())
-			}
-			fs.send(pack(PACKET_HANDSHAKE, data))
+func (handler *handlerService) processPacket(fs *agent, pkg *packet) {
+	switch pkg.kind {
+	case _PACKET_HANDSHAKE:
+		fs.status = _STATUS_HANDSHAKING
+		data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
+		if err != nil {
+			Info(err.Error())
 		}
-	case PACKET_HANDSHAKE_ACK:
-		{
-			fs.status = SS_WORKING
+		fs.send(pack(_PACKET_HANDSHAKE, data))
+	case _PACKET_HANDSHAKE_ACK:
+		fs.status = _STATUS_WORKING
+	case _PACKET_HEARTBEAT:
+		go fs.heartbeat()
+	case _PACKET_DATA:
+		go fs.heartbeat()
+		if msg := decodeMessage(pkg.body); msg != nil {
+			handler.processMessage(fs.session, msg)
 		}
-	case PACKET_HEARTBEAT:
-		{
-			go fs.heartbeat()
-		}
-	case PACKET_DATA:
-		{
-			go fs.heartbeat()
-			msg := decodeMessage(pkg.Body)
-			if msg != nil {
-				handler.processMessage(fs.userSession, msg)
-			}
-		}
+	default:
+		Info("invalid packet type")
+		fs.close()
 	}
 }
 
-func (handler *handlerService) processMessage(session *Session, msg *Message) {
-	ri, err := decodeRouteInfo(msg.Route)
+func (handler *handlerService) processMessage(session *Session, msg *message) {
+	ri, err := decodeRouteInfo(msg.route)
 	if err != nil {
+		Error(err.Error())
 		return
 	}
-	if ri.serverType == App.Config.Type {
+	// if serverType equal nil, message handle in local server
+	if ri.serverType == "" || ri.serverType == App.Config.Type {
 		handler.localProcess(session, ri, msg)
 	} else {
 		handler.remoteProcess(session, ri, msg)
 	}
 }
 
-// TODO: implement request protocol
-func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg *Message) {
-	if msg.Type == MT_REQUEST {
-		session.reqId = msg.ID
-	} else if msg.Type == MT_NOTIFY {
+// current message handle in local server
+func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg *message) {
+	if msg.kind == _MT_REQUEST {
+		session.reqId = msg.id
+	} else if msg.kind == _MT_NOTIFY {
 		session.reqId = 0
 	} else {
-		Info("invalid message type")
+		Error("invalid message type")
 		return
 	}
 	if s, present := handler.serviceMap[ri.service]; present {
 		if m, ok := s.method[ri.method]; ok {
-			m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(msg.Body)})
+			m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(msg.body)})
 		} else {
-			Info("method: " + ri.method + " not found")
+			Info("handler: " + ri.service + " does not contain method: " + ri.method)
 		}
 	} else {
-		Info("service: " + ri.service + " not found")
+		Info("handler: service: " + ri.service + " not found")
 	}
 }
 
-// TODO: implemention
-func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, msg *Message) {
-	if msg.Type == MT_REQUEST {
-		session.reqId = msg.ID
-		remote.request(rpc.SysRpc, ri, session, msg.Body)
-	} else if msg.Type == MT_NOTIFY {
+// current message handle in remote server
+func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, msg *message) {
+	if msg.kind == _MT_REQUEST {
+		session.reqId = msg.id
+		remote.request(rpc.SysRpc, ri, session, msg.body)
+	} else if msg.kind == _MT_NOTIFY {
 		session.reqId = 0
-		remote.request(rpc.SysRpc, ri, session, msg.Body)
+		remote.request(rpc.SysRpc, ri, session, msg.body)
 	} else {
 		Info("invalid message type")
 		return
@@ -173,23 +174,7 @@ func (handler *handlerService) register(rcvr HandlerComponent) {
 	handler._register(rcvr)
 }
 
-// Is this an exported - upper case - name?
-func isExported(name string) bool {
-	rune, _ := utf8.DecodeRuneInString(name)
-	return unicode.IsUpper(rune)
-}
-
-// Is this type exported or a builtin?
-func isExportedOrBuiltinType(t reflect.Type) bool {
-	for t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-	// PkgPath will be non-empty even for an exported type,
-	// so we need to check the type name as well.
-	return isExported(t.Name()) || t.PkgPath() == ""
-}
-
-func (handler *handlerService) _register(rcvr HandlerComponent) {
+func (handler *handlerService) _register(rcvr HandlerComponent) error {
 	if handler.serviceMap == nil {
 		handler.serviceMap = make(map[string]*service)
 	}
@@ -198,18 +183,14 @@ func (handler *handlerService) _register(rcvr HandlerComponent) {
 	s.rcvr = reflect.ValueOf(rcvr)
 	sname := reflect.Indirect(s.rcvr).Type().Name()
 	if sname == "" {
-		s := "handler.Register: no service name for type " + s.typ.String()
-		Info(s)
-		return
+		return errors.New("handler.Register: no service name for type " + s.typ.String())
 	}
-	if !isExported(sname) {
-		s := "handler.Register: type " + sname + " is not exported"
-		Info(s)
-		return
+	if !utils.IsExported(sname) {
+		return errors.New("handler.Register: type " + sname + " is not exported")
+
 	}
 	if _, present := handler.serviceMap[sname]; present {
-		Info("handler: service already defined: " + sname)
-		return
+		return errors.New("handler: service already defined: " + sname)
 	}
 	s.name = sname
 
@@ -226,10 +207,11 @@ func (handler *handlerService) _register(rcvr HandlerComponent) {
 		} else {
 			str = "handler.Register: type " + sname + " has no exported methods of suitable type"
 		}
-		Info(str)
+		return errors.New(str)
 	}
 	handler.serviceMap[s.name] = s
 	handler.dumpServiceMap()
+	return nil
 }
 
 // suitableMethods returns suitable methods of typ, it will report
@@ -240,44 +222,9 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 		method := typ.Method(m)
 		mtype := method.Type
 		mname := method.Name
-		// Method must be exported.
-		if method.PkgPath != "" {
-			continue
+		if utils.IsHandlerMethod(method) {
+			methods[mname] = &methodType{method: method, Arg1Type: mtype.In(1), Arg2Type: mtype.In(2)}
 		}
-		// Method needs three ins: receiver, *Session, []byte.
-		if mtype.NumIn() != 3 {
-			continue
-		}
-		// First arg need not be *Session.
-		argType := mtype.In(1)
-		if !isExportedOrBuiltinType(argType) {
-			if reportErr {
-				fmt.Println(mname, "argument type not exported:", argType)
-			}
-			continue
-		}
-		if argType.Kind() != reflect.Ptr || argType.Elem().Name() != "Session" {
-			if reportErr {
-				fmt.Println("method", mname, " first argument must be a Session pointer:", argType)
-			}
-			continue
-		}
-		// Second arg must be a pointer.
-		replyType := mtype.In(2)
-		if replyType.Kind() != reflect.Slice {
-			if reportErr {
-				fmt.Println("method", mname, "reply type not a slice:", replyType)
-			}
-			continue
-		}
-		// Reply type must be exported.
-		if !isExportedOrBuiltinType(replyType) {
-			if reportErr {
-				fmt.Println("method", mname, "reply type not exported:", replyType)
-			}
-			continue
-		}
-		methods[mname] = &methodType{method: method, Arg1Type: argType, Arg2Type: replyType}
 	}
 	return methods
 }

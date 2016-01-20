@@ -8,14 +8,14 @@ import (
 	"time"
 )
 
-type SessionStatus byte
+type networkStatus byte
 
 const (
-	_ SessionStatus = iota
-	SS_START
-	SS_HANDSHAKING
-	SS_WORKING
-	SS_CLOSED
+	_ networkStatus = iota
+	_STATUS_START
+	_STATUS_HANDSHAKING
+	_STATUS_WORKING
+	_STATUS_CLOSED
 )
 
 var (
@@ -29,37 +29,35 @@ var (
 //
 // This is user sessions, not contain raw sockets information
 type Session struct {
-	Id           uint64        // session global uniqe id
-	Uid          int           // binding user id
-	reqId        uint          // last request id
-	status       SessionStatus // session current time
-	lastTime     int64         // last heartbeat time
-	rawSessionId uint64        // raw session id, frontendSession in frontend server, or backendSession in backend server
+	Id       uint64 // session global uniqe id
+	Uid      int    // binding user id
+	reqId    uint   // last request id
+	lastTime int64  // last heartbeat time
+	entityID uint64 // raw session id, frontendSession in frontend server, or backendSession in backend server
 }
 
 // Create new session instance
 func newSession() *Session {
 	return &Session{
-		Id:       connectionService.getNewSessionUUID(),
-		status:   SS_START,
+		Id:       ConnectionService.getNewSessionUUID(),
 		lastTime: time.Now().Unix()}
 }
 
 // Session send packet data
 func (session *Session) Send(data []byte) {
-	Net.send(session, data)
+	defaultNetService.send(session, data)
 }
 
 // Push message to session
 func (session *Session) Push(route string, data []byte) {
 	if App.Config.IsFrontend {
-		Net.Push(session, route, data)
+		defaultNetService.Push(session, route, data)
 	} else {
-		rs, err := Net.getRemoteSessionBySid(session.rawSessionId)
+		rs, err := defaultNetService.getAcceptor(session.entityID)
 		if err != nil {
 			Error(err.Error())
 		} else {
-			sid, ok := rs.bsessionIdMap[session.Id]
+			sid, ok := rs.btfMap[session.Id]
 			if !ok {
 				Error("sid not exists")
 				return
@@ -67,7 +65,7 @@ func (session *Session) Push(route string, data []byte) {
 			resp := rpc.Response{}
 			resp.Route = route
 			resp.Kind = rpc.HandlerPush
-			resp.Reply = data
+			resp.Data = data
 			resp.Sid = sid
 			writeResponse(rs, &resp)
 		}
@@ -77,20 +75,20 @@ func (session *Session) Push(route string, data []byte) {
 // Response message to session
 func (session *Session) Response(data []byte) {
 	if App.Config.IsFrontend {
-		Net.Response(session, data)
+		defaultNetService.Response(session, data)
 	} else {
-		rs, err := Net.getRemoteSessionBySid(session.rawSessionId)
+		rs, err := defaultNetService.getAcceptor(session.entityID)
 		if err != nil {
 			Error(err.Error())
 		} else {
-			sid, ok := rs.bsessionIdMap[session.Id]
+			sid, ok := rs.btfMap[session.Id]
 			if !ok {
 				Error("sid not exists")
 				return
 			}
 			resp := rpc.Response{}
 			resp.Kind = rpc.HandlerResponse
-			resp.Reply = data
+			resp.Data = data
 			resp.Sid = sid
 			writeResponse(rs, &resp)
 		}

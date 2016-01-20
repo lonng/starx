@@ -28,9 +28,9 @@ var (
 // Call represents an active RPC.
 type Call struct {
 	ServiceMethod string     // The name of the service and method to call.
-	Args          []byte     // The argument to the function (*struct).
+	Args          []byte     // The argument to the function.
 	Sid           uint64     // Frontend server session id
-	Reply         *[]byte    // The reply from the function (*struct).
+	Reply         *[]byte    // The reply from the function.
 	Error         error      // After completion, the error status.
 	Done          chan *Call // Strobes when call is complete.
 }
@@ -45,12 +45,13 @@ type Client struct {
 	reqMutex sync.Mutex // protects following
 	request  Request
 
-	mutex        sync.Mutex // protects following
-	seq          uint64
-	pending      map[uint64]*Call
-	closing      bool           // user has called Close
-	shutdown     bool           // server has told us to stop
-	ResponseChan chan *Response // rpc response handler
+	mutex            sync.Mutex // protects following
+	seq              uint64
+	pending          map[uint64]*Call
+	closing          bool           // user has called Close
+	shutdown         bool           // server has told us to stop
+	shutdownCallback func()         // callback on client shutdown
+	ResponseChan     chan *Response // rpc response handler
 }
 
 // A ClientCodec implements writing of RPC requests and
@@ -203,7 +204,7 @@ func (client *Client) input() {
 				if err != nil {
 					call.Error = errors.New("reading body " + err.Error())
 				}
-				*call.Reply = response.Reply
+				*call.Reply = response.Data
 				call.done()
 			}
 		}
@@ -228,6 +229,9 @@ func (client *Client) input() {
 	client.reqMutex.Unlock()
 	if debugLog && err != io.EOF && !closing {
 		log.Println("rpc: client protocol error:", err)
+	}
+	if client.shutdownCallback != nil {
+		client.shutdownCallback()
 	}
 }
 
@@ -265,6 +269,11 @@ func Dial(network, address string) (*Client, error) {
 		return nil, err
 	}
 	return NewClient(conn), nil
+}
+
+// client shutdown callback function
+func (client *Client) OnShutdown(callback func()) {
+	client.shutdownCallback = callback
 }
 
 func (client *Client) Close() error {

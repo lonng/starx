@@ -2,9 +2,8 @@ package rpc
 
 import (
 	"errors"
-	"fmt"
-	"log"
 	"reflect"
+	"starx/utils"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,6 +18,7 @@ const (
 	HandlerResponse              // handler session response
 	HandlerPush                  // handler session push
 	RemoteResponse               // remote request normal response, represent whether rpc call successfully
+	RemotePush                   // using remote server push message to current server
 )
 
 type RpcKind byte
@@ -28,11 +28,6 @@ const (
 	SysRpc          // sys namespace rpc
 	UserRpc         // user namespace rpc
 )
-
-// Precompute the reflect type for error.  Can't use error directly
-// because Typeof takes an empty interface value.  This is annoying.
-var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
-var typeOfBytes = reflect.TypeOf(([]byte)(nil))
 
 type methodType struct {
 	sync.Mutex // protects counters
@@ -53,12 +48,11 @@ type service struct {
 // but documented here as an aid to debugging, such as when analyzing
 // network traffic.
 type Request struct {
-	ServiceMethod string   // format: "Service.Method"
-	Seq           uint64   // sequence number chosen by client
-	Sid           uint64   // frontend session id
-	Args          []byte   // for args
-	Kind          RpcKind  // namespace
-	next          *Request // for free list in Server
+	ServiceMethod string  // format: "Service.Method"
+	Seq           uint64  // sequence number chosen by client
+	Sid           uint64  // frontend session id
+	Args          []byte  // for args
+	Kind          RpcKind // namespace
 }
 
 // Response is a header written before every RPC return.  It is used internally
@@ -69,10 +63,9 @@ type Response struct {
 	ServiceMethod string       // echoes that of the Request
 	Seq           uint64       // echoes that of the request
 	Sid           uint64       // frontend session id
-	Reply         []byte       // save reply value
+	Data          []byte       // save response value
 	Error         string       // error, if any.
 	Route         string       // exists when ResponseType equal RPC_HANDLER_PUSH
-	next          *Response    // for free list in Server
 }
 
 // Server represents an RPC Server.
@@ -80,10 +73,6 @@ type Server struct {
 	Kind       RpcKind             // rpc kind, either SysRpc or UserRpc
 	mu         sync.RWMutex        // protects the serviceMap
 	serviceMap map[string]*service // all service
-	reqLock    sync.Mutex          // protects freeReq
-	freeReq    *Request
-	respLock   sync.Mutex // protects freeResp
-	freeResp   *Response
 }
 
 // NewServer returns a new Server.
@@ -147,17 +136,13 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		sname = name
 	}
 	if sname == "" {
-		s := "rpc.Register: no service name for type " + s.typ.String()
-		log.Print(s)
-		return errors.New(s)
+		return errors.New("remote.Register: no service name for type " + s.typ.String())
 	}
 	if !isExported(sname) && !useName {
-		s := "rpc.Register: type " + sname + " is not exported"
-		log.Print(s)
-		return errors.New(s)
+		return errors.New("remote.Register: type " + sname + " is not exported")
 	}
 	if _, present := server.serviceMap[sname]; present {
-		return errors.New("rpc: service already defined: " + sname)
+		return errors.New("remote: service already defined: " + sname)
 	}
 	s.name = sname
 
@@ -170,11 +155,10 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		// To help the user, see if a pointer receiver would work.
 		method := suitableMethods(server.Kind, reflect.PtrTo(s.typ), false)
 		if len(method) != 0 {
-			str = "rpc.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
+			str = "remote.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
 		} else {
-			str = "rpc.Register: type " + sname + " has no exported methods of suitable type"
+			str = "remote.Register: type " + sname + " has no exported methods of suitable type"
 		}
-		log.Print(str)
 		return errors.New(str)
 	}
 	server.serviceMap[s.name] = s
@@ -190,88 +174,17 @@ func suitableMethods(kind RpcKind, typ reflect.Type, reportErr bool) map[string]
 			method := typ.Method(m)
 			mtype := method.Type
 			mname := method.Name
-			// Method must be exported.
-			if method.PkgPath != "" {
-				continue
+			if utils.IsHandlerMethod(method) {
+				methods[mname] = &methodType{method: method, ArgType: mtype.In(1), ReplyType: mtype.In(2)}
 			}
-			// Method needs three ins: receiver, *args, *reply.
-			if mtype.NumIn() != 3 {
-				continue
-			}
-			// First arg need not be a pointer.
-			argType := mtype.In(1)
-			if !isExportedOrBuiltinType(argType) {
-				if reportErr {
-					log.Println(mname, "argument type not exported:", argType)
-				}
-				continue
-			} else if argType.Kind() != reflect.Ptr {
-				if reportErr {
-					log.Println("method", mname, "reply type not a pointer:", argType)
-				}
-				continue
-			}
-			// Second arg must be a pointer.
-			replyType := mtype.In(2)
-			// Reply type must be exported.
-			if !isExportedOrBuiltinType(replyType) {
-				if reportErr {
-					log.Println("method", mname, "reply type not exported:", replyType)
-				}
-				continue
-			}
-			// Method needs one out.
-			if mtype.NumOut() != 1 {
-				if reportErr {
-					log.Println("method", mname, "has wrong number of outs:", mtype.NumOut())
-				}
-				continue
-			}
-			// The return type of the method must be error.
-			if returnType := mtype.Out(0); returnType != typeOfError {
-				if reportErr {
-					log.Println("method", mname, "returns", returnType.String(), "not error")
-				}
-				continue
-			}
-			methods[mname] = &methodType{method: method, ArgType: argType, ReplyType: replyType}
 		}
 	} else if kind == UserRpc {
 		for m := 0; m < typ.NumMethod(); m++ {
 			method := typ.Method(m)
-			mtype := method.Type
 			mname := method.Name
-			// Method must be exported.
-			if method.PkgPath != "" {
-				continue
+			if utils.IsRemoteMethod(method) {
+				methods[mname] = &methodType{method: method}
 			}
-			// Method needs more than 1 parameter
-			if mtype.NumIn() < 1 {
-				continue
-			}
-			// Method needs two out, ([]byte, error).
-			if mtype.NumOut() != 2 {
-				if reportErr {
-					log.Println("method", mname, "has wrong number of outs:", mtype.NumOut())
-				}
-				continue
-			}
-			// The return type of the method must be error.
-			if returnType := mtype.Out(0); returnType != typeOfBytes {
-				fmt.Println(returnType, typeOfBytes)
-				if reportErr {
-					log.Println("method", mname, "returns", returnType.String(), "not error")
-				}
-				continue
-			}
-			// The return type of the method must be error.
-			if returnType := mtype.Out(1); returnType != typeOfError {
-				if reportErr {
-					log.Println("method", mname, "returns", returnType.String(), "not error")
-				}
-				continue
-			}
-			methods[mname] = &methodType{method: method}
 		}
 	}
 	return methods
@@ -284,37 +197,10 @@ func (m *methodType) NumCalls() (n uint) {
 	return n
 }
 
-func (server *Server) freeRequest(req *Request) {
-	server.reqLock.Lock()
-	req.next = server.freeReq
-	server.freeReq = req
-	server.reqLock.Unlock()
-}
-
-func (server *Server) getResponse() *Response {
-	server.respLock.Lock()
-	resp := server.freeResp
-	if resp == nil {
-		resp = new(Response)
-	} else {
-		server.freeResp = resp.next
-		*resp = Response{}
-	}
-	server.respLock.Unlock()
-	return resp
-}
-
-func (server *Server) freeResponse(resp *Response) {
-	server.respLock.Lock()
-	resp.next = server.freeResp
-	server.freeResp = resp
-	server.respLock.Unlock()
-}
-
 func (server *Server) Call(serviceMethod string, args []reflect.Value) ([]reflect.Value, error) {
 	parts := strings.Split(serviceMethod, ".")
 	if len(parts) != 2 {
-		return nil, errors.New("wrong route string")
+		return nil, errors.New("wrong route string: " + serviceMethod)
 	}
 	sname, smethod := parts[0], parts[1]
 	if s, present := server.serviceMap[sname]; present && s != nil {
@@ -323,10 +209,10 @@ func (server *Server) Call(serviceMethod string, args []reflect.Value) ([]reflec
 			rets := m.method.Func.Call(args)
 			return rets, nil
 		} else {
-			return nil, errors.New("rpc: " + smethod + " do not exists")
+			return nil, errors.New("remote: service " + sname + "does not contain method: " + smethod)
 		}
 	} else {
-		return nil, errors.New("rpc: " + sname + " do not exists")
+		return nil, errors.New("remote: servive " + sname + " does not exists")
 	}
 }
 
