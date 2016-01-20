@@ -120,7 +120,8 @@ func (handler *handlerService) processMessage(session *Session, msg *message) {
 		Error(err.Error())
 		return
 	}
-	if ri.serverType == App.Config.Type {
+	// if serverType equal nil, message handle in local server
+	if ri.serverType == "" || ri.serverType == App.Config.Type {
 		handler.localProcess(session, ri, msg)
 	} else {
 		handler.remoteProcess(session, ri, msg)

@@ -22,8 +22,11 @@ func (r *routeInfo) String() string {
 
 func decodeRouteInfo(route string) (*routeInfo, error) {
 	parts := strings.Split(route, ".")
-	if len(parts) != 3 {
-		return nil, errors.New("invalid route")
+	if len(parts) < 2 {
+		return nil, errors.New("invalid route: " + route)
+	} else if len(parts) == 2 {
+		return newRouteInfo("", parts[0], parts[1]), nil
+	} else {
+		return newRouteInfo(parts[0], parts[1], parts[2]), nil
 	}
-	return newRouteInfo(parts[0], parts[1], parts[2]), nil
 }
