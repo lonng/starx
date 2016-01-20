@@ -75,8 +75,9 @@ func (net *_netService) getAcceptor(sid uint64) (*acceptor, error) {
 	}
 }
 
-// Send packet data
-// call by package internal, the second argument was packaged packet
+// Send packet data, call by package internal, the second argument was packaged packet
+// if current server is frontend server, send to client by agent, else send to frontend
+// server by acceptor
 func (net *_netService) send(session *Session, data []byte) {
 	if App.Config.IsFrontend {
 		if fs, ok := net.agentMap[session.entityID]; ok && (fs != nil) {
@@ -89,16 +90,14 @@ func (net *_netService) send(session *Session, data []byte) {
 	}
 }
 
-// Push
-// Message level method
+// Push message to client
 // call by all package, the last argument was packaged message
 func (net *_netService) Push(session *Session, route string, data []byte) {
 	m := encodeMessage(&message{kind: messageType(_MT_PUSH), route: route, body: data})
 	net.send(session, pack(packetType(_PACKET_DATA), m))
 }
 
-// Response
-// Message level method
+// Response message to client
 // call by all package, the last argument was packaged message
 func (net *_netService) Response(session *Session, data []byte) {
 	// current message is notify message, can not response
@@ -109,8 +108,7 @@ func (net *_netService) Response(session *Session, data []byte) {
 	net.send(session, pack(packetType(_PACKET_DATA), m))
 }
 
-// Broadcast
-// Push message to all sessions
+// Broadcast message to all sessions
 // Message level method
 // call by all package, the last argument was packaged message
 func (net *_netService) Broadcast(route string, data []byte) {
