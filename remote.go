@@ -182,7 +182,7 @@ func (rs *remoteService) processRequest(bs *acceptor, rr *rpc.Request) {
 			if errInter != nil {
 				response.Error = errInter.(error).Error()
 			} else {
-				response.Reply = rets[0].Bytes()
+				response.Data = rets[0].Bytes()
 			}
 		}
 		writeResponse(bs, response)

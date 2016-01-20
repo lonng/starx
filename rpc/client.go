@@ -28,9 +28,9 @@ var (
 // Call represents an active RPC.
 type Call struct {
 	ServiceMethod string     // The name of the service and method to call.
-	Args          []byte     // The argument to the function (*struct).
+	Args          []byte     // The argument to the function.
 	Sid           uint64     // Frontend server session id
-	Reply         *[]byte    // The reply from the function (*struct).
+	Reply         *[]byte    // The reply from the function.
 	Error         error      // After completion, the error status.
 	Done          chan *Call // Strobes when call is complete.
 }
@@ -204,7 +204,7 @@ func (client *Client) input() {
 				if err != nil {
 					call.Error = errors.New("reading body " + err.Error())
 				}
-				*call.Reply = response.Reply
+				*call.Reply = response.Data
 				call.done()
 			}
 		}
