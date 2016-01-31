@@ -4,15 +4,19 @@ import (
 	"fmt"
 	"net"
 	"starx/rpc"
+	"time"
 )
 
 type starxApp struct {
-	Master *ServerConfig // master server config
-	Config *ServerConfig // current server information
+	Master     *ServerConfig // master server config
+	Config     *ServerConfig // current server information
+	AppName    string
+	Standalone bool // current server is running in standalone mode
+	StartTime  time.Time
 }
 
 func newApp() *starxApp {
-	return &starxApp{}
+	return &starxApp{StartTime: time.Now()}
 }
 
 func (app *starxApp) start() {
