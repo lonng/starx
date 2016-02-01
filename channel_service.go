@@ -1,27 +1,27 @@
 package starx
 
-type ChannelServive struct {
+type channelServive struct {
 	channels map[string]*Channel // all server channels
 }
 
-func newChannelServive() *ChannelServive {
-	return &ChannelServive{}
+func newChannelServive() *channelServive {
+	return &channelServive{}
 }
 
-func (c *ChannelServive) NewChannel(name string) *Channel {
+func (c *channelServive) NewChannel(name string) *Channel {
 	channel := NewChannel(name, c)
 	c.channels[name] = channel
 	return channel
 }
 
 // Get channel by channel name
-func (c *ChannelServive) GetChannel(name string) (*Channel, bool) {
+func (c *channelServive) GetChannel(name string) (*Channel, bool) {
 	channel, exists := c.channels[name]
 	return channel, exists
 }
 
 // Get all members in channel by channel name
-func (c *ChannelServive) GetMembers(name string) []int {
+func (c *channelServive) GetMembers(name string) []int {
 	if channel, ok := c.channels[name]; ok {
 		return channel.GetMembers()
 	}
@@ -29,7 +29,7 @@ func (c *ChannelServive) GetMembers(name string) []int {
 }
 
 // Destroy channel by channel name
-func (c *ChannelServive) DestroyChannel(name string) {
+func (c *channelServive) DestroyChannel(name string) {
 	if channel, ok := c.channels[name]; ok {
 		channel.Destroy()
 	}
