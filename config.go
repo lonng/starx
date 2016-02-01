@@ -2,7 +2,6 @@ package starx
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -16,13 +15,11 @@ var VERSION = "0.0.1"
 
 var (
 	App               *starxApp // starx application
-	AppName           string
 	AppPath           string
 	workPath          string
 	appConfigPath     string
 	serverConfigPath  string
 	masterConfigPath  string
-	StartTime         time.Time
 	cluster           *clusterService                                    // cluster service
 	settings          map[string][]func()                                // all settings
 	remote            *remoteService                                     // remote service
@@ -44,23 +41,24 @@ type ServerConfig struct {
 	Port       int32
 	IsFrontend bool
 	IsMaster   bool
+	Standalone bool // server is running in standalone mode
 }
 
 func (this *ServerConfig) String() string {
-	return fmt.Sprintf("Type: %s, Id: %s, Host: %s, Port: %d, IsFrontend: %t, IsMaster: %t",
+	return fmt.Sprintf("Type: %s, Id: %s, Host: %s, Port: %d, IsFrontend: %t, IsMaster: %t, Standalone: %t",
 		this.Type,
 		this.Id,
 		this.Host,
 		this.Port,
 		this.IsFrontend,
-		this.IsMaster)
+		this.IsMaster,
+		this.Standalone)
 }
 
 func init() {
 	App = newApp()
 	cluster = newClusterService()
 	settings = make(map[string][]func())
-	StartTime = time.Now()
 	Log = log.New(os.Stdout, "", log.LstdFlags)
 	remote = newRemote()
 	handler = newHandler()
@@ -102,27 +100,27 @@ func init() {
 }
 
 func parseConfig() {
-	// initialize master server config
-	if !utils.FileExists(masterConfigPath) {
-		panic(fmt.Sprintf("%s not found", masterConfigPath))
+	// initialize app config
+	if !utils.FileExists(appConfigPath) {
+		panic(fmt.Sprintf("%s not found", appConfigPath))
 	} else {
-		f, _ := os.Open(masterConfigPath)
+		type appConfig struct {
+			AppName    string `json:"AppName"`
+			Standalone bool   `json:"Standalone"`
+		}
+		f, _ := os.Open(appConfigPath)
 		defer f.Close()
-
 		reader := json.NewDecoder(f)
-		var master ServerConfig
+		var cfg appConfig
 		for {
-			if err := reader.Decode(&master); err == io.EOF {
+			if err := reader.Decode(&cfg); err == io.EOF {
 				break
 			} else if err != nil {
 				Error(err.Error())
 			}
 		}
-
-		master.Type = "master"
-		master.IsMaster = true
-		App.Master = &master
-		cluster.registerServer(master)
+		App.AppName = cfg.AppName
+		App.Standalone = cfg.Standalone
 	}
 
 	// initialize servers config
@@ -151,20 +149,50 @@ func parseConfig() {
 		cluster.dumpSvrTypeMaps()
 	}
 
-	if App.Master == nil {
-		panic(fmt.Sprintf("wrong master server config file(%s)", masterConfigPath))
-	}
-
-	defaultServerId := "master-server-1"
-	var serverId string
-	flag.StringVar(&serverId, "s", defaultServerId, "server id")
-	flag.Parse()
-	if serverId == defaultServerId { // master server
-		App.Config = App.Master
-	} else { // other server
+	if App.Standalone {
+		if len(os.Args) < 2 {
+			panic("server running in standalone mode, but not found server id argument")
+		}
+		serverId := os.Args[1]
 		App.Config = cluster.svrIdMaps[serverId]
 		if App.Config == nil {
 			panic(fmt.Sprintf("%s infomation not found in %s", serverId, serverConfigPath))
+		}
+	} else {
+		// if server running in cluster mode, master server config require
+		// initialize master server config
+		if !utils.FileExists(masterConfigPath) {
+			panic(fmt.Sprintf("%s not found", masterConfigPath))
+		} else {
+			f, _ := os.Open(masterConfigPath)
+			defer f.Close()
+
+			reader := json.NewDecoder(f)
+			var master ServerConfig
+			for {
+				if err := reader.Decode(&master); err == io.EOF {
+					break
+				} else if err != nil {
+					Error(err.Error())
+				}
+			}
+
+			master.Type = "master"
+			master.IsMaster = true
+			App.Master = &master
+			cluster.registerServer(master)
+		}
+		if App.Master == nil {
+			panic(fmt.Sprintf("wrong master server config file(%s)", masterConfigPath))
+		}
+		if len(os.Args) == 1 { // not pass server id, running in master mode
+			App.Config = App.Master
+		} else { // other server
+			serverId := os.Args[1]
+			App.Config = cluster.svrIdMaps[serverId]
+			if App.Config == nil {
+				panic(fmt.Sprintf("%s infomation not found in %s", serverId, serverConfigPath))
+			}
 		}
 	}
 }
