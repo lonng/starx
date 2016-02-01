@@ -4,15 +4,15 @@ import (
 	"time"
 )
 
-type HeartbeatService struct {
+type heartbeatService struct {
 	ticker *time.Ticker
 }
 
-func newHeartbeatService() *HeartbeatService {
-	return &HeartbeatService{ticker: time.NewTicker(heartbeatInternal)}
+func newHeartbeatService() *heartbeatService {
+	return &heartbeatService{ticker: time.NewTicker(heartbeatInternal)}
 }
 
-func (h *HeartbeatService) start() {
+func (h *heartbeatService) start() {
 	Info("enable heartbeat service")
 	for {
 		<-h.ticker.C

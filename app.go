@@ -24,7 +24,7 @@ func (app *starxApp) start() {
 
 	// enable all app service
 	if app.Config.IsFrontend {
-		go heartbeatService.start()
+		go heartbeat.start()
 	}
 	app.listenAndServe()
 

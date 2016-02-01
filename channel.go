@@ -4,10 +4,10 @@ type Channel struct {
 	name           string
 	uids           []int
 	count          int
-	channelServive *ChannelServive // channel service which contain current channel
+	channelServive *channelServive // channel service which contain current channel
 }
 
-func NewChannel(n string, cs *ChannelServive) *Channel {
+func NewChannel(n string, cs *channelServive) *Channel {
 	return &Channel{
 		name:           n,
 		channelServive: cs}

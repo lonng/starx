@@ -27,10 +27,10 @@ var (
 	defaultNetService *netService                                        // net service
 	TimerManager      Timer                                              // timer component
 	route             map[string]func(*Session) string                   // server route function
-	channelServive    *ChannelServive                                    // channel service component
-	ConnectionService *connectionService                                 // connection service component
+	ChannelServive    *channelServive                                    // channel service component
+	connections       *connectionService                                 // connection service component
 	heartbeatInternal time.Duration                    = time.Second * 8 // beatheart time internal, second unit
-	heartbeatService  *HeartbeatService                                  // beatheart service
+	heartbeat         *heartbeatService                                  // beatheart service
 	endRunning        chan bool                                          // wait for end application
 )
 
@@ -65,9 +65,9 @@ func init() {
 	defaultNetService = newNetService()
 	route = make(map[string]func(*Session) string)
 	TimerManager = newTimer()
-	channelServive = newChannelServive()
-	ConnectionService = newConnectionService()
-	heartbeatService = newHeartbeatService()
+	ChannelServive = newChannelServive()
+	connections = newConnectionService()
+	heartbeat = newHeartbeatService()
 	endRunning = make(chan bool, 1)
 
 	workPath, _ = os.Getwd()
