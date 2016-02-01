@@ -41,18 +41,16 @@ type ServerConfig struct {
 	Port       int32
 	IsFrontend bool
 	IsMaster   bool
-	Standalone bool // server is running in standalone mode
 }
 
 func (this *ServerConfig) String() string {
-	return fmt.Sprintf("Type: %s, Id: %s, Host: %s, Port: %d, IsFrontend: %t, IsMaster: %t, Standalone: %t",
+	return fmt.Sprintf("Type: %s, Id: %s, Host: %s, Port: %d, IsFrontend: %t, IsMaster: %t",
 		this.Type,
 		this.Id,
 		this.Host,
 		this.Port,
 		this.IsFrontend,
-		this.IsMaster,
-		this.Standalone)
+		this.IsMaster)
 }
 
 func init() {
