@@ -73,26 +73,26 @@ func init() {
 	// initialize default configurations
 	AppPath, _ = filepath.Abs(filepath.Dir(os.Args[0]))
 
-	appConfigPath = filepath.Join(AppPath, "conf", "app.json")
-	serverConfigPath = filepath.Join(AppPath, "conf", "servers.json")
-	masterConfigPath = filepath.Join(AppPath, "conf", "master.json")
+	appConfigPath = filepath.Join(AppPath, "configs", "app.json")
+	serverConfigPath = filepath.Join(AppPath, "configs", "servers.json")
+	masterConfigPath = filepath.Join(AppPath, "configs", "master.json")
 	if workPath != AppPath {
 		if utils.FileExists(appConfigPath) {
 			os.Chdir(AppPath)
 		} else {
-			appConfigPath = filepath.Join(workPath, "conf", "app.json")
+			appConfigPath = filepath.Join(workPath, "configs", "app.json")
 		}
 
 		if utils.FileExists(serverConfigPath) {
 			os.Chdir(AppPath)
 		} else {
-			serverConfigPath = filepath.Join(workPath, "conf", "servers.json")
+			serverConfigPath = filepath.Join(workPath, "configs", "servers.json")
 		}
 
 		if utils.FileExists(masterConfigPath) {
 			os.Chdir(AppPath)
 		} else {
-			masterConfigPath = filepath.Join(workPath, "conf", "master.json")
+			masterConfigPath = filepath.Join(workPath, "configs", "master.json")
 		}
 	}
 }
