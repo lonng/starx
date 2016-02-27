@@ -2,6 +2,7 @@
 
 Inspired by [Pomelo](https://github.com/NetEase/pomelo), rewrite with golang.
 
+documentation come soon...
 
 ===
 The MIT License
