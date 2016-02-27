@@ -1,3 +1,8 @@
+# Starx -- golang based golang game server
+
+Inspired by [Pomelo](https://github.com/NetEase/pomelo), rewrite with golang.
+
+
 ===
 The MIT License
 
