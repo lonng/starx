@@ -100,7 +100,8 @@ func init() {
 func parseConfig() {
 	// initialize app config
 	if !utils.FileExists(appConfigPath) {
-		panic(fmt.Sprintf("%s not found", appConfigPath))
+		Info(fmt.Sprintf("%s not found", appConfigPath))
+		os.Exit(-1)
 	} else {
 		type appConfig struct {
 			AppName    string `json:"AppName"`
@@ -123,7 +124,8 @@ func parseConfig() {
 
 	// initialize servers config
 	if !utils.FileExists(serverConfigPath) {
-		panic(fmt.Sprintf("%s not found", serverConfigPath))
+		Info(fmt.Sprintf("%s not found", serverConfigPath))
+		os.Exit(-1)
 	} else {
 		f, _ := os.Open(serverConfigPath)
 		defer f.Close()
@@ -149,18 +151,21 @@ func parseConfig() {
 
 	if App.Standalone {
 		if len(os.Args) < 2 {
-			panic("server running in standalone mode, but not found server id argument")
+			Info("server running in standalone mode, but not found server id argument")
+			os.Exit(-1)
 		}
 		serverId := os.Args[1]
 		App.Config = cluster.svrIdMaps[serverId]
 		if App.Config == nil {
-			panic(fmt.Sprintf("%s infomation not found in %s", serverId, serverConfigPath))
+			Info(fmt.Sprintf("%s infomation not found in %s", serverId, serverConfigPath))
+			os.Exit(-1)
 		}
 	} else {
 		// if server running in cluster mode, master server config require
 		// initialize master server config
 		if !utils.FileExists(masterConfigPath) {
-			panic(fmt.Sprintf("%s not found", masterConfigPath))
+			Info(fmt.Sprintf("%s not found", masterConfigPath))
+			os.Exit(-1)
 		} else {
 			f, _ := os.Open(masterConfigPath)
 			defer f.Close()
@@ -181,7 +186,8 @@ func parseConfig() {
 			cluster.registerServer(master)
 		}
 		if App.Master == nil {
-			panic(fmt.Sprintf("wrong master server config file(%s)", masterConfigPath))
+			Info(fmt.Sprintf("wrong master server config file(%s)", masterConfigPath))
+			os.Exit(-1)
 		}
 		if len(os.Args) == 1 { // not pass server id, running in master mode
 			App.Config = App.Master
@@ -189,7 +195,8 @@ func parseConfig() {
 			serverId := os.Args[1]
 			App.Config = cluster.svrIdMaps[serverId]
 			if App.Config == nil {
-				panic(fmt.Sprintf("%s infomation not found in %s", serverId, serverConfigPath))
+				Info(fmt.Sprintf("%s infomation not found in %s", serverId, serverConfigPath))
+				os.Exit(-1)
 			}
 		}
 	}
