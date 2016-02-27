@@ -2,7 +2,6 @@ package starx
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"github.com/chrislonng/starx/utils"
 	"io"
@@ -16,13 +15,11 @@ var VERSION = "0.0.1"
 
 var (
 	App               *starxApp // starx application
-	AppName           string
 	AppPath           string
 	workPath          string
 	appConfigPath     string
 	serverConfigPath  string
 	masterConfigPath  string
-	StartTime         time.Time
 	cluster           *clusterService                                    // cluster service
 	settings          map[string][]func()                                // all settings
 	remote            *remoteService                                     // remote service
@@ -30,10 +27,10 @@ var (
 	defaultNetService *netService                                        // net service
 	TimerManager      Timer                                              // timer component
 	route             map[string]func(*Session) string                   // server route function
-	channelServive    *ChannelServive                                    // channel service component
-	ConnectionService *connectionService                                 // connection service component
+	ChannelServive    *channelServive                                    // channel service component
+	connections       *connectionService                                 // connection service component
 	heartbeatInternal time.Duration                    = time.Second * 8 // beatheart time internal, second unit
-	heartbeatService  *HeartbeatService                                  // beatheart service
+	heartbeat         *heartbeatService                                  // beatheart service
 	endRunning        chan bool                                          // wait for end application
 )
 
@@ -60,16 +57,15 @@ func init() {
 	App = newApp()
 	cluster = newClusterService()
 	settings = make(map[string][]func())
-	StartTime = time.Now()
 	Log = log.New(os.Stdout, "", log.LstdFlags)
 	remote = newRemote()
 	handler = newHandler()
 	defaultNetService = newNetService()
 	route = make(map[string]func(*Session) string)
 	TimerManager = newTimer()
-	channelServive = newChannelServive()
-	ConnectionService = newConnectionService()
-	heartbeatService = newHeartbeatService()
+	ChannelServive = newChannelServive()
+	connections = newConnectionService()
+	heartbeat = newHeartbeatService()
 	endRunning = make(chan bool, 1)
 
 	workPath, _ = os.Getwd()
@@ -77,52 +73,52 @@ func init() {
 	// initialize default configurations
 	AppPath, _ = filepath.Abs(filepath.Dir(os.Args[0]))
 
-	appConfigPath = filepath.Join(AppPath, "conf", "app.json")
-	serverConfigPath = filepath.Join(AppPath, "conf", "servers.json")
-	masterConfigPath = filepath.Join(AppPath, "conf", "master.json")
+	appConfigPath = filepath.Join(AppPath, "configs", "app.json")
+	serverConfigPath = filepath.Join(AppPath, "configs", "servers.json")
+	masterConfigPath = filepath.Join(AppPath, "configs", "master.json")
 	if workPath != AppPath {
 		if utils.FileExists(appConfigPath) {
 			os.Chdir(AppPath)
 		} else {
-			appConfigPath = filepath.Join(workPath, "conf", "app.json")
+			appConfigPath = filepath.Join(workPath, "configs", "app.json")
 		}
 
 		if utils.FileExists(serverConfigPath) {
 			os.Chdir(AppPath)
 		} else {
-			serverConfigPath = filepath.Join(workPath, "conf", "servers.json")
+			serverConfigPath = filepath.Join(workPath, "configs", "servers.json")
 		}
 
 		if utils.FileExists(masterConfigPath) {
 			os.Chdir(AppPath)
 		} else {
-			masterConfigPath = filepath.Join(workPath, "conf", "master.json")
+			masterConfigPath = filepath.Join(workPath, "configs", "master.json")
 		}
 	}
 }
 
 func parseConfig() {
-	// initialize master server config
-	if !utils.FileExists(masterConfigPath) {
-		panic(fmt.Sprintf("%s not found", masterConfigPath))
+	// initialize app config
+	if !utils.FileExists(appConfigPath) {
+		panic(fmt.Sprintf("%s not found", appConfigPath))
 	} else {
-		f, _ := os.Open(masterConfigPath)
+		type appConfig struct {
+			AppName    string `json:"AppName"`
+			Standalone bool   `json:"Standalone"`
+		}
+		f, _ := os.Open(appConfigPath)
 		defer f.Close()
-
 		reader := json.NewDecoder(f)
-		var master ServerConfig
+		var cfg appConfig
 		for {
-			if err := reader.Decode(&master); err == io.EOF {
+			if err := reader.Decode(&cfg); err == io.EOF {
 				break
 			} else if err != nil {
 				Error(err.Error())
 			}
 		}
-
-		master.Type = "master"
-		master.IsMaster = true
-		App.Master = &master
-		cluster.registerServer(master)
+		App.AppName = cfg.AppName
+		App.Standalone = cfg.Standalone
 	}
 
 	// initialize servers config
@@ -151,20 +147,50 @@ func parseConfig() {
 		cluster.dumpSvrTypeMaps()
 	}
 
-	if App.Master == nil {
-		panic(fmt.Sprintf("wrong master server config file(%s)", masterConfigPath))
-	}
-
-	defaultServerId := "master-server-1"
-	var serverId string
-	flag.StringVar(&serverId, "s", defaultServerId, "server id")
-	flag.Parse()
-	if serverId == defaultServerId { // master server
-		App.Config = App.Master
-	} else { // other server
+	if App.Standalone {
+		if len(os.Args) < 2 {
+			panic("server running in standalone mode, but not found server id argument")
+		}
+		serverId := os.Args[1]
 		App.Config = cluster.svrIdMaps[serverId]
 		if App.Config == nil {
 			panic(fmt.Sprintf("%s infomation not found in %s", serverId, serverConfigPath))
+		}
+	} else {
+		// if server running in cluster mode, master server config require
+		// initialize master server config
+		if !utils.FileExists(masterConfigPath) {
+			panic(fmt.Sprintf("%s not found", masterConfigPath))
+		} else {
+			f, _ := os.Open(masterConfigPath)
+			defer f.Close()
+
+			reader := json.NewDecoder(f)
+			var master ServerConfig
+			for {
+				if err := reader.Decode(&master); err == io.EOF {
+					break
+				} else if err != nil {
+					Error(err.Error())
+				}
+			}
+
+			master.Type = "master"
+			master.IsMaster = true
+			App.Master = &master
+			cluster.registerServer(master)
+		}
+		if App.Master == nil {
+			panic(fmt.Sprintf("wrong master server config file(%s)", masterConfigPath))
+		}
+		if len(os.Args) == 1 { // not pass server id, running in master mode
+			App.Config = App.Master
+		} else { // other server
+			serverId := os.Args[1]
+			App.Config = cluster.svrIdMaps[serverId]
+			if App.Config == nil {
+				panic(fmt.Sprintf("%s infomation not found in %s", serverId, serverConfigPath))
+			}
 		}
 	}
 }

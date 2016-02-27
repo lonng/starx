@@ -35,7 +35,7 @@ func (c *clusterService) dumpSvrTypeMaps() {
 			continue
 		}
 		for _, svrId := range svrs {
-			Info(svrId)
+			Info(fmt.Sprintf("server type: %s, id: %s", t, svrId))
 		}
 	}
 }

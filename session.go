@@ -39,7 +39,7 @@ type Session struct {
 // Create new session instance
 func newSession() *Session {
 	return &Session{
-		Id:       ConnectionService.getNewSessionUUID(),
+		Id:       connections.getNewSessionUUID(),
 		lastTime: time.Now().Unix()}
 }
 

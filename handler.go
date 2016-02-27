@@ -80,7 +80,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 		}
 		tmp = append(tmp, buf[:n]...)
 		var pkg *packet // save decoded packet
-		for len(tmp) > headLength {
+		for len(tmp) >= headLength {
 			if pkg, tmp = unpack(tmp); pkg != nil {
 				packetChan <- &unhandledPacket{fs, pkg}
 			} else {
