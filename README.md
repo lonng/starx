@@ -1,4 +1,4 @@
-# Starx -- golang based golang game server
+# Starx -- golang based game server
 
 Inspired by [Pomelo](https://github.com/NetEase/pomelo), rewrite with golang.
 
