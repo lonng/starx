@@ -2,6 +2,11 @@
 
 Inspired by [Pomelo](https://github.com/NetEase/pomelo), rewrite with golang.
 
+# Demo
+Client: [starx-demo-unity](https://github.com/chrislonng/starx-demo-unity)
+
+Server: [starx-demo-server](https://github.com/chrislonng/starx-demo-server)
+
 documentation come soon...
 
 ===
