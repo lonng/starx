@@ -3,8 +3,8 @@ package starx
 import (
 	"errors"
 	"fmt"
+	"github.com/chrislonng/starx/rpc"
 	"math/rand"
-	"starx/rpc"
 	"sync"
 )
 

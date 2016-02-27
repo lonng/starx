@@ -2,7 +2,7 @@ package starx
 
 import (
 	"fmt"
-	"starx/rpc"
+	"github.com/chrislonng/starx/rpc"
 	"strings"
 )
 

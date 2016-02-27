@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"starx/rpc"
+	"github.com/chrislonng/starx/rpc"
 	"time"
 )
 

@@ -2,8 +2,8 @@ package starx
 
 import (
 	"fmt"
+	"github.com/chrislonng/starx/rpc"
 	"net"
-	"starx/rpc"
 )
 
 type starxApp struct {
