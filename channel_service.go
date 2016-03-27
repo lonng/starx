@@ -9,7 +9,7 @@ func newChannelServive() *channelServive {
 }
 
 func (c *channelServive) NewChannel(name string) *Channel {
-	channel := NewChannel(name, c)
+	channel := newChannel(name, c)
 	c.channels[name] = channel
 	return channel
 }

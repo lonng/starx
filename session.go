@@ -104,9 +104,7 @@ func (session *Session) Bind(uid int) {
 }
 
 func (session *Session) String() string {
-	return fmt.Sprintf("Id: %d, Uid: %d, RemoteAddr: %s",
-		session.Id,
-		session.Uid)
+	return fmt.Sprintf("Id: %d, Uid: %d", session.Id, session.Uid)
 }
 
 func (session *Session) AsyncRPC(route string, args ...interface{}) error {

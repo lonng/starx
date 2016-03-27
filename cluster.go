@@ -18,9 +18,9 @@ type clusterService struct {
 
 func newClusterService() *clusterService {
 	return &clusterService{
-		svrTypeMaps: make(map[string][]string),
-		svrIdMaps:   make(map[string]*ServerConfig),
-		clientIdMaps:make(map[string]*rpc.Client)}
+		svrTypeMaps:  make(map[string][]string),
+		svrIdMaps:    make(map[string]*ServerConfig),
+		clientIdMaps: make(map[string]*rpc.Client)}
 }
 
 func (c *clusterService) dumpSvrIdMaps() {

@@ -7,7 +7,7 @@ type Channel struct {
 	channelServive *channelServive // channel service which contain current channel
 }
 
-func NewChannel(n string, cs *channelServive) *Channel {
+func newChannel(n string, cs *channelServive) *Channel {
 	return &Channel{
 		name:           n,
 		channelServive: cs}
@@ -46,6 +46,7 @@ func (c *Channel) Leave(uid int) {
 		if u == uid {
 			temp = append(temp, c.uids[:i]...)
 			c.uids = append(temp, c.uids[(i+1):]...)
+			c.count--
 			break
 		}
 	}
@@ -53,6 +54,7 @@ func (c *Channel) Leave(uid int) {
 
 func (c *Channel) LeaveAll() {
 	c.uids = make([]int, 0)
+	c.count = 0
 }
 
 func (c *Channel) GetCount() int {
