@@ -118,9 +118,13 @@ func (net *netService) Broadcast(route string, data []byte) {
 	}
 }
 
-// TODO
-func (net *netService) Multcast(uids []int, route string, data []byte) {
-
+// Multicast message to special agent ids
+func (net *netService) Multicast(aids []uint64, route string, data []byte) {
+	for _, aid := range aids {
+		if agent, ok := net.agentMap[aid]; ok && agent != nil {
+			net.Push(agent.session, route, data)
+		}
+	}
 }
 
 // Close session

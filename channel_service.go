@@ -5,7 +5,7 @@ type channelServive struct {
 }
 
 func newChannelServive() *channelServive {
-	return &channelServive{}
+	return &channelServive{make(map[string]*Channel)}
 }
 
 func (c *channelServive) NewChannel(name string) *Channel {

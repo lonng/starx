@@ -139,7 +139,13 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 	}
 	if s, present := handler.serviceMap[ri.service]; present {
 		if m, ok := s.method[ri.method]; ok {
-			m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(msg.body)})
+			ret := m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(msg.body)})
+			if len(ret) > 0 {
+				err := ret[0].Interface()
+				if err != nil {
+					Error(err.(error).Error())
+				}
+			}
 		} else {
 			Info("handler: " + ri.service + " does not contain method: " + ri.method)
 		}
