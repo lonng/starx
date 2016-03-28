@@ -100,7 +100,7 @@ func init() {
 func parseConfig() {
 	// initialize app config
 	if !utils.FileExists(appConfigPath) {
-		Info(fmt.Sprintf("%s not found", appConfigPath))
+		Info("%s not found", appConfigPath)
 		os.Exit(-1)
 	} else {
 		type appConfig struct {
@@ -124,7 +124,7 @@ func parseConfig() {
 
 	// initialize servers config
 	if !utils.FileExists(serverConfigPath) {
-		Info(fmt.Sprintf("%s not found", serverConfigPath))
+		Info("%s not found", serverConfigPath)
 		os.Exit(-1)
 	} else {
 		f, _ := os.Open(serverConfigPath)
@@ -157,14 +157,14 @@ func parseConfig() {
 		serverId := os.Args[1]
 		App.Config = cluster.svrIdMaps[serverId]
 		if App.Config == nil {
-			Info(fmt.Sprintf("%s infomation not found in %s", serverId, serverConfigPath))
+			Info("%s infomation not found in %s", serverId, serverConfigPath)
 			os.Exit(-1)
 		}
 	} else {
 		// if server running in cluster mode, master server config require
 		// initialize master server config
 		if !utils.FileExists(masterConfigPath) {
-			Info(fmt.Sprintf("%s not found", masterConfigPath))
+			Info("%s not found", masterConfigPath)
 			os.Exit(-1)
 		} else {
 			f, _ := os.Open(masterConfigPath)
@@ -186,7 +186,7 @@ func parseConfig() {
 			cluster.registerServer(master)
 		}
 		if App.Master == nil {
-			Info(fmt.Sprintf("wrong master server config file(%s)", masterConfigPath))
+			Info("wrong master server config file(%s)", masterConfigPath)
 			os.Exit(-1)
 		}
 		if len(os.Args) == 1 { // not pass server id, running in master mode
@@ -195,7 +195,7 @@ func parseConfig() {
 			serverId := os.Args[1]
 			App.Config = cluster.svrIdMaps[serverId]
 			if App.Config == nil {
-				Info(fmt.Sprintf("%s infomation not found in %s", serverId, serverConfigPath))
+				Info("%s infomation not found in %s", serverId, serverConfigPath)
 				os.Exit(-1)
 			}
 		}

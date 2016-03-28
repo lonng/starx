@@ -8,19 +8,19 @@ import (
 var Log *log.Logger // logger
 
 // Error logs a message at error level.
-func Error(info string) {
-	Log.Panicln(fmt.Sprintf("[Panic] %s", info))
+func Error(f string, v ...interface{}) {
+	Log.Printf(fmt.Sprintf("[Error] %s", f), v...)
 }
 
 // compatibility alias for Warning()
-func Info(info string) {
-	Log.Println(fmt.Sprintf("[Info] %s", info))
+func Info(f string, v ...interface{}) {
+	Log.Printf(fmt.Sprintf("[Info] %s", f), v...)
 }
 
-func Warning(info string) {
-	Log.Println(fmt.Sprintf("[Warning] %s", info))
+func Warning(f string, v ...interface{}) {
+	Log.Printf(fmt.Sprintf("[Warning] %s", f), v...)
 }
 
-func Debug(info string) {
-	Log.Println(fmt.Sprintf("[Debug] %s", info))
+func Debug(f string, v ...interface{}) {
+	Log.Printf(fmt.Sprintf("[Debug] %s", f), v...)
 }

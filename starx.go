@@ -1,7 +1,6 @@
 package starx
 
 import (
-	"fmt"
 	"github.com/chrislonng/starx/rpc"
 	"strings"
 )
@@ -29,7 +28,7 @@ func Set(svrTypes string, fn func()) {
 }
 
 func loadSettings() {
-	Info(fmt.Sprintf("loading %s settings", App.Config.Type))
+	Info("loading %s settings", App.Config.Type)
 	if setting, ok := settings[App.Config.Type]; ok && len(setting) > 0 {
 		for _, fn := range setting {
 			fn()

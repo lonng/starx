@@ -96,10 +96,10 @@ func (session *Session) Response(data []byte) {
 }
 
 func (session *Session) Bind(uid int) {
-	if session.Uid > 0 {
+	if uid > 0 {
 		session.Uid = uid
 	} else {
-		Error("uid invalid")
+		Error("uid invalid: %d", uid)
 	}
 }
 

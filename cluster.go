@@ -25,7 +25,7 @@ func newClusterService() *clusterService {
 
 func (c *clusterService) dumpSvrIdMaps() {
 	for _, v := range c.svrIdMaps {
-		Info(fmt.Sprintf("id: %s(%s)", v.Id, v.String()))
+		Info("id: %s(%s)", v.Id, v.String())
 	}
 }
 
@@ -36,7 +36,7 @@ func (c *clusterService) dumpSvrTypeMaps() {
 			continue
 		}
 		for _, svrId := range svrs {
-			Info(fmt.Sprintf("server type: %s, id: %s", t, svrId))
+			Info("server type: %s, id: %s", t, svrId)
 		}
 	}
 }
@@ -44,7 +44,7 @@ func (c *clusterService) dumpSvrTypeMaps() {
 func (c *clusterService) registerServer(server ServerConfig) {
 	// server exists
 	if _, ok := c.svrIdMaps[server.Id]; ok {
-		Info(fmt.Sprintf("serverId: %s already existed(%s)", server.Id, server.String()))
+		Info("serverId: %s already existed(%s)", server.Id, server.String())
 		return
 	}
 	svr := &server
@@ -90,7 +90,7 @@ func (c *clusterService) removeServer(svrId string) {
 		delete(c.svrIdMaps, svrId)
 		c.closeClient(svrId)
 	} else {
-		Info(fmt.Sprintf("serverId: %s not found", svrId))
+		Info("serverId: %s not found", svrId)
 	}
 }
 
@@ -109,10 +109,10 @@ func (c *clusterService) closeClient(svrId string) {
 		c.lock.Unlock()
 		client.Close()
 	} else {
-		Info(fmt.Sprintf("%s not found in rpc client list", svrId))
+		Info("%s not found in rpc client list", svrId)
 	}
 
-	Info(fmt.Sprintf("%s rpc client has been removed.", svrId))
+	Info("%s rpc client has been removed.", svrId)
 	c.dumpClientIdMaps()
 }
 
@@ -188,7 +188,7 @@ func (c *clusterService) getClientById(svrId string) (*rpc.Client, error) {
 				}
 			}
 		}()
-		Info(fmt.Sprintf("%s establish rpc client successful.", svr.Id))
+		Info("%s establish rpc client successful.", svr.Id)
 		c.dumpClientIdMaps()
 		return client, nil
 	}
@@ -198,7 +198,7 @@ func (c *clusterService) getClientById(svrId string) (*rpc.Client, error) {
 // Dump all clients that has established netword connection with remote server
 func (c *clusterService) dumpClientIdMaps() {
 	for id, _ := range c.clientIdMaps {
-		Info(fmt.Sprintf("[%s] is contained in rpc client list", id))
+		Info("[%s] is contained in rpc client list", id)
 	}
 }
 

@@ -3,7 +3,6 @@ package starx
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/chrislonng/starx/rpc"
 	"github.com/chrislonng/starx/utils"
 	"net"
@@ -232,7 +231,7 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 func (handler *handlerService) dumpServiceMap() {
 	for sname, s := range handler.serviceMap {
 		for mname, _ := range s.method {
-			Info(fmt.Sprintf("registered service: %s.%s", sname, mname))
+			Info("registered service: %s.%s", sname, mname)
 		}
 	}
 }

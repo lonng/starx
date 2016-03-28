@@ -40,10 +40,10 @@ func (app *starxApp) listenAndServe() {
 	if err != nil {
 		Error(err.Error())
 	}
-	Info(fmt.Sprintf("listen at %s:%d(%s)",
+	Info("listen at %s:%d(%s)",
 		app.Config.Host,
 		app.Config.Port,
-		app.Config.String()))
+		app.Config.String())
 
 	defer listener.Close()
 	for {
