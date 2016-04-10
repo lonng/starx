@@ -2,8 +2,8 @@ package starx
 
 type Channel struct {
 	name           string           // channel name
-	uidMap         map[int]*Session // uid map to session pointer
-	uids           []int            // all user ids
+	uidMap         map[uint64]*Session // uid map to session pointer
+	uids           []uint64            // all user ids
 	count          int              // current channel contain user count
 	channelServive *channelServive  // channel service which contain current channel
 }
@@ -12,14 +12,14 @@ func newChannel(n string, cs *channelServive) *Channel {
 	return &Channel{
 		name:           n,
 		channelServive: cs,
-		uidMap:         make(map[int]*Session)}
+		uidMap:         make(map[uint64]*Session)}
 }
 
-func (c *Channel) GetMembers() []int {
+func (c *Channel) GetMembers() []uint64 {
 	return c.uids
 }
 
-func (c *Channel) PushMessageByUids(uids []int, route string, data []byte) {
+func (c *Channel) PushMessageByUids(uids []uint64, route string, data []byte) {
 	for _, uid := range uids {
 		if session, ok := c.uidMap[uid]; ok && session != nil {
 			defaultNetService.Push(session, route, data)
@@ -33,7 +33,7 @@ func (c *Channel) Broadcast(route string, data []byte) {
 	}
 }
 
-func (c *Channel) IsContain(uid int) bool {
+func (c *Channel) IsContain(uid uint64) bool {
 	for _, u := range c.uids {
 		if u == uid {
 			return true
@@ -48,8 +48,8 @@ func (c *Channel) Add(session *Session) {
 	c.count++
 }
 
-func (c *Channel) Leave(uid int) {
-	var temp []int
+func (c *Channel) Leave(uid uint64) {
+	var temp []uint64
 	for i, u := range c.uids {
 		if u == uid {
 			temp = append(temp, c.uids[:i]...)
@@ -61,7 +61,7 @@ func (c *Channel) Leave(uid int) {
 }
 
 func (c *Channel) LeaveAll() {
-	c.uids = make([]int, 0)
+	c.uids = make([]uint64, 0)
 	c.count = 0
 }
 

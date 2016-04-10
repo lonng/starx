@@ -21,11 +21,11 @@ func (c *channelServive) GetChannel(name string) (*Channel, bool) {
 }
 
 // Get all members in channel by channel name
-func (c *channelServive) GetMembers(name string) []int {
+func (c *channelServive) GetMembers(name string) []uint64 {
 	if channel, ok := c.channels[name]; ok {
 		return channel.GetMembers()
 	}
-	return make([]int, 0)
+	return make([]uint64, 0)
 }
 
 // Destroy channel by channel name

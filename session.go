@@ -30,7 +30,7 @@ var (
 // This is user sessions, not contain raw sockets information
 type Session struct {
 	Id       uint64 // session global uniqe id
-	Uid      int    // binding user id
+	Uid      uint64 // binding user id
 	reqId    uint   // last request id
 	lastTime int64  // last heartbeat time
 	entityID uint64 // raw session id, frontendSession in frontend server, or backendSession in backend server
@@ -95,7 +95,7 @@ func (session *Session) Response(data []byte) {
 	}
 }
 
-func (session *Session) Bind(uid int) {
+func (session *Session) Bind(uid uint64) {
 	if uid > 0 {
 		session.Uid = uid
 	} else {
