@@ -34,8 +34,8 @@ func newRemote() *remoteService {
 		status: _RPC_STATUS_UNINIT}
 }
 
-func (rs *remoteService) register(rpcKind rpc.RpcKind, comp RpcComponent) {
-	comp.Setup()
+func (rs *remoteService) register(rpcKind rpc.RpcKind, comp Component) {
+	comp.Init()
 	if rpcKind == rpc.SysRpc {
 		rpc.SysRpcServer.Register(comp)
 	} else if rpcKind == rpc.UserRpc {

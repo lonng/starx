@@ -175,12 +175,7 @@ func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, ms
 //	- two arguments, both of exported type
 //	- the first argument is *starx.Session
 //	- the second argument is []byte
-func (handler *handlerService) register(rcvr HandlerComponent) {
-	rcvr.Setup()
-	handler._register(rcvr)
-}
-
-func (handler *handlerService) _register(rcvr HandlerComponent) error {
+func (handler *handlerService) register(rcvr Component) error {
 	if handler.serviceMap == nil {
 		handler.serviceMap = make(map[string]*service)
 	}
@@ -216,7 +211,6 @@ func (handler *handlerService) _register(rcvr HandlerComponent) error {
 		return errors.New(str)
 	}
 	handler.serviceMap[s.name] = s
-	handler.dumpServiceMap()
 	return nil
 }
 

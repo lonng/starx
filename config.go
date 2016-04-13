@@ -32,6 +32,8 @@ var (
 	heartbeatInternal time.Duration                    = time.Second * 8 // beatheart time internal, second unit
 	heartbeat         *heartbeatService                                  // beatheart service
 	endRunning        chan bool                                          // wait for end application
+	handlers          []Component                                        // all register handler service
+	remotes           []Component                                        // all register remote process call service
 )
 
 type ServerConfig struct {
@@ -189,9 +191,11 @@ func parseConfig() {
 			Info("wrong master server config file(%s)", masterConfigPath)
 			os.Exit(-1)
 		}
-		if len(os.Args) == 1 { // not pass server id, running in master mode
+		if len(os.Args) == 1 {
+			// not pass server id, running in master mode
 			App.Config = App.Master
-		} else { // other server
+		} else {
+			// other server
 			serverId := os.Args[1]
 			App.Config = cluster.svrIdMaps[serverId]
 			if App.Config == nil {

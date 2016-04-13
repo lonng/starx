@@ -1,7 +1,6 @@
 package starx
 
 import (
-	"github.com/chrislonng/starx/rpc"
 	"strings"
 )
 
@@ -9,6 +8,7 @@ import (
 func Start() {
 	parseConfig()
 	loadSettings()
+	registerSysComps()
 	App.start()
 }
 
@@ -36,20 +36,25 @@ func loadSettings() {
 	}
 }
 
+func registerSysComps() {
+	//Handler(new(Manager))
+}
+
 // Handler register
 func Handler(comp Component) {
 	if App.Config.IsFrontend {
 		handler.register(comp)
+		handlers = append(handlers, comp)
 	} else {
-		remote.register(rpc.SysRpc, comp)
+		remotes = append(remotes, comp)
 	}
 }
 
 // Remote register
 func Remote(comp Component) {
 	if App.Config.IsFrontend {
-		Error("current server is frontend server")
+		Error("can not register remote service in frontend server")
 	} else {
-		remote.register(rpc.UserRpc, comp)
+		remotes = append(remotes, comp)
 	}
 }

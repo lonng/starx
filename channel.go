@@ -1,11 +1,11 @@
 package starx
 
 type Channel struct {
-	name           string           // channel name
+	name           string              // channel name
 	uidMap         map[uint64]*Session // uid map to session pointer
 	uids           []uint64            // all user ids
-	count          int              // current channel contain user count
-	channelServive *channelServive  // channel service which contain current channel
+	count          int                 // current channel contain user count
+	channelServive *channelServive     // channel service which contain current channel
 }
 
 func newChannel(n string, cs *channelServive) *Channel {

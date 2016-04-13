@@ -9,11 +9,16 @@ type Manager struct {
 	Counter int
 }
 
-func (this *Manager) Setup() {
+// Component interface methods
+func (this *Manager) Init() {
 	this.Name = "ManagerComponenet"
 	Info("manager component initialized")
 }
+func (this *Manager) AfterInit()      {}
+func (this *Manager) BeforeShutdown() {}
+func (this *Manager) Shutdown()       {}
 
+// attachment methods
 func (m *Manager) UpdateServer(session *Session, data []byte) error {
 	var newServerInfo ServerConfig
 	err := json.Unmarshal(data, &newServerInfo)

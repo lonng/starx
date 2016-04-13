@@ -20,7 +20,7 @@ func newApp() *starxApp {
 }
 
 func (app *starxApp) start() {
-	app.loadDefaultComps()
+	app.loadComps()
 
 	// enable all app service
 	if app.Config.IsFrontend {
@@ -31,6 +31,7 @@ func (app *starxApp) start() {
 	// stop server
 	<-endRunning
 	Info("server: " + app.Config.Id + " is stopping...")
+	app.shutdownComps()
 	close(endRunning)
 }
 
@@ -60,6 +61,51 @@ func (app *starxApp) listenAndServe() {
 	}
 }
 
-func (app *starxApp) loadDefaultComps() {
-	remote.register(rpc.SysRpc, new(Manager))
+func (app *starxApp) loadComps() {
+	// handlers
+	for _, comp := range handlers {
+		comp.Init()
+	}
+	for _, comp := range handlers {
+		comp.AfterInit()
+	}
+
+	// remotes
+	for _, comp := range remotes {
+		comp.Init()
+	}
+	for _, comp := range remotes {
+		comp.AfterInit()
+	}
+
+	// register
+	for _, comp := range handlers {
+		if App.Config.IsFrontend {
+			handler.register(comp)
+		} else {
+			remote.register(rpc.SysRpc, comp)
+		}
+	}
+	for _, comp := range remotes {
+		remote.register(rpc.UserRpc, comp)
+	}
+	handler.dumpServiceMap()
+}
+
+func (app *starxApp) shutdownComps() {
+	// handlers
+	for _, comp := range handlers {
+		comp.BeforeShutdown()
+	}
+	for _, comp := range handlers {
+		comp.Shutdown()
+	}
+
+	// remotes
+	for _, comp := range remotes {
+		comp.BeforeShutdown()
+	}
+	for _, comp := range remotes {
+		comp.Shutdown()
+	}
 }
