@@ -129,6 +129,15 @@ func (net *netService) Multicast(aids []uint64, route string, data []byte) {
 
 // Close session
 func (net *netService) closeSession(session *Session) {
+	// TODO: notify all backend server, current session has closed.
+	// session close callback
+	if len(session.closeCallback) > 0 {
+		for _, cb := range session.closeCallback {
+			if cb != nil {
+				cb()
+			}
+		}
+	}
 	if App.Config.IsFrontend {
 		if fs, ok := net.agentMap[session.entityID]; ok && (fs != nil) {
 			fs.socket.Close()
