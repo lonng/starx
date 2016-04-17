@@ -29,12 +29,11 @@ var (
 //
 // This is user sessions, not contain raw sockets information
 type Session struct {
-	Id            uint64   // session global uniqe id
-	Uid           uint64   // binding user id
-	reqId         uint     // last request id
-	lastTime      int64    // last heartbeat time
-	entityID      uint64   // raw session id, frontendSession in frontend server, or backendSession in backend server
-	closeCallback []func() // callback when session close
+	Id       uint64 // session global uniqe id
+	Uid      uint64 // binding user id
+	reqId    uint   // last request id
+	lastTime int64  // last heartbeat time
+	entityID uint64 // raw session id, frontendSession in frontend server, or backendSession in backend server
 }
 
 // Create new session instance
@@ -149,9 +148,4 @@ func (session *Session) Sync(string) {
 
 // Sync all settings to frontend server
 func (session *Session) SyncAll() {
-}
-
-// Callback when session closed
-func (session *Session) OnClose(cb func()) {
-	session.closeCallback = append(session.closeCallback, cb)
 }

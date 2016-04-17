@@ -10,14 +10,16 @@ import (
 )
 
 type netService struct {
-	agentUidLock    sync.RWMutex         // protect agentUid
-	agentUid        uint64               // agent unique id
-	agentMapLock    sync.RWMutex         // protect agentMap
-	agentMap        map[uint64]*agent    // agents map
-	acceptorUidLock sync.RWMutex         // protect acceptorUid
-	acceptorUid     uint64               // acceptor unique id
-	acceptorMapLock sync.RWMutex         // protect acceptorMap
-	acceptorMap     map[uint64]*acceptor // acceptor map
+	agentUidLock       sync.RWMutex         // protect agentUid
+	agentUid           uint64               // agent unique id
+	agentMapLock       sync.RWMutex         // protect agentMap
+	agentMap           map[uint64]*agent    // agents map
+	acceptorUidLock    sync.RWMutex         // protect acceptorUid
+	acceptorUid        uint64               // acceptor unique id
+	acceptorMapLock    sync.RWMutex         // protect acceptorMap
+	acceptorMap        map[uint64]*acceptor // acceptor map
+	sessionCloseCbLock sync.RWMutex         // protect sessionCloseCb
+	sessionCloseCb     []func(*Session)     // callback on session closed
 }
 
 // Create new netservive
@@ -131,13 +133,15 @@ func (net *netService) Multicast(aids []uint64, route string, data []byte) {
 func (net *netService) closeSession(session *Session) {
 	// TODO: notify all backend server, current session has closed.
 	// session close callback
-	if len(session.closeCallback) > 0 {
-		for _, cb := range session.closeCallback {
+	net.sessionCloseCbLock.RLock()
+	if len(net.sessionCloseCb) > 0 {
+		for _, cb := range net.sessionCloseCb {
 			if cb != nil {
-				cb()
+				cb(session)
 			}
 		}
 	}
+	net.sessionCloseCbLock.RUnlock()
 	if App.Config.IsFrontend {
 		if fs, ok := net.agentMap[session.entityID]; ok && (fs != nil) {
 			fs.socket.Close()
@@ -188,4 +192,16 @@ func (net *netService) dumpAcceptor() {
 	for _, ses := range net.acceptorMap {
 		Info("session: " + ses.String())
 	}
+}
+
+func (net *netService) sessionClosedCallback(cb func(*Session)) {
+	net.sessionCloseCbLock.Lock()
+	defer net.sessionCloseCbLock.Unlock()
+	net.sessionCloseCb = append(net.sessionCloseCb, cb)
+}
+
+// Callback when session closed
+// Waring: session has closed,
+func OnSessionClosed(cb func(*Session)) {
+	defaultNetService.sessionClosedCallback(cb)
 }
