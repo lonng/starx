@@ -57,8 +57,8 @@ func (net *netService) getAgent(sid uint64) (*agent, error) {
 // Create acceptor via netService
 func (net *netService) createAcceptor(conn net.Conn) *acceptor {
 	net.acceptorUidLock.Lock()
-	id := net.agentUid
-	net.agentUid++
+	id := net.acceptorUid
+	net.acceptorUid++
 	net.acceptorUidLock.Unlock()
 	a := newAcceptor(id, conn)
 	// add to maps
@@ -143,22 +143,27 @@ func (net *netService) closeSession(session *Session) {
 	}
 	net.sessionCloseCbLock.RUnlock()
 	if App.Config.IsFrontend {
-		if fs, ok := net.agentMap[session.entityID]; ok && (fs != nil) {
-			fs.socket.Close()
-			net.agentMapLock.Lock()
+		net.agentMapLock.Lock()
+		if agent, ok := net.agentMap[session.entityID]; ok && (agent != nil) {
 			delete(net.agentMap, session.entityID)
-			net.agentMapLock.Unlock()
 		}
+		net.agentMapLock.Unlock()
 		defaultNetService.dumpAgents()
-	} else {
-		if bs, ok := net.acceptorMap[session.entityID]; ok && (bs != nil) {
-			bs.socket.Close()
-			net.acceptorMapLock.Lock()
-			delete(net.acceptorMap, session.entityID)
-			net.acceptorMapLock.Unlock()
+	} /* else {
+		net.acceptorMapLock.RLock()
+		if acceptor, ok := net.acceptorMap[session.entityID]; ok && (acceptor != nil) {
+			// TODO: FIXED IT
+			// backend session close should not cause acceptor remove from acceptor map
 		}
+		net.acceptorMapLock.RUnlock()
 		defaultNetService.dumpAcceptor()
-	}
+	}*/
+}
+
+func (net *netService) removeAcceptor(a *acceptor) {
+	net.acceptorMapLock.Lock()
+	delete(net.acceptorMap, a.id)
+	net.acceptorMapLock.Unlock()
 }
 
 // Send heartbeat packet

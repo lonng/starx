@@ -65,7 +65,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 
 	}()
 	// register new session when new connection connected in
-	fs := defaultNetService.createAgent(conn)
+	agent := defaultNetService.createAgent(conn)
 	defaultNetService.dumpAgents()
 	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)
@@ -73,7 +73,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 		n, err := conn.Read(buf)
 		if err != nil {
 			Info("session closed(" + err.Error() + ")")
-			fs.close()
+			agent.close()
 			endChan <- true
 			break
 		}
@@ -81,7 +81,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 		var pkg *packet // save decoded packet
 		for len(tmp) >= headLength {
 			if pkg, tmp = unpack(tmp); pkg != nil {
-				packetChan <- &unhandledPacket{fs, pkg}
+				packetChan <- &unhandledPacket{agent, pkg}
 			} else {
 				break
 			}

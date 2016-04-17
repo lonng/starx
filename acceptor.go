@@ -59,3 +59,12 @@ func (a *acceptor) GetUserSession(sid uint64) *Session {
 		return session
 	}
 }
+
+func (a *acceptor) close() {
+	a.status = _STATUS_CLOSED
+	for _, session := range a.sessionMap {
+		defaultNetService.closeSession(session)
+	}
+	defaultNetService.removeAcceptor(a)
+	a.socket.Close()
+}
