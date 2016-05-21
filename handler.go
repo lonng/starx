@@ -114,6 +114,11 @@ func (handler *handlerService) processPacket(fs *agent, pkg *packet) {
 }
 
 func (handler *handlerService) processMessage(session *Session, msg *message) {
+	defer func() {
+		if err := recover(); err != nil {
+			Error("processMessage Error: %+v", err)
+		}
+	}()
 	Info("Route: %s, Length: %d", msg.route, len(msg.body))
 	ri, err := decodeRouteInfo(msg.route)
 	if err != nil {

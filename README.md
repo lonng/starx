@@ -7,7 +7,11 @@ Client: [starx-demo-unity](https://github.com/chrislonng/starx-demo-unity)
 
 Server: [starx-demo-server](https://github.com/chrislonng/starx-demo-server)
 
-documentation come soon...
+# Wiki
+[Homepage](https://github.com/chrislonng/starx/wiki)
+
+QQ交流群：309800774
+
 
 ===
 The MIT License
