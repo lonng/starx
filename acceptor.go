@@ -14,8 +14,8 @@ type acceptor struct {
 	socket     net.Conn
 	status     networkStatus
 	sessionMap map[uint64]*Session // backend sessions
-	ftbMap     map[uint64]uint64   // frontend session id -> backend session id map
-	btfMap     map[uint64]uint64   // backend session id -> frontend session id map
+	f2bMap     map[uint64]uint64   // frontend session id -> backend session id map
+	b2fMap     map[uint64]uint64   // backend session id -> frontend session id map
 	lastTime   int64               // last heartbeat unix time stamp
 }
 
@@ -26,8 +26,8 @@ func newAcceptor(id uint64, conn net.Conn) *acceptor {
 		socket:     conn,
 		status:     _STATUS_START,
 		sessionMap: make(map[uint64]*Session),
-		ftbMap:     make(map[uint64]uint64),
-		btfMap:     make(map[uint64]uint64),
+		f2bMap:     make(map[uint64]uint64),
+		b2fMap:     make(map[uint64]uint64),
 		lastTime:   time.Now().Unix()}
 }
 
@@ -48,15 +48,15 @@ func (a *acceptor) heartbeat() {
 }
 
 func (a *acceptor) GetUserSession(sid uint64) *Session {
-	if bsid, ok := a.ftbMap[sid]; ok && bsid > 0 {
+	if bsid, ok := a.f2bMap[sid]; ok && bsid > 0 {
 		return a.sessionMap[bsid]
 	} else {
-		session := newSession()
-		session.entityID = a.id
-		a.sessionMap[session.Id] = session
-		a.ftbMap[sid] = session.Id
-		a.btfMap[session.Id] = sid
-		return session
+		s := newSession()
+		s.entityID = a.id
+		a.sessionMap[s.Id] = s
+		a.f2bMap[sid] = s.Id
+		a.b2fMap[s.Id] = sid
+		return s
 	}
 }
 

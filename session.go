@@ -57,7 +57,7 @@ func (session *Session) Push(route string, data []byte) {
 		if err != nil {
 			Error(err.Error())
 		} else {
-			sid, ok := rs.btfMap[session.Id]
+			sid, ok := rs.b2fMap[session.Id]
 			if !ok {
 				Error("sid not exists")
 				return
@@ -81,7 +81,7 @@ func (session *Session) Response(data []byte) {
 		if err != nil {
 			Error(err.Error())
 		} else {
-			sid, ok := rs.btfMap[session.Id]
+			sid, ok := rs.b2fMap[session.Id]
 			if !ok {
 				Error("sid not exists")
 				return
