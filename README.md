@@ -1,20 +1,18 @@
-# Starx -- golang based game server
+# Starx -- golang based game server framework
 
 Inspired by [Pomelo](https://github.com/NetEase/pomelo), rewrite with golang.
 
-# Demo
+## Demo
 Client: [starx-demo-unity](https://github.com/chrislonng/starx-demo-unity)
 
 Server: [starx-demo-server](https://github.com/chrislonng/starx-demo-server)
 
-# Wiki
-[Homepage](https://github.com/chrislonng/starx/wiki)
+## Wiki
+[Homepage](https://github.com/chrislonng/starx/docs/Home.md)
 
 QQ交流群：309800774
 
-
-===
-The MIT License
+## The MIT License
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
