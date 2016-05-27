@@ -2,6 +2,7 @@ package starx
 
 import (
 	"fmt"
+	"github.com/chrislonng/starx/log"
 )
 
 type messageType byte
@@ -77,7 +78,7 @@ func encodeMessage(m *message) []byte {
 			temp = append(temp, []byte(m.route)...)
 		}
 	} else {
-		Error("wrong message type")
+		log.Error("wrong message type")
 	}
 	temp = append(temp, m.body...)
 	return temp
@@ -86,7 +87,7 @@ func encodeMessage(m *message) []byte {
 func decodeMessage(data []byte) *message {
 	// filter invalid message
 	if len(data) <= 3 {
-		Info("invalid message")
+		log.Info("invalid message")
 		return nil
 	}
 	msg := newMessage()

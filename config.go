@@ -3,9 +3,9 @@ package starx
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/utils"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -59,7 +59,6 @@ func init() {
 	App = newApp()
 	cluster = newClusterService()
 	settings = make(map[string][]func())
-	Log = log.New(os.Stdout, "", log.LstdFlags)
 	remote = newRemote()
 	handler = newHandler()
 	defaultNetService = newNetService()
@@ -102,12 +101,13 @@ func init() {
 func parseConfig() {
 	// initialize app config
 	if !utils.FileExists(appConfigPath) {
-		Info("%s not found", appConfigPath)
+		log.Info("%s not found", appConfigPath)
 		os.Exit(-1)
 	} else {
 		type appConfig struct {
 			AppName    string `json:"AppName"`
 			Standalone bool   `json:"Standalone"`
+			LogLevel   string `json:"LogLevel"`
 		}
 		f, _ := os.Open(appConfigPath)
 		defer f.Close()
@@ -117,16 +117,17 @@ func parseConfig() {
 			if err := reader.Decode(&cfg); err == io.EOF {
 				break
 			} else if err != nil {
-				Error(err.Error())
+				log.Error(err.Error())
 			}
 		}
 		App.AppName = cfg.AppName
 		App.Standalone = cfg.Standalone
+		log.SetLevelByName(cfg.LogLevel)
 	}
 
 	// initialize servers config
 	if !utils.FileExists(serverConfigPath) {
-		Info("%s not found", serverConfigPath)
+		log.Info("%s not found", serverConfigPath)
 		os.Exit(-1)
 	} else {
 		f, _ := os.Open(serverConfigPath)
@@ -138,7 +139,7 @@ func parseConfig() {
 			if err := reader.Decode(&servers); err == io.EOF {
 				break
 			} else if err != nil {
-				Error(err.Error())
+				log.Error(err.Error())
 			}
 		}
 
@@ -153,20 +154,20 @@ func parseConfig() {
 
 	if App.Standalone {
 		if len(os.Args) < 2 {
-			Info("server running in standalone mode, but not found server id argument")
+			log.Info("server running in standalone mode, but not found server id argument")
 			os.Exit(-1)
 		}
 		serverId := os.Args[1]
 		App.Config = cluster.svrIdMaps[serverId]
 		if App.Config == nil {
-			Info("%s infomation not found in %s", serverId, serverConfigPath)
+			log.Info("%s infomation not found in %s", serverId, serverConfigPath)
 			os.Exit(-1)
 		}
 	} else {
 		// if server running in cluster mode, master server config require
 		// initialize master server config
 		if !utils.FileExists(masterConfigPath) {
-			Info("%s not found", masterConfigPath)
+			log.Info("%s not found", masterConfigPath)
 			os.Exit(-1)
 		} else {
 			f, _ := os.Open(masterConfigPath)
@@ -178,7 +179,7 @@ func parseConfig() {
 				if err := reader.Decode(&master); err == io.EOF {
 					break
 				} else if err != nil {
-					Error(err.Error())
+					log.Error(err.Error())
 				}
 			}
 
@@ -188,7 +189,7 @@ func parseConfig() {
 			cluster.registerServer(master)
 		}
 		if App.Master == nil {
-			Info("wrong master server config file(%s)", masterConfigPath)
+			log.Info("wrong master server config file(%s)", masterConfigPath)
 			os.Exit(-1)
 		}
 		if len(os.Args) == 1 {
@@ -199,7 +200,7 @@ func parseConfig() {
 			serverId := os.Args[1]
 			App.Config = cluster.svrIdMaps[serverId]
 			if App.Config == nil {
-				Info("%s infomation not found in %s", serverId, serverConfigPath)
+				log.Info("%s infomation not found in %s", serverId, serverConfigPath)
 				os.Exit(-1)
 			}
 		}

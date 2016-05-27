@@ -3,6 +3,7 @@ package starx
 import (
 	"encoding/json"
 	"errors"
+	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/rpc"
 	"github.com/chrislonng/starx/utils"
 	"net"
@@ -72,7 +73,7 @@ func (handler *handlerService) handle(conn net.Conn) {
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
-			Info("session closed(" + err.Error() + ")")
+			log.Info("session closed(" + err.Error() + ")")
 			agent.close()
 			endChan <- true
 			break
@@ -95,7 +96,7 @@ func (handler *handlerService) processPacket(fs *agent, pkg *packet) {
 		fs.status = _STATUS_HANDSHAKING
 		data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
 		if err != nil {
-			Info(err.Error())
+			log.Info(err.Error())
 		}
 		fs.send(pack(_PACKET_HANDSHAKE, data))
 	case _PACKET_HANDSHAKE_ACK:
@@ -108,7 +109,7 @@ func (handler *handlerService) processPacket(fs *agent, pkg *packet) {
 			handler.processMessage(fs.session, msg)
 		}
 	default:
-		Info("invalid packet type")
+		log.Info("invalid packet type")
 		fs.close()
 	}
 }
@@ -116,13 +117,13 @@ func (handler *handlerService) processPacket(fs *agent, pkg *packet) {
 func (handler *handlerService) processMessage(session *Session, msg *message) {
 	defer func() {
 		if err := recover(); err != nil {
-			Error("processMessage Error: %+v", err)
+			log.Error("processMessage Error: %+v", err)
 		}
 	}()
-	Info("Route: %s, Length: %d", msg.route, len(msg.body))
+	log.Info("Route: %s, Length: %d", msg.route, len(msg.body))
 	ri, err := decodeRouteInfo(msg.route)
 	if err != nil {
-		Error(err.Error())
+		log.Error(err.Error())
 		return
 	}
 	// if serverType equal nil, message handle in local server
@@ -140,7 +141,7 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 	} else if msg.kind == _MT_NOTIFY {
 		session.reqId = 0
 	} else {
-		Error("invalid message type")
+		log.Error("invalid message type")
 		return
 	}
 	if s, present := handler.serviceMap[ri.service]; present {
@@ -149,14 +150,14 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 			if len(ret) > 0 {
 				err := ret[0].Interface()
 				if err != nil {
-					Error(err.(error).Error())
+					log.Error(err.(error).Error())
 				}
 			}
 		} else {
-			Info("handler: " + ri.service + " does not contain method: " + ri.method)
+			log.Info("handler: " + ri.service + " does not contain method: " + ri.method)
 		}
 	} else {
-		Info("handler: service: " + ri.service + " not found")
+		log.Info("handler: service: " + ri.service + " not found")
 	}
 }
 
@@ -169,7 +170,7 @@ func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, ms
 		session.reqId = 0
 		remote.request(rpc.SysRpc, ri, session, msg.body)
 	} else {
-		Info("invalid message type")
+		log.Info("invalid message type")
 		return
 	}
 }
@@ -237,7 +238,7 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 func (handler *handlerService) dumpServiceMap() {
 	for sname, s := range handler.serviceMap {
 		for mname, _ := range s.method {
-			Info("registered service: %s.%s", sname, mname)
+			log.Info("registered service: %s.%s", sname, mname)
 		}
 	}
 }

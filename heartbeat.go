@@ -1,6 +1,7 @@
 package starx
 
 import (
+	"github.com/chrislonng/starx/log"
 	"time"
 )
 
@@ -13,7 +14,7 @@ func newHeartbeatService() *heartbeatService {
 }
 
 func (h *heartbeatService) start() {
-	Info("enable heartbeat service")
+	log.Info("enable heartbeat service")
 	for {
 		<-h.ticker.C
 		defaultNetService.heartbeat()

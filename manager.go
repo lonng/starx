@@ -2,6 +2,7 @@ package starx
 
 import (
 	"encoding/json"
+	"github.com/chrislonng/starx/log"
 )
 
 type Manager struct {
@@ -12,7 +13,7 @@ type Manager struct {
 // Component interface methods
 func (this *Manager) Init() {
 	this.Name = "ManagerComponenet"
-	Info("manager component initialized")
+	log.Info("manager component initialized")
 }
 func (this *Manager) AfterInit()      {}
 func (this *Manager) BeforeShutdown() {}
@@ -35,7 +36,7 @@ func (m *Manager) RegisterServer(session *Session, data []byte) error {
 	if err != nil {
 		return err
 	}
-	Info("new server connected in")
+	log.Info("new server connected in")
 	cluster.registerServer(newServerInfo)
 	return nil
 }
