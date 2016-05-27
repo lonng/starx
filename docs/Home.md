@@ -9,4 +9,4 @@ StarX目前有一个demo，包含[Unity3D客户端](https://github.com/chrislonn
 
 ## 目录
 
-1. [HelloWorld](./Get-Start.md)
+1. [HelloWorld](./GetStart.md)
