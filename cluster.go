@@ -3,6 +3,7 @@ package starx
 import (
 	"errors"
 	"fmt"
+	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/rpc"
 	"math/rand"
 	"sync"
@@ -25,7 +26,7 @@ func newClusterService() *clusterService {
 
 func (c *clusterService) dumpSvrIdMaps() {
 	for _, v := range c.svrIdMaps {
-		Info("id: %s(%s)", v.Id, v.String())
+		log.Info("id: %s(%s)", v.Id, v.String())
 	}
 }
 
@@ -36,7 +37,7 @@ func (c *clusterService) dumpSvrTypeMaps() {
 			continue
 		}
 		for _, svrId := range svrs {
-			Info("server type: %s, id: %s", t, svrId)
+			log.Info("server type: %s, id: %s", t, svrId)
 		}
 	}
 }
@@ -44,7 +45,7 @@ func (c *clusterService) dumpSvrTypeMaps() {
 func (c *clusterService) registerServer(server ServerConfig) {
 	// server exists
 	if _, ok := c.svrIdMaps[server.Id]; ok {
-		Info("serverId: %s already existed(%s)", server.Id, server.String())
+		log.Info("serverId: %s already existed(%s)", server.Id, server.String())
 		return
 	}
 	svr := &server
@@ -90,7 +91,7 @@ func (c *clusterService) removeServer(svrId string) {
 		delete(c.svrIdMaps, svrId)
 		c.closeClient(svrId)
 	} else {
-		Info("serverId: %s not found", svrId)
+		log.Info("serverId: %s not found", svrId)
 	}
 }
 
@@ -98,7 +99,7 @@ func (c *clusterService) updateServer(newSvr ServerConfig) {
 	if srv, ok := c.svrIdMaps[newSvr.Id]; ok && srv != nil {
 		c.svrIdMaps[srv.Id] = &newSvr
 	} else {
-		Error(newSvr.Id + " not exists")
+		log.Error(newSvr.Id + " not exists")
 	}
 }
 
@@ -109,10 +110,10 @@ func (c *clusterService) closeClient(svrId string) {
 		c.lock.Unlock()
 		client.Close()
 	} else {
-		Info("%s not found in rpc client list", svrId)
+		log.Info("%s not found in rpc client list", svrId)
 	}
 
-	Info("%s rpc client has been removed.", svrId)
+	log.Info("%s rpc client has been removed.", svrId)
 	c.dumpClientIdMaps()
 }
 
@@ -173,7 +174,7 @@ func (c *clusterService) getClientById(svrId string) (*rpc.Client, error) {
 			for resp := range client.ResponseChan {
 				agent, err := defaultNetService.getAgent(resp.Sid)
 				if err != nil {
-					Error(err.Error())
+					log.Error(err.Error())
 					continue
 				}
 				if resp.Kind == rpc.HandlerPush {
@@ -184,11 +185,11 @@ func (c *clusterService) getClientById(svrId string) (*rpc.Client, error) {
 					// TODO
 					// remote server push data
 				} else {
-					Error("invalid response kind")
+					log.Error("invalid response kind")
 				}
 			}
 		}()
-		Info("%s establish rpc client successful.", svr.Id)
+		log.Info("%s establish rpc client successful.", svr.Id)
 		c.dumpClientIdMaps()
 		return client, nil
 	}
@@ -198,13 +199,13 @@ func (c *clusterService) getClientById(svrId string) (*rpc.Client, error) {
 // Dump all clients that has established netword connection with remote server
 func (c *clusterService) dumpClientIdMaps() {
 	for id, _ := range c.clientIdMaps {
-		Info("[%s] is contained in rpc client list", id)
+		log.Info("[%s] is contained in rpc client list", id)
 	}
 }
 
 func (c *clusterService) close() {
 	// close rpc clients
-	Info("close all of socket connections")
+	log.Info("close all of socket connections")
 	for svrId, _ := range c.clientIdMaps {
 		c.closeClient(svrId)
 	}

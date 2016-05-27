@@ -5,6 +5,7 @@ package starx
 
 import (
 	"errors"
+	"github.com/chrislonng/starx/log"
 	"net"
 	"sync"
 )
@@ -183,9 +184,9 @@ func (net *netService) heartbeat() {
 func (net *netService) dumpAgents() {
 	net.agentMapLock.RLock()
 	defer net.agentMapLock.RUnlock()
-	Info("current agent count: %d", len(net.agentMap))
+	log.Info("current agent count: %d", len(net.agentMap))
 	for _, ses := range net.agentMap {
-		Info("session: " + ses.String())
+		log.Info("session: " + ses.String())
 	}
 }
 
@@ -193,9 +194,9 @@ func (net *netService) dumpAgents() {
 func (net *netService) dumpAcceptor() {
 	net.acceptorMapLock.RLock()
 	defer net.acceptorMapLock.RUnlock()
-	Info("current acceptor count: %d", len(net.acceptorMap))
+	log.Info("current acceptor count: %d", len(net.acceptorMap))
 	for _, ses := range net.acceptorMap {
-		Info("session: " + ses.String())
+		log.Info("session: " + ses.String())
 	}
 }
 

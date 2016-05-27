@@ -2,6 +2,7 @@ package starx
 
 import (
 	"fmt"
+	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/rpc"
 	"net"
 	"time"
@@ -30,7 +31,7 @@ func (app *starxApp) start() {
 
 	// stop server
 	<-endRunning
-	Info("server: " + app.Config.Id + " is stopping...")
+	log.Info("server: " + app.Config.Id + " is stopping...")
 	app.shutdownComps()
 	close(endRunning)
 }
@@ -39,9 +40,9 @@ func (app *starxApp) start() {
 func (app *starxApp) listenAndServe() {
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", app.Config.Host, app.Config.Port))
 	if err != nil {
-		Error(err.Error())
+		log.Error(err.Error())
 	}
-	Info("listen at %s:%d(%s)",
+	log.Info("listen at %s:%d(%s)",
 		app.Config.Host,
 		app.Config.Port,
 		app.Config.String())
@@ -50,7 +51,7 @@ func (app *starxApp) listenAndServe() {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			Error(err.Error())
+			log.Error(err.Error())
 			continue
 		}
 		if app.Config.IsFrontend {

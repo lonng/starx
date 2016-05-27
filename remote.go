@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/rpc"
 	"net"
 	"reflect"
@@ -41,7 +42,7 @@ func (rs *remoteService) register(rpcKind rpc.RpcKind, comp Component) {
 	} else if rpcKind == rpc.UserRpc {
 		rpc.UserRpcServer.Register(comp)
 	} else {
-		Error("invalid rpc kind")
+		log.Error("invalid rpc kind")
 	}
 }
 
@@ -72,7 +73,7 @@ func (rs *remoteService) handle(conn net.Conn) {
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
-			Info("session closed(" + err.Error() + ")")
+			log.Info("session closed(" + err.Error() + ")")
 			defaultNetService.dumpAgents()
 			acceptor.close()
 			endChan <- true
@@ -188,7 +189,7 @@ func (rs *remoteService) processRequest(bs *acceptor, rr *rpc.Request) {
 		}
 		writeResponse(bs, response)
 	} else {
-		Error("invalid rpc namespace")
+		log.Error("invalid rpc namespace")
 	}
 }
 
@@ -201,7 +202,7 @@ func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args .
 func (this *remoteService) request(rpcKind rpc.RpcKind, route *routeInfo, session *Session, args []byte) ([]byte, error) {
 	client, err := cluster.getClientByType(route.serverType, session)
 	if err != nil {
-		Info(err.Error())
+		log.Info(err.Error())
 		return nil, err
 	}
 	reply := new([]byte)

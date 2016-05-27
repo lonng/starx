@@ -1,8 +1,9 @@
 package starx
 
 import (
-	"strings"
 	"fmt"
+	"github.com/chrislonng/starx/log"
+	"strings"
 )
 
 // Start application
@@ -30,7 +31,7 @@ func Set(svrTypes string, fn func()) {
 }
 
 func loadSettings() {
-	Info("loading %s settings", App.Config.Type)
+	log.Info("loading %s settings", App.Config.Type)
 	if setting, ok := settings[App.Config.Type]; ok && len(setting) > 0 {
 		for _, fn := range setting {
 			fn()
@@ -59,7 +60,7 @@ func Handler(comp Component) {
 // Remote register
 func Remote(comp Component) {
 	if App.Config.IsFrontend {
-		Error("can not register remote service in frontend server")
+		log.Error("can not register remote service in frontend server")
 	} else {
 		remotes = append(remotes, comp)
 	}

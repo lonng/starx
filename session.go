@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/rpc"
 	"time"
 )
@@ -55,11 +56,11 @@ func (session *Session) Push(route string, data []byte) {
 	} else {
 		rs, err := defaultNetService.getAcceptor(session.entityID)
 		if err != nil {
-			Error(err.Error())
+			log.Error(err.Error())
 		} else {
 			sid, ok := rs.b2fMap[session.Id]
 			if !ok {
-				Error("sid not exists")
+				log.Error("sid not exists")
 				return
 			}
 			resp := rpc.Response{}
@@ -79,11 +80,11 @@ func (session *Session) Response(data []byte) {
 	} else {
 		rs, err := defaultNetService.getAcceptor(session.entityID)
 		if err != nil {
-			Error(err.Error())
+			log.Error(err.Error())
 		} else {
 			sid, ok := rs.b2fMap[session.Id]
 			if !ok {
-				Error("sid not exists")
+				log.Error("sid not exists")
 				return
 			}
 			resp := rpc.Response{}
@@ -99,7 +100,7 @@ func (session *Session) Bind(uid uint64) {
 	if uid > 0 {
 		session.Uid = uid
 	} else {
-		Error("uid invalid: %d", uid)
+		log.Error("uid invalid: %d", uid)
 	}
 }
 
