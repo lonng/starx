@@ -2,10 +2,12 @@ package starx
 
 import (
 	"strings"
+	"fmt"
 )
 
 // Start application
 func Start() {
+	welcomeMsg()
 	parseConfig()
 	loadSettings()
 	registerSysComps()
@@ -34,6 +36,10 @@ func loadSettings() {
 			fn()
 		}
 	}
+}
+
+func welcomeMsg() {
+	fmt.Println(asciiLogo)
 }
 
 func registerSysComps() {
