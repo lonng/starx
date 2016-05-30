@@ -77,8 +77,10 @@ func SetLevelByName(n string) {
 	for k, v := range names {
 		if v == n {
 			logLevel = LogLevel(k)
+			return
 		}
 	}
+	Error("log level not define: %s", n)
 }
 
 func init() {
