@@ -4,6 +4,8 @@ import (
 	"fmt"
 	stdlog "log"
 	"os"
+	"runtime"
+	"strconv"
 )
 
 type LogLevel byte
@@ -34,39 +36,49 @@ var (
 	log      *stdlog.Logger = stdlog.New(os.Stdout, "", stdlog.LstdFlags) // logger
 )
 
+func writeLog(level, format string, v ...interface{}) {
+	_, file, line, ok := runtime.Caller(2)
+	if !ok {
+		file = "???"
+		line = 0
+	}
+	c := string(file + ":" + strconv.FormatInt(int64(line), 10))
+	log.Printf(fmt.Sprintf("[%s] [%s] %s", level, c, format), v...)
+}
+
 func Info(f string, v ...interface{}) {
 	if logLevel > LevelInfo {
 		return
 	}
-	log.Printf(fmt.Sprintf("[Info] %s", f), v...)
+	writeLog("Info", f, v...)
 }
 
 func Debug(f string, v ...interface{}) {
 	if logLevel > LevelDebug {
 		return
 	}
-	log.Printf(fmt.Sprintf("[Debug] %s", f), v...)
+	writeLog("Debug", f, v...)
 }
 
 func Warn(f string, v ...interface{}) {
 	if logLevel > LevelWard {
 		return
 	}
-	log.Printf(fmt.Sprintf("[Warn] %s", f), v...)
+	writeLog("Warn", f, v...)
 }
 
 func Error(f string, v ...interface{}) {
 	if logLevel > LevelError {
 		return
 	}
-	log.Printf(fmt.Sprintf("[Error] %s", f), v...)
+	writeLog("Error", f, v...)
 }
 
 func Fatal(f string, v ...interface{}) {
 	if logLevel > LevelFatal {
 		return
 	}
-	log.Printf(fmt.Sprintf("[Fatal] %s", f), v...)
+	writeLog("Fatal", f, v...)
 }
 
 func SetLevel(l LogLevel) {
