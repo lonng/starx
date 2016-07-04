@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/rpc"
+	"github.com/chrislonng/starx/network/rpc"
 	"github.com/chrislonng/starx/utils"
 	"net"
 	"reflect"
@@ -93,14 +93,14 @@ func (handler *handlerService) handle(conn net.Conn) {
 func (handler *handlerService) processPacket(fs *agent, pkg *packet) {
 	switch pkg.kind {
 	case packetHandshake:
-		fs.status = _STATUS_HANDSHAKING
+		fs.status = statusHandshake
 		data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
 		if err != nil {
 			log.Info(err.Error())
 		}
 		fs.send(pack(packetHandshake, data))
 	case packetHandshakeAck:
-		fs.status = _STATUS_WORKING
+		fs.status = statusWorking
 	case packetHeartbeat:
 		go fs.heartbeat()
 	case packetData:

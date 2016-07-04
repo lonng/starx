@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/rpc"
+	"github.com/chrislonng/starx/network/rpc"
 	"net"
 	"reflect"
 )
@@ -13,8 +13,8 @@ import (
 type rpcStatus int32
 
 const (
-	_RPC_STATUS_UNINIT rpcStatus = iota
-	_RPC_STATUS_INITED
+	rpcStatusUninit rpcStatus = iota
+	rpcStatusInited
 )
 
 type remoteService struct {
@@ -32,7 +32,7 @@ func newRemote() *remoteService {
 	return &remoteService{
 		name:   "RpcComponent",
 		route:  make(map[string]func(string) uint32),
-		status: _RPC_STATUS_UNINIT}
+		status: rpcStatusUninit}
 }
 
 func (rs *remoteService) register(rpcKind rpc.RpcKind, comp Component) {

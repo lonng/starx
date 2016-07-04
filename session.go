@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/rpc"
+	"github.com/chrislonng/starx/network/rpc"
 	"time"
 )
 
@@ -13,10 +13,10 @@ type networkStatus byte
 
 const (
 	_ networkStatus = iota
-	_STATUS_START
-	_STATUS_HANDSHAKING
-	_STATUS_WORKING
-	_STATUS_CLOSED
+	statusStart
+	statusHandshake
+	statusWorking
+	statusClosed
 )
 
 var (

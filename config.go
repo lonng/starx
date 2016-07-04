@@ -20,20 +20,20 @@ var (
 	appConfigPath     string
 	serverConfigPath  string
 	masterConfigPath  string
-	cluster           *clusterService                                    // cluster service
-	settings          map[string][]func()                                // all settings
-	remote            *remoteService                                     // remote service
-	handler           *handlerService                                    // handler service
-	defaultNetService *netService                                        // net service
-	TimerManager      Timer                                              // timer component
-	route             map[string]func(*Session) string                   // server route function
-	ChannelServive    *channelServive                                    // channel service component
-	connections       *connectionService                                 // connection service component
-	heartbeatInternal time.Duration                    = time.Second * 8 // beatheart time internal, second unit
-	heartbeat         *heartbeatService                                  // beatheart service
-	endRunning        chan bool                                          // wait for end application
-	handlers          []Component                                        // all register handler service
-	remotes           []Component                                        // all register remote process call service
+	cluster           *clusterService                                     // cluster service
+	settings          map[string][]func()                                 // all settings
+	remote            *remoteService                                      // remote service
+	handler           *handlerService                                     // handler service
+	defaultNetService *netService                                         // net service
+	TimerManager      Timer                                               // timer component
+	route             map[string]func(*Session) string                    // server route function
+	ChannelServive    *channelServive                                     // channel service component
+	connections       *connectionService                                  // connection service component
+	heartbeatInternal time.Duration                    = time.Second * 60 // beatheart time internal, second unit
+	heartbeat         *heartbeatService                                   // beatheart service
+	endRunning        chan bool                                           // wait for end application
+	handlers          []Component                                         // all register handler service
+	remotes           []Component                                         // all register remote process call service
 )
 
 type ServerConfig struct {

@@ -173,7 +173,7 @@ func (net *netService) heartbeat() {
 		return
 	}
 	for _, session := range net.agentMap {
-		if session.status == _STATUS_WORKING {
+		if session.status == statusWorking {
 			session.send(pack(packetHeartbeat, nil))
 			session.heartbeat()
 		}
