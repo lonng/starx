@@ -95,8 +95,8 @@ func (net *netService) send(session *Session, data []byte) {
 // Push message to client
 // call by all package, the last argument was packaged message
 func (net *netService) Push(session *Session, route string, data []byte) {
-	m := encodeMessage(&message{kind: messageType(_MT_PUSH), route: route, body: data})
-	net.send(session, pack(packetType(_PACKET_DATA), m))
+	m := encodeMessage(&message{kind: messageType(msgTypePush), route: route, body: data})
+	net.send(session, pack(packetType(packetData), m))
 }
 
 // Response message to client
@@ -106,8 +106,8 @@ func (net *netService) Response(session *Session, data []byte) {
 	if session.reqId <= 0 {
 		return
 	}
-	m := encodeMessage(&message{kind: messageType(_MT_RESPONSE), id: session.reqId, body: data})
-	net.send(session, pack(packetType(_PACKET_DATA), m))
+	m := encodeMessage(&message{kind: messageType(msgTypeResponse), id: session.reqId, body: data})
+	net.send(session, pack(packetType(packetData), m))
 }
 
 // Broadcast message to all sessions
@@ -174,7 +174,7 @@ func (net *netService) heartbeat() {
 	}
 	for _, session := range net.agentMap {
 		if session.status == _STATUS_WORKING {
-			session.send(pack(_PACKET_HEARTBEAT, nil))
+			session.send(pack(packetHeartbeat, nil))
 			session.heartbeat()
 		}
 	}

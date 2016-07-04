@@ -8,16 +8,16 @@ import (
 type messageType byte
 
 const (
-	_MT_REQUEST messageType = iota
-	_MT_NOTIFY
-	_MT_RESPONSE
-	_MT_PUSH
+	msgTypeRequest messageType = iota
+	msgTypeNotify
+	msgTypeResponse
+	msgTypePush
 )
 
 const (
-	_MSG_ROUTE_COMPRESS_MASK = 0x01
-	_MSG_ROUTE_LIMIT_MASK    = 0xFF
-	_MSG_TYPE_MASK           = 0x07
+	msgRouteCompressMask = 0x01
+	msgTypeMask          = 0x07
+	msgRouteLengthMask   = 0xFF
 )
 
 type message struct {
@@ -57,7 +57,7 @@ func encodeMessage(m *message) []byte {
 	}
 	temp = append(temp, flag)
 	// response message
-	if m.kind == _MT_RESPONSE {
+	if m.kind == msgTypeResponse {
 		n := m.id
 		for {
 			b := byte(n % 128)
@@ -69,7 +69,7 @@ func encodeMessage(m *message) []byte {
 				break
 			}
 		}
-	} else if m.kind == _MT_PUSH {
+	} else if m.kind == msgTypePush {
 		if m.isCompress {
 			temp = append(temp, byte((m.routeCode>>8)&0xFF))
 			temp = append(temp, byte(m.routeCode&0xFF))
@@ -94,8 +94,8 @@ func decodeMessage(data []byte) *message {
 	flag := data[0]
 	// set offset to 1, because 1st byte will always be flag
 	offset := 1
-	msg.kind = messageType((flag >> 1) & _MSG_TYPE_MASK)
-	if msg.kind == _MT_REQUEST {
+	msg.kind = messageType((flag >> 1) & msgTypeMask)
+	if msg.kind == msgTypeRequest {
 		id := uint(0)
 		// little end byte order
 		// WARNING: must can be stored in 64 bits integer
@@ -109,7 +109,7 @@ func decodeMessage(data []byte) *message {
 		}
 		msg.id = id
 	}
-	if flag&_MSG_ROUTE_COMPRESS_MASK == 1 {
+	if flag&msgRouteCompressMask == 1 {
 		msg.isCompress = true
 		msg.routeCode = uint(bytesToInt(data[offset:(offset + 2)]))
 		offset += 2
