@@ -6,6 +6,8 @@ package starx
 import (
 	"errors"
 	"github.com/chrislonng/starx/log"
+	"github.com/chrislonng/starx/message"
+	"github.com/chrislonng/starx/packet"
 	"net"
 	"sync"
 )
@@ -95,8 +97,8 @@ func (net *netService) send(session *Session, data []byte) {
 // Push message to client
 // call by all package, the last argument was packaged message
 func (net *netService) Push(session *Session, route string, data []byte) {
-	m := encodeMessage(&message{kind: messageType(msgTypePush), route: route, body: data})
-	net.send(session, pack(packetType(packetData), m))
+	m := message.Encode(&message.Message{Type: message.MessageType(message.Push), Route: route, Data: data})
+	net.send(session, packet.Pack(packet.PacketType(packet.Data), m))
 }
 
 // Response message to client
@@ -106,8 +108,12 @@ func (net *netService) Response(session *Session, data []byte) {
 	if session.reqId <= 0 {
 		return
 	}
-	m := encodeMessage(&message{kind: messageType(msgTypeResponse), id: session.reqId, body: data})
-	net.send(session, pack(packetType(packetData), m))
+	m := message.Encode(&message.Message{
+		Type: message.MessageType(message.Response),
+		ID:   session.reqId,
+		Data: data,
+	})
+	net.send(session, packet.Pack(packet.PacketType(packet.Data), m))
 }
 
 // Broadcast message to all sessions
@@ -173,8 +179,8 @@ func (net *netService) heartbeat() {
 		return
 	}
 	for _, session := range net.agentMap {
-		if session.status == _STATUS_WORKING {
-			session.send(pack(packetHeartbeat, nil))
+		if session.status == statusWorking {
+			session.send(packet.Pack(packet.Heartbeat, nil))
 			session.heartbeat()
 		}
 	}

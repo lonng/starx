@@ -13,10 +13,10 @@ type networkStatus byte
 
 const (
 	_ networkStatus = iota
-	_STATUS_START
-	_STATUS_HANDSHAKING
-	_STATUS_WORKING
-	_STATUS_CLOSED
+	statusStart
+	statusHandshake
+	statusWorking
+	statusClosed
 )
 
 var (

@@ -1,17 +1,18 @@
-package starx
+package message
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/chrislonng/starx/log"
 )
 
-type messageType byte
+type MessageType byte
 
 const (
-	msgTypeRequest messageType = iota
-	msgTypeNotify
-	msgTypeResponse
-	msgTypePush
+	Request MessageType = iota
+	Notify
+	Response
+	Push
 )
 
 const (
@@ -20,45 +21,47 @@ const (
 	msgRouteLengthMask   = 0xFF
 )
 
-type message struct {
-	kind       messageType
-	id         uint
-	route      string
-	routeCode  uint
-	isCompress bool
-	body       []byte
+type Message struct {
+	Type       MessageType
+	ID         uint
+	Route      string
+	RouteCode  uint32
+	IsCompress bool
+	Data       []byte
 }
 
-func newMessage() *message {
-	return &message{}
+func newMessage() *Message {
+	return &Message{}
 }
 
-func (msg *message) String() string {
+func (msg *Message) String() string {
 	return fmt.Sprintf("[MESSAGE]Type: %d, ID: %d, Route: %s, IsCompress: %t, RouteCode: %d, Body: %s",
-		msg.kind,
-		msg.id,
-		msg.route,
-		msg.isCompress,
-		msg.routeCode,
-		msg.body)
+		msg.Type,
+		msg.ID,
+		msg.Route,
+		msg.IsCompress,
+		msg.RouteCode,
+		msg.Data)
 }
 
-func (msg *message) encoding() []byte {
-	return encodeMessage(msg)
+func (msg *Message) encoding() []byte {
+	return Encode(msg)
 }
 
 // MESSAGE PROTOCOL
 // refs: https://github.com/NetEase/pomelo/wiki/Communication-Protocol
-func encodeMessage(m *message) []byte {
+func Encode(m *Message) []byte {
 	temp := make([]byte, 0)
-	flag := byte(m.kind) << 1
-	if m.isCompress {
+	flag := byte(m.Type) << 1
+	if m.IsCompress {
 		flag |= 0x01
 	}
 	temp = append(temp, flag)
+
 	// response message
-	if m.kind == msgTypeResponse {
-		n := m.id
+	if m.Type == Response {
+		n := m.ID
+		// variant length encode
 		for {
 			b := byte(n % 128)
 			n >>= 7
@@ -69,22 +72,22 @@ func encodeMessage(m *message) []byte {
 				break
 			}
 		}
-	} else if m.kind == msgTypePush {
-		if m.isCompress {
-			temp = append(temp, byte((m.routeCode>>8)&0xFF))
-			temp = append(temp, byte(m.routeCode&0xFF))
+	} else if m.Type == Push {
+		if m.IsCompress {
+			temp = append(temp, byte((m.RouteCode>>8)&0xFF))
+			temp = append(temp, byte(m.RouteCode&0xFF))
 		} else {
-			temp = append(temp, byte(len(m.route)))
-			temp = append(temp, []byte(m.route)...)
+			temp = append(temp, byte(len(m.Route)))
+			temp = append(temp, []byte(m.Route)...)
 		}
 	} else {
 		log.Error("wrong message type")
 	}
-	temp = append(temp, m.body...)
+	temp = append(temp, m.Data...)
 	return temp
 }
 
-func decodeMessage(data []byte) *message {
+func Decode(data []byte) *Message {
 	// filter invalid message
 	if len(data) <= 3 {
 		log.Info("invalid message")
@@ -94,11 +97,12 @@ func decodeMessage(data []byte) *message {
 	flag := data[0]
 	// set offset to 1, because 1st byte will always be flag
 	offset := 1
-	msg.kind = messageType((flag >> 1) & msgTypeMask)
-	if msg.kind == msgTypeRequest {
+	msg.Type = MessageType((flag >> 1) & msgTypeMask)
+	if msg.Type == Request {
 		id := uint(0)
 		// little end byte order
 		// WARNING: must can be stored in 64 bits integer
+		// variant length encode
 		for i := offset; i < len(data); i++ {
 			b := data[i]
 			id += (uint(b&0x7F) << uint(7*(i-offset)))
@@ -107,19 +111,19 @@ func decodeMessage(data []byte) *message {
 				break
 			}
 		}
-		msg.id = id
+		msg.ID = id
 	}
 	if flag&msgRouteCompressMask == 1 {
-		msg.isCompress = true
-		msg.routeCode = uint(bytesToInt(data[offset:(offset + 2)]))
+		msg.IsCompress = true
+		msg.RouteCode = binary.BigEndian.Uint32(data[offset:(offset + 2)])
 		offset += 2
 	} else {
-		msg.isCompress = false
+		msg.IsCompress = false
 		rl := data[offset]
 		offset += 1
-		msg.route = string(data[offset:(offset + int(rl))])
+		msg.Route = string(data[offset:(offset + int(rl))])
 		offset += int(rl)
 	}
-	msg.body = data[offset:]
+	msg.Data = data[offset:]
 	return msg
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/chrislonng/starx/log"
+	"github.com/chrislonng/starx/packet"
 	"github.com/chrislonng/starx/rpc"
 	"net"
 	"reflect"
@@ -84,7 +85,7 @@ func (rs *remoteService) handle(conn net.Conn) {
 		// TODO
 		// Refactor this loop
 		// read all request from buffer, and send to handle queue
-		for len(tmp) > headLength {
+		for len(tmp) > packet.HeadLength {
 			if rr, tmp = readRequest(tmp); rr != nil {
 				requestChan <- &unhandledRequest{acceptor, rr}
 			} else {
