@@ -62,7 +62,7 @@ func Unpack(data []byte) (*Packet, []byte) {
 	return p, data[(length + HeadLength):]
 }
 
-// Big end
+// Decode packet data length byte to int(Big end)
 func bytesToInt(b []byte) int {
 	result := 0
 	for _, v := range b {
@@ -71,7 +71,7 @@ func bytesToInt(b []byte) int {
 	return result
 }
 
-// Big end
+// Encode packet data length to bytes(Big end)
 func intToBytes(n int) []byte {
 	buf := make([]byte, 3)
 	buf[0] = byte((n >> 16) & 0xFF)
