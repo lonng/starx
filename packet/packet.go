@@ -7,12 +7,12 @@ import (
 type PacketType byte
 
 const (
-	_ PacketType = iota
-	Handshake
-	HandshakeAck
-	Heartbeat
-	Data
-	Kick
+	_            PacketType = iota
+	Handshake               = 0x01 // packet for handshake request(client) <====> handshake response(server)
+	HandshakeAck            = 0x02 // packet for handshake ack from client to server
+	Heartbeat               = 0x03 // heartbeat packet
+	Data                    = 0x04 // data packet
+	Kick                    = 0x05 // disconnect message from server
 )
 
 const (
@@ -29,34 +29,36 @@ func NewPacket() *Packet {
 	return &Packet{}
 }
 
-// PACKET PROTOCOL
-// - protocol type(1 byte)
-// - packet data length(3 byte big end)
-// - data segment
-// refs: https://github.com/NetEase/pomelo/wiki/Communication-Protocol
+// Protocol refs: https://github.com/NetEase/pomelo/wiki/Communication-Protocol
+//
+// -<type>-|--------<length>--------|-<data>-
+// --------|------------------------|--------
+// 1 byte packet type, 3 bytes packet data length(big end), and data segment
 func Pack(t PacketType, data []byte) []byte {
-	var buf []byte
-	return append(append(append(buf, byte(t)), intToBytes(len(data))...), data...)
+	buf := make([]byte, len(data)+HeadLength)
+	buf[0] = byte(t)
+	copy(buf[1:HeadLength], intToBytes(len(data)))
+	copy(buf[HeadLength:], data)
+	return buf
 }
 
 func (p *Packet) String() string {
-	return fmt.Sprintf("[PACKET]Type: %d, Length: %d, Data: %s", p.Type, p.Length, string(p.Data))
+	return fmt.Sprintf("Type: %d, Length: %d, Data: %s", p.Type, p.Length, string(p.Data))
 }
 
-// Decode binary data to packet
-// If packet has not been received completely, return nil and incomplete data,
-// concrete protocol ref pack function
+// Unpack binary data to packet, if packet has not been received completely,
+// return nil and incomplete data, concrete protocol ref pack function
 func Unpack(data []byte) (*Packet, []byte) {
 	t := PacketType(data[0])
 	length := bytesToInt(data[1:HeadLength])
-	// 包未传输完成
 	if length > (len(data) - HeadLength) {
 		return nil, data
 	}
-	p := NewPacket()
-	p.Type = t
-	p.Length = length
-	p.Data = data[HeadLength:(length + HeadLength)]
+	p := &Packet{
+		Type:   t,
+		Length: length,
+		Data:   data[HeadLength:(length + HeadLength)],
+	}
 	return p, data[(length + HeadLength):]
 }
 

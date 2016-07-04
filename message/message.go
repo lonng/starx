@@ -9,10 +9,10 @@ import (
 type MessageType byte
 
 const (
-	Request MessageType = iota
-	Notify
-	Response
-	Push
+	Request  MessageType = 0x00
+	Notify               = 0x01
+	Response             = 0x02
+	Push                 = 0x03
 )
 
 const (
@@ -48,8 +48,17 @@ func (m *Message) encoding() []byte {
 	return Encode(m)
 }
 
-// MESSAGE PROTOCOL
-// refs: https://github.com/NetEase/pomelo/wiki/Communication-Protocol
+// Encode message. Different message types is corresponding to different message header,
+// message types is identified by 2-4 bit of flag field. The relationship between message
+// types and message header is presented as follows:
+//
+//   type      flag      other
+//   ----      ----      -----
+// request  |----000-|<message id>|<route>
+// notify   |----001-|<route>
+// response |----010-|<message id>|<route>
+// push     |----011-|<route>
+// The figure above indicates that the bit does not affect the type of message.
 func Encode(m *Message) []byte {
 	buf := make([]byte, 0)
 	flag := byte(m.Type) << 1
