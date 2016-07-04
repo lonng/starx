@@ -92,18 +92,18 @@ func (handler *handlerService) handle(conn net.Conn) {
 
 func (handler *handlerService) processPacket(fs *agent, pkg *packet) {
 	switch pkg.kind {
-	case _PACKET_HANDSHAKE:
+	case packetHandshake:
 		fs.status = _STATUS_HANDSHAKING
 		data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
 		if err != nil {
 			log.Info(err.Error())
 		}
-		fs.send(pack(_PACKET_HANDSHAKE, data))
-	case _PACKET_HANDSHAKE_ACK:
+		fs.send(pack(packetHandshake, data))
+	case packetHandshakeAck:
 		fs.status = _STATUS_WORKING
-	case _PACKET_HEARTBEAT:
+	case packetHeartbeat:
 		go fs.heartbeat()
-	case _PACKET_DATA:
+	case packetData:
 		go fs.heartbeat()
 		if msg := decodeMessage(pkg.body); msg != nil {
 			handler.processMessage(fs.session, msg)
@@ -136,9 +136,9 @@ func (handler *handlerService) processMessage(session *Session, msg *message) {
 
 // current message handle in local server
 func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg *message) {
-	if msg.kind == _MT_REQUEST {
+	if msg.kind == msgTypeRequest {
 		session.reqId = msg.id
-	} else if msg.kind == _MT_NOTIFY {
+	} else if msg.kind == msgTypeNotify {
 		session.reqId = 0
 	} else {
 		log.Error("invalid message type")
@@ -163,10 +163,10 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 
 // current message handle in remote server
 func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, msg *message) {
-	if msg.kind == _MT_REQUEST {
+	if msg.kind == msgTypeRequest {
 		session.reqId = msg.id
 		remote.request(rpc.SysRpc, ri, session, msg.body)
-	} else if msg.kind == _MT_NOTIFY {
+	} else if msg.kind == msgTypeNotify {
 		session.reqId = 0
 		remote.request(rpc.SysRpc, ri, session, msg.body)
 	} else {

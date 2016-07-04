@@ -8,11 +8,11 @@ type packetType byte
 
 const (
 	_ packetType = iota
-	_PACKET_HANDSHAKE
-	_PACKET_HANDSHAKE_ACK
-	_PACKET_HEARTBEAT
-	_PACKET_DATA
-	_PACKET_KICK
+	packetHandshake
+	packetHandshakeAck
+	packetHeartbeat
+	packetData
+	packetKick
 )
 
 const (
