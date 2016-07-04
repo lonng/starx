@@ -3,7 +3,7 @@ package starx
 import (
 	"fmt"
 	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/rpc"
+	"github.com/chrislonng/starx/network/rpc"
 	"net"
 	"time"
 )

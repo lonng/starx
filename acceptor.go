@@ -24,7 +24,7 @@ func newAcceptor(id uint64, conn net.Conn) *acceptor {
 	return &acceptor{
 		id:         id,
 		socket:     conn,
-		status:     _STATUS_START,
+		status:     statusStart,
 		sessionMap: make(map[uint64]*Session),
 		f2bMap:     make(map[uint64]uint64),
 		b2fMap:     make(map[uint64]uint64),
@@ -61,7 +61,7 @@ func (a *acceptor) GetUserSession(sid uint64) *Session {
 }
 
 func (a *acceptor) close() {
-	a.status = _STATUS_CLOSED
+	a.status = statusClosed
 	for _, session := range a.sessionMap {
 		defaultNetService.closeSession(session)
 	}

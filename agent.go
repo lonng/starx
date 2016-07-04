@@ -21,7 +21,7 @@ func newAgent(id uint64, conn net.Conn) *agent {
 	a := &agent{
 		id:       id,
 		socket:   conn,
-		status:   _STATUS_START,
+		status:   statusStart,
 		lastTime: time.Now().Unix()}
 	session := newSession()
 	session.entityID = a.id
@@ -47,7 +47,7 @@ func (a *agent) heartbeat() {
 }
 
 func (a *agent) close() {
-	a.status = _STATUS_CLOSED
+	a.status = statusClosed
 	defaultNetService.closeSession(a.session)
 	a.socket.Close()
 }
