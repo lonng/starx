@@ -113,9 +113,12 @@ func (handler *handlerService) processPacket(a *agent, p *packet.Packet) {
 		go a.heartbeat()
 	case packet.Data:
 		go a.heartbeat()
-		if m := message.Decode(p.Data); m != nil {
-			handler.processMessage(a.session, m)
+		m, err := message.Decode(p.Data)
+		if err != nil {
+			log.Error(err.Error())
+			return
 		}
+		handler.processMessage(a.session, m)
 	default:
 		log.Info("invalid packet type")
 		a.close()

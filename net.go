@@ -97,7 +97,11 @@ func (net *netService) send(session *Session, data []byte) {
 // Push message to client
 // call by all package, the last argument was packaged message
 func (net *netService) Push(session *Session, route string, data []byte) {
-	m := message.Encode(&message.Message{Type: message.MessageType(message.Push), Route: route, Data: data})
+	m, err := message.Encode(&message.Message{Type: message.MessageType(message.Push), Route: route, Data: data})
+	if err != nil {
+		log.Error(err.Error())
+		return
+	}
 	net.send(session, packet.Pack(packet.PacketType(packet.Data), m))
 }
 
@@ -108,11 +112,15 @@ func (net *netService) Response(session *Session, data []byte) {
 	if session.reqId <= 0 {
 		return
 	}
-	m := message.Encode(&message.Message{
+	m, err := message.Encode(&message.Message{
 		Type: message.MessageType(message.Response),
 		ID:   session.reqId,
 		Data: data,
 	})
+	if err != nil {
+		log.Error(err.Error())
+		return
+	}
 	net.send(session, packet.Pack(packet.PacketType(packet.Data), m))
 }
 

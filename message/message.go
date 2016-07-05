@@ -2,7 +2,9 @@ package message
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
+
 	"github.com/chrislonng/starx/log"
 )
 
@@ -20,6 +22,11 @@ const (
 	msgTypeMask          = 0x07
 	msgRouteLengthMask   = 0xFF
 	msgHeadLength        = 0x03
+)
+
+var (
+	ErrWrongMessageType = errors.New("wrong message type")
+	ErrInvalidMessage   = errors.New("invalid message")
 )
 
 type Message struct {
@@ -45,7 +52,7 @@ func (m *Message) String() string {
 		m.Data)
 }
 
-func (m *Message) Encode() []byte {
+func (m *Message) Encode() ([]byte, error) {
 	return Encode(m)
 }
 
@@ -60,7 +67,7 @@ func (m *Message) Encode() []byte {
 // response |----010-|<message id>|<route>
 // push     |----011-|<route>
 // The figure above indicates that the bit does not affect the type of message.
-func Encode(m *Message) []byte {
+func Encode(m *Message) ([]byte, error) {
 	buf := make([]byte, 0)
 	flag := byte(m.Type) << 1
 	if m.IsCompress {
@@ -93,15 +100,16 @@ func Encode(m *Message) []byte {
 		}
 	default:
 		log.Error("wrong message type")
+		return nil, ErrWrongMessageType
 	}
 	buf = append(buf, m.Data...)
-	return buf
+	return buf, nil
 }
 
-func Decode(data []byte) *Message {
+func Decode(data []byte) (*Message, error) {
 	if len(data) <= msgHeadLength {
 		log.Info("invalid message")
-		return nil
+		return nil, ErrInvalidMessage
 	}
 	m := NewMessage()
 	flag := data[0]
@@ -137,7 +145,8 @@ func Decode(data []byte) *Message {
 		}
 	default:
 		log.Error("wrong message type")
+		return nil, ErrWrongMessageType
 	}
 	m.Data = data[offset:]
-	return m
+	return m, nil
 }
