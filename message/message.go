@@ -19,13 +19,14 @@ const (
 	msgRouteCompressMask = 0x01
 	msgTypeMask          = 0x07
 	msgRouteLengthMask   = 0xFF
+	msgHeadLength        = 0x03
 )
 
 type Message struct {
 	Type       MessageType
 	ID         uint
 	Route      string
-	RouteCode  uint32
+	RouteCode  uint16
 	IsCompress bool
 	Data       []byte
 }
@@ -44,7 +45,7 @@ func (m *Message) String() string {
 		m.Data)
 }
 
-func (m *Message) encoding() []byte {
+func (m *Message) Encode() []byte {
 	return Encode(m)
 }
 
@@ -67,8 +68,8 @@ func Encode(m *Message) []byte {
 	}
 	buf = append(buf, flag)
 
-	// response message
-	if m.Type == Response {
+	switch m.Type {
+	case Request, Response:
 		n := m.ID
 		// variant length encode
 		for {
@@ -81,7 +82,8 @@ func Encode(m *Message) []byte {
 				break
 			}
 		}
-	} else if m.Type == Push {
+		fallthrough
+	case Notify, Push:
 		if m.IsCompress {
 			buf = append(buf, byte((m.RouteCode>>8)&0xFF))
 			buf = append(buf, byte(m.RouteCode&0xFF))
@@ -89,7 +91,7 @@ func Encode(m *Message) []byte {
 			buf = append(buf, byte(len(m.Route)))
 			buf = append(buf, []byte(m.Route)...)
 		}
-	} else {
+	default:
 		log.Error("wrong message type")
 	}
 	buf = append(buf, m.Data...)
@@ -97,17 +99,16 @@ func Encode(m *Message) []byte {
 }
 
 func Decode(data []byte) *Message {
-	// filter invalid message
-	if len(data) <= 3 {
+	if len(data) <= msgHeadLength {
 		log.Info("invalid message")
 		return nil
 	}
 	m := NewMessage()
 	flag := data[0]
-	// set offset to 1, because 1st byte will always be flag
 	offset := 1
 	m.Type = MessageType((flag >> 1) & msgTypeMask)
-	if m.Type == Request {
+	switch m.Type {
+	case Request, Response:
 		id := uint(0)
 		// little end byte order
 		// WARNING: must can be stored in 64 bits integer
@@ -121,17 +122,21 @@ func Decode(data []byte) *Message {
 			}
 		}
 		m.ID = id
-	}
-	if flag&msgRouteCompressMask == 1 {
-		m.IsCompress = true
-		m.RouteCode = binary.BigEndian.Uint32(data[offset:(offset + 2)])
-		offset += 2
-	} else {
-		m.IsCompress = false
-		rl := data[offset]
-		offset += 1
-		m.Route = string(data[offset:(offset + int(rl))])
-		offset += int(rl)
+		fallthrough
+	case Notify, Push:
+		if flag&msgRouteCompressMask == 1 {
+			m.IsCompress = true
+			m.RouteCode = binary.BigEndian.Uint16(data[offset:(offset + 2)])
+			offset += 2
+		} else {
+			m.IsCompress = false
+			rl := data[offset]
+			offset += 1
+			m.Route = string(data[offset:(offset + int(rl))])
+			offset += int(rl)
+		}
+	default:
+		log.Error("wrong message type")
 	}
 	m.Data = data[offset:]
 	return m
