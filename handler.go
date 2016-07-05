@@ -3,12 +3,15 @@ package starx
 import (
 	"encoding/json"
 	"errors"
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/network/rpc"
-	"github.com/chrislonng/starx/utils"
 	"net"
 	"reflect"
 	"sync"
+
+	"github.com/chrislonng/starx/log"
+	"github.com/chrislonng/starx/message"
+	"github.com/chrislonng/starx/network/rpc"
+	"github.com/chrislonng/starx/packet"
+	"github.com/chrislonng/starx/utils"
 )
 
 // Unhandled message buffer size
@@ -16,6 +19,11 @@ import (
 const (
 	packetBufferSize = 256
 )
+
+type unhandledPacket struct {
+	fs     *agent
+	packet *packet.Packet
+}
 
 type methodType struct {
 	sync.Mutex // protects counters
@@ -79,9 +87,9 @@ func (handler *handlerService) handle(conn net.Conn) {
 			break
 		}
 		tmp = append(tmp, buf[:n]...)
-		var pkg *packet // save decoded packet
-		for len(tmp) >= headLength {
-			if pkg, tmp = unpack(tmp); pkg != nil {
+		var pkg *packet.Packet // save decoded packet
+		for len(tmp) >= packet.HeadLength {
+			if pkg, tmp = packet.Unpack(tmp); pkg != nil {
 				packetChan <- &unhandledPacket{agent, pkg}
 			} else {
 				break
@@ -90,55 +98,55 @@ func (handler *handlerService) handle(conn net.Conn) {
 	}
 }
 
-func (handler *handlerService) processPacket(fs *agent, pkg *packet) {
-	switch pkg.kind {
-	case packetHandshake:
-		fs.status = statusHandshake
+func (handler *handlerService) processPacket(a *agent, p *packet.Packet) {
+	switch p.Type {
+	case packet.Handshake:
+		a.status = statusHandshake
 		data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
 		if err != nil {
 			log.Info(err.Error())
 		}
-		fs.send(pack(packetHandshake, data))
-	case packetHandshakeAck:
-		fs.status = statusWorking
-	case packetHeartbeat:
-		go fs.heartbeat()
-	case packetData:
-		go fs.heartbeat()
-		if msg := decodeMessage(pkg.body); msg != nil {
-			handler.processMessage(fs.session, msg)
+		a.send(packet.Pack(packet.Handshake, data))
+	case packet.HandshakeAck:
+		a.status = statusWorking
+	case packet.Heartbeat:
+		go a.heartbeat()
+	case packet.Data:
+		go a.heartbeat()
+		if m := message.Decode(p.Data); m != nil {
+			handler.processMessage(a.session, m)
 		}
 	default:
 		log.Info("invalid packet type")
-		fs.close()
+		a.close()
 	}
 }
 
-func (handler *handlerService) processMessage(session *Session, msg *message) {
+func (handler *handlerService) processMessage(session *Session, m *message.Message) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("processMessage Error: %+v", err)
 		}
 	}()
-	log.Info("Route: %s, Length: %d", msg.route, len(msg.body))
-	ri, err := decodeRouteInfo(msg.route)
+	log.Info("Route: %s, Length: %d", m.Route, len(m.Data))
+	ri, err := decodeRouteInfo(m.Route)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
 	// if serverType equal nil, message handle in local server
 	if ri.serverType == "" || ri.serverType == App.Config.Type {
-		handler.localProcess(session, ri, msg)
+		handler.localProcess(session, ri, m)
 	} else {
-		handler.remoteProcess(session, ri, msg)
+		handler.remoteProcess(session, ri, m)
 	}
 }
 
 // current message handle in local server
-func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg *message) {
-	if msg.kind == msgTypeRequest {
-		session.reqId = msg.id
-	} else if msg.kind == msgTypeNotify {
+func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg *message.Message) {
+	if msg.Type == message.Request {
+		session.reqId = msg.ID
+	} else if msg.Type == message.Notify {
 		session.reqId = 0
 	} else {
 		log.Error("invalid message type")
@@ -146,7 +154,7 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 	}
 	if s, present := handler.serviceMap[ri.service]; present {
 		if m, ok := s.method[ri.method]; ok {
-			ret := m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(msg.body)})
+			ret := m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(msg.Data)})
 			if len(ret) > 0 {
 				err := ret[0].Interface()
 				if err != nil {
@@ -162,16 +170,16 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 }
 
 // current message handle in remote server
-func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, msg *message) {
-	if msg.kind == msgTypeRequest {
-		session.reqId = msg.id
-		remote.request(rpc.SysRpc, ri, session, msg.body)
-	} else if msg.kind == msgTypeNotify {
+func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, msg *message.Message) {
+	switch msg.Type {
+	case message.Request:
+		session.reqId = msg.ID
+		remote.request(rpc.SysRpc, ri, session, msg.Data)
+	case message.Notify:
 		session.reqId = 0
-		remote.request(rpc.SysRpc, ri, session, msg.body)
-	} else {
-		log.Info("invalid message type")
-		return
+		remote.request(rpc.SysRpc, ri, session, msg.Data)
+	default:
+		log.Error("invalid message type")
 	}
 }
 
