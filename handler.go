@@ -89,11 +89,12 @@ func (handler *handlerService) handle(conn net.Conn) {
 		tmp = append(tmp, buf[:n]...)
 		var pkg *packet.Packet // save decoded packet
 		for len(tmp) >= packet.HeadLength {
-			if pkg, tmp = packet.Unpack(tmp); pkg != nil {
-				packetChan <- &unhandledPacket{agent, pkg}
-			} else {
+			pkg, tmp, err = packet.Unpack(tmp)
+			if err != nil {
+				agent.close()
 				break
 			}
+			packetChan <- &unhandledPacket{agent, pkg}
 		}
 	}
 }
@@ -106,19 +107,29 @@ func (handler *handlerService) processPacket(a *agent, p *packet.Packet) {
 		if err != nil {
 			log.Info(err.Error())
 		}
-		a.send(packet.Pack(packet.Handshake, data))
+		rp := &packet.Packet{
+			Type:   packet.Handshake,
+			Length: len(data),
+			Data:   data,
+		}
+		resp, err := rp.Pack()
+		if err != nil {
+			log.Error(err.Error())
+			a.close()
+		}
+		a.send(resp)
 	case packet.HandshakeAck:
 		a.status = statusWorking
-	case packet.Heartbeat:
-		go a.heartbeat()
 	case packet.Data:
-		go a.heartbeat()
 		m, err := message.Decode(p.Data)
 		if err != nil {
 			log.Error(err.Error())
 			return
 		}
 		handler.processMessage(a.session, m)
+		fallthrough
+	case packet.Heartbeat:
+		go a.heartbeat()
 	default:
 		log.Info("invalid packet type")
 		a.close()

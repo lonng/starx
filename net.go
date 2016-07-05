@@ -12,6 +12,8 @@ import (
 	"sync"
 )
 
+var heartbeatPacket, _ = packet.Pack(&packet.Packet{Type: packet.Heartbeat})
+
 type netService struct {
 	agentUidLock       sync.RWMutex         // protect agentUid
 	agentUid           uint64               // agent unique id
@@ -102,7 +104,17 @@ func (net *netService) Push(session *Session, route string, data []byte) {
 		log.Error(err.Error())
 		return
 	}
-	net.send(session, packet.Pack(packet.PacketType(packet.Data), m))
+	p := packet.Packet{
+		Type:   packet.Data,
+		Length: len(m),
+		Data:   m,
+	}
+	ep, err := p.Pack()
+	if err != nil {
+		log.Error(err.Error())
+		return
+	}
+	net.send(session, ep)
 }
 
 // Response message to client
@@ -121,7 +133,17 @@ func (net *netService) Response(session *Session, data []byte) {
 		log.Error(err.Error())
 		return
 	}
-	net.send(session, packet.Pack(packet.PacketType(packet.Data), m))
+	p := packet.Packet{
+		Type:   packet.Data,
+		Length: len(m),
+		Data:   m,
+	}
+	ep, err := p.Pack()
+	if err != nil {
+		log.Error(err.Error())
+		return
+	}
+	net.send(session, ep)
 }
 
 // Broadcast message to all sessions
@@ -188,7 +210,7 @@ func (net *netService) heartbeat() {
 	}
 	for _, session := range net.agentMap {
 		if session.status == statusWorking {
-			session.send(packet.Pack(packet.Heartbeat, nil))
+			session.send(heartbeatPacket)
 			session.heartbeat()
 		}
 	}
@@ -224,4 +246,8 @@ func (net *netService) sessionClosedCallback(cb func(*Session)) {
 // Waring: session has closed,
 func OnSessionClosed(cb func(*Session)) {
 	defaultNetService.sessionClosedCallback(cb)
+}
+
+func init() {
+
 }
