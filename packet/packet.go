@@ -3,7 +3,7 @@ package packet
 import (
 	"errors"
 	"fmt"
-	"github.com/gpmgo/gopm/modules/log"
+	"github.com/chrislonng/starx/log"
 )
 
 type PacketType byte
@@ -17,13 +17,9 @@ const (
 	Kick                    = 0x05 // disconnect message from server
 )
 
-const (
-	HeadLength = 4
-)
+const HeadLength = 4
 
-var (
-	ErrWrongPacketType = errors.New("wrong packet type")
-)
+var ErrWrongPacketType = errors.New("wrong packet type")
 
 type Packet struct {
 	Type   PacketType
@@ -49,8 +45,12 @@ func Pack(p *Packet) ([]byte, error) {
 		log.Error("wrong packet type")
 		return nil, ErrWrongPacketType
 	}
-	buf := make([]byte, len(p.Data)+HeadLength)
+
+	p.Length = len(p.Data)
+
+	buf := make([]byte, p.Length+HeadLength)
 	buf[0] = byte(p.Type)
+
 	copy(buf[1:HeadLength], intToBytes(p.Length))
 	copy(buf[HeadLength:], p.Data)
 	return buf, nil
@@ -68,6 +68,7 @@ func Unpack(data []byte) (*Packet, []byte, error) {
 		log.Error("wrong packet type")
 		return nil, nil, ErrWrongPacketType
 	}
+
 	length := bytesToInt(data[1:HeadLength])
 	if length > (len(data) - HeadLength) {
 		return nil, data, nil
