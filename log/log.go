@@ -1,11 +1,13 @@
 package log
 
 import (
+	"errors"
 	"fmt"
 	stdlog "log"
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 )
 
 type LogLevel byte
@@ -14,15 +16,19 @@ const (
 	_ LogLevel = iota
 	LevelInfo
 	LevelDebug
-	LevelWard
+	LevelWarn
 	LevelError
 	LevelFatal
+)
+
+var (
+	ErrWrongLogLevel = errors.New("log level not define")
 )
 
 var names = []string{
 	LevelInfo:  "INFO",
 	LevelDebug: "DEBUG",
-	LevelWard:  "WARN",
+	LevelWarn:  "WARN",
 	LevelError: "ERROR",
 	LevelFatal: "FATAL",
 }
@@ -61,7 +67,7 @@ func Debug(f string, v ...interface{}) {
 }
 
 func Warn(f string, v ...interface{}) {
-	if logLevel > LevelWard {
+	if logLevel > LevelWarn {
 		return
 	}
 	writeLog("Warn", f, v...)
@@ -81,18 +87,22 @@ func Fatal(f string, v ...interface{}) {
 	writeLog("Fatal", f, v...)
 }
 
-func SetLevel(l LogLevel) {
+func SetLevel(l LogLevel) error {
+	if l < LevelInfo || l > LevelFatal {
+		return ErrWrongLogLevel
+	}
 	logLevel = l
+	return nil
 }
 
-func SetLevelByName(n string) {
+func SetLevelByName(n string) error {
 	for k, v := range names {
-		if v == n {
+		if v == strings.ToUpper(n) {
 			logLevel = LogLevel(k)
-			return
+			return nil
 		}
 	}
-	Error("log level not define: %s", n)
+	return ErrWrongLogLevel
 }
 
 func init() {

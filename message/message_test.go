@@ -12,7 +12,14 @@ func TestEncode(t *testing.T) {
 		Route: "test.test.test",
 		Data:  []byte(`hello world`),
 	}
-	dm1 := Decode(m1.Encode())
+	em1, err := m1.Encode()
+	if err != nil {
+		t.Fail()
+	}
+	dm1, err := Decode(em1)
+	if err != nil {
+		t.Fail()
+	}
 
 	if !reflect.DeepEqual(m1, dm1) {
 		t.Fail()
@@ -25,7 +32,14 @@ func TestEncode(t *testing.T) {
 		IsCompress: true,
 		Data:       []byte(`hello world`),
 	}
-	dm2 := Decode(m2.Encode())
+	em2, err := m2.Encode()
+	if err != nil {
+		t.Fail()
+	}
+	dm2, err := Decode(em2)
+	if err != nil {
+		t.Fail()
+	}
 
 	if !reflect.DeepEqual(m2, dm2) {
 		t.Fail()
@@ -37,7 +51,14 @@ func TestEncode(t *testing.T) {
 		Route: "test.test.test",
 		Data:  []byte(`hello world`),
 	}
-	dm3 := Decode(m3.Encode())
+	em3, err := m3.Encode()
+	if err != nil {
+		t.Fail()
+	}
+	dm3, err := Decode(em3)
+	if err != nil {
+		t.Fail()
+	}
 
 	if !reflect.DeepEqual(m3, dm3) {
 		t.Fail()
@@ -50,7 +71,14 @@ func TestEncode(t *testing.T) {
 		IsCompress: true,
 		Data:       []byte(`hello world`),
 	}
-	dm4 := Decode(m4.Encode())
+	em4, err := m4.Encode()
+	if err != nil {
+		t.Fail()
+	}
+	dm4, err := Decode(em4)
+	if err != nil {
+		t.Fail()
+	}
 
 	if !reflect.DeepEqual(m4, dm4) {
 		t.Fail()
@@ -61,7 +89,14 @@ func TestEncode(t *testing.T) {
 		Route: "test.test.test",
 		Data:  []byte(`hello world`),
 	}
-	dm5 := Decode(m5.Encode())
+	em5, err := m5.Encode()
+	if err != nil {
+		t.Fail()
+	}
+	dm5, err := Decode(em5)
+	if err != nil {
+		t.Fail()
+	}
 
 	if !reflect.DeepEqual(m5, dm5) {
 		t.Fail()
@@ -73,7 +108,14 @@ func TestEncode(t *testing.T) {
 		IsCompress: true,
 		Data:       []byte(`hello world`),
 	}
-	dm6 := Decode(m6.Encode())
+	em6, err := m6.Encode()
+	if err != nil {
+		t.Fail()
+	}
+	dm6, err := Decode(em6)
+	if err != nil {
+		t.Fail()
+	}
 
 	if !reflect.DeepEqual(m6, dm6) {
 		t.Fail()
@@ -84,7 +126,14 @@ func TestEncode(t *testing.T) {
 		Route: "test.test.test",
 		Data:  []byte(`hello world`),
 	}
-	dm7 := Decode(m7.Encode())
+	em7, err := m7.Encode()
+	if err != nil {
+		t.Fail()
+	}
+	dm7, err := Decode(em7)
+	if err != nil {
+		t.Fail()
+	}
 
 	if !reflect.DeepEqual(m7, dm7) {
 		t.Fail()
@@ -96,7 +145,14 @@ func TestEncode(t *testing.T) {
 		IsCompress: true,
 		Data:       []byte(`hello world`),
 	}
-	dm8 := Decode(m8.Encode())
+	em8, err := m8.Encode()
+	if err != nil {
+		t.Fail()
+	}
+	dm8, err := Decode(em8)
+	if err != nil {
+		t.Fail()
+	}
 
 	if !reflect.DeepEqual(m8, dm8) {
 		t.Fail()
