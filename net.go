@@ -247,7 +247,3 @@ func (net *netService) sessionClosedCallback(cb func(*Session)) {
 func OnSessionClosed(cb func(*Session)) {
 	defaultNetService.sessionClosedCallback(cb)
 }
-
-func init() {
-
-}

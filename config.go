@@ -25,7 +25,6 @@ var (
 	remote            *remoteService                                      // remote service
 	handler           *handlerService                                     // handler service
 	defaultNetService *netService                                         // net service
-	TimerManager      Timer                                               // timer component
 	route             map[string]func(*Session) string                    // server route function
 	ChannelServive    *channelServive                                     // channel service component
 	connections       *connectionService                                  // connection service component
@@ -63,7 +62,6 @@ func init() {
 	handler = newHandler()
 	defaultNetService = newNetService()
 	route = make(map[string]func(*Session) string)
-	TimerManager = newTimer()
 	ChannelServive = newChannelServive()
 	connections = newConnectionService()
 	heartbeat = newHeartbeatService()
