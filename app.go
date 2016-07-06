@@ -2,10 +2,12 @@ package starx
 
 import (
 	"fmt"
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/network/rpc"
 	"net"
 	"time"
+
+	"github.com/chrislonng/starx/log"
+	"github.com/chrislonng/starx/network/rpc"
+	"github.com/chrislonng/starx/timer"
 )
 
 type starxApp struct {
@@ -25,7 +27,9 @@ func (app *starxApp) start() {
 
 	// enable all app service
 	if app.Config.IsFrontend {
-		go heartbeat.start()
+		timer.Register(heartbeatInternal, func() {
+			defaultNetService.heartbeat()
+		})
 	}
 	app.listenAndServe()
 

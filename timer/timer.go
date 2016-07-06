@@ -1,4 +1,4 @@
-package starx
+package timer
 
 import (
 	"time"

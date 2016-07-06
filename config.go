@@ -29,7 +29,6 @@ var (
 	ChannelServive    *channelServive                                     // channel service component
 	connections       *connectionService                                  // connection service component
 	heartbeatInternal time.Duration                    = time.Second * 60 // beatheart time internal, second unit
-	heartbeat         *heartbeatService                                   // beatheart service
 	endRunning        chan bool                                           // wait for end application
 	handlers          []Component                                         // all register handler service
 	remotes           []Component                                         // all register remote process call service
@@ -64,7 +63,6 @@ func init() {
 	route = make(map[string]func(*Session) string)
 	ChannelServive = newChannelServive()
 	connections = newConnectionService()
-	heartbeat = newHeartbeatService()
 	endRunning = make(chan bool, 1)
 
 	workPath, _ = os.Getwd()
