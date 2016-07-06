@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/chrislonng/starx/log"
+	"github.com/chrislonng/starx/network"
 	"github.com/chrislonng/starx/network/rpc"
 	"time"
 )
@@ -109,7 +110,7 @@ func (session *Session) String() string {
 }
 
 func (session *Session) AsyncRPC(route string, args ...interface{}) error {
-	ri, err := decodeRouteInfo(route)
+	r, err := network.DecodeRoute(route)
 	if err != nil {
 		return err
 	}
@@ -117,16 +118,16 @@ func (session *Session) AsyncRPC(route string, args ...interface{}) error {
 	if err != nil {
 		return err
 	}
-	if App.Config.Type == ri.serverType {
+	if App.Config.Type == r.ServerType {
 		return ErrRPCLocal
 	} else {
-		remote.request(rpc.UserRpc, ri, session, encodeArgs)
+		remote.request(rpc.UserRpc, r, session, encodeArgs)
 		return nil
 	}
 }
 
 func (session *Session) RPC(route string, args ...interface{}) ([]byte, error) {
-	ri, err := decodeRouteInfo(route)
+	r, err := network.DecodeRoute(route)
 	if err != nil {
 		return nil, err
 	}
@@ -134,10 +135,10 @@ func (session *Session) RPC(route string, args ...interface{}) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if App.Config.Type == ri.serverType {
+	if App.Config.Type == r.ServerType {
 		return nil, ErrRPCLocal
 	} else {
-		return remote.request(rpc.UserRpc, ri, session, encodeArgs)
+		return remote.request(rpc.UserRpc, r, session, encodeArgs)
 	}
 }
 

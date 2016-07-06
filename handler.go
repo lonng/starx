@@ -9,6 +9,7 @@ import (
 
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/message"
+	"github.com/chrislonng/starx/network"
 	"github.com/chrislonng/starx/network/rpc"
 	"github.com/chrislonng/starx/packet"
 	"github.com/chrislonng/starx/utils"
@@ -143,21 +144,21 @@ func (handler *handlerService) processMessage(session *Session, m *message.Messa
 		}
 	}()
 	log.Info("Route: %s, Length: %d", m.Route, len(m.Data))
-	ri, err := decodeRouteInfo(m.Route)
+	r, err := network.DecodeRoute(m.Route)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
 	// if serverType equal nil, message handle in local server
-	if ri.serverType == "" || ri.serverType == App.Config.Type {
-		handler.localProcess(session, ri, m)
+	if r.ServerType == "" || r.ServerType == App.Config.Type {
+		handler.localProcess(session, r, m)
 	} else {
-		handler.remoteProcess(session, ri, m)
+		handler.remoteProcess(session, r, m)
 	}
 }
 
 // current message handle in local server
-func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg *message.Message) {
+func (handler *handlerService) localProcess(session *Session, route *network.Route, msg *message.Message) {
 	if msg.Type == message.Request {
 		session.reqId = msg.ID
 	} else if msg.Type == message.Notify {
@@ -166,8 +167,8 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 		log.Error("invalid message type")
 		return
 	}
-	if s, present := handler.serviceMap[ri.service]; present {
-		if m, ok := s.method[ri.method]; ok {
+	if s, present := handler.serviceMap[route.Service]; present {
+		if m, ok := s.method[route.Method]; ok {
 			ret := m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(msg.Data)})
 			if len(ret) > 0 {
 				err := ret[0].Interface()
@@ -176,22 +177,22 @@ func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg
 				}
 			}
 		} else {
-			log.Info("handler: " + ri.service + " does not contain method: " + ri.method)
+			log.Info("handler: " + route.Service + " does not contain method: " + route.Method)
 		}
 	} else {
-		log.Info("handler: service: " + ri.service + " not found")
+		log.Info("handler: service: " + route.Service + " not found")
 	}
 }
 
 // current message handle in remote server
-func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, msg *message.Message) {
+func (handler *handlerService) remoteProcess(session *Session, route *network.Route, msg *message.Message) {
 	switch msg.Type {
 	case message.Request:
 		session.reqId = msg.ID
-		remote.request(rpc.SysRpc, ri, session, msg.Data)
+		remote.request(rpc.SysRpc, route, session, msg.Data)
 	case message.Notify:
 		session.reqId = 0
-		remote.request(rpc.SysRpc, ri, session, msg.Data)
+		remote.request(rpc.SysRpc, route, session, msg.Data)
 	default:
 		log.Error("invalid message type")
 	}

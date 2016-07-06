@@ -8,6 +8,7 @@ import (
 	"net"
 	"reflect"
 
+	"github.com/chrislonng/starx/network"
 	"github.com/chrislonng/starx/network/rpc"
 	"github.com/chrislonng/starx/packet"
 )
@@ -195,20 +196,20 @@ func (rs *remoteService) processRequest(bs *acceptor, rr *rpc.Request) {
 	}
 }
 
-func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args ...interface{}) {
+func (rs *remoteService) asyncRequest(route *network.Route, session *Session, args ...interface{}) {
 
 }
 
 // Client send request
 // First argument is namespace, can be set `user` or `sys`
-func (this *remoteService) request(rpcKind rpc.RpcKind, route *routeInfo, session *Session, args []byte) ([]byte, error) {
-	client, err := cluster.getClientByType(route.serverType, session)
+func (this *remoteService) request(rpcKind rpc.RpcKind, route *network.Route, session *Session, args []byte) ([]byte, error) {
+	client, err := cluster.getClientByType(route.ServerType, session)
 	if err != nil {
 		log.Info(err.Error())
 		return nil, err
 	}
 	reply := new([]byte)
-	err = client.Call(rpcKind, route.service, route.method, session.entityID, reply, args)
+	err = client.Call(rpcKind, route.Service, route.Method, session.entityID, reply, args)
 	if err != nil {
 		return nil, errors.New(err.Error())
 	}
