@@ -169,7 +169,11 @@ func (handler *handlerService) localProcess(session *Session, route *network.Rou
 	if s, present := handler.serviceMap[route.Service]; present {
 		if m, ok := s.method[route.Method]; ok {
 			data := reflect.New(m.dataType.Elem()).Interface()
-			serializer.Deserialize(msg.Data, data)
+			err := serializer.Deserialize(msg.Data, data)
+			if err != nil {
+				log.Error("deserialize error: %s", err.Error())
+				return
+			}
 			ret := m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(data)})
 			if len(ret) > 0 {
 				err := ret[0].Interface()

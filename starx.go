@@ -69,5 +69,5 @@ func Remote(comp Component) {
 }
 
 func Serializer(seri serialize.Serializer) {
-
+	serializer = seri
 }
