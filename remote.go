@@ -20,6 +20,10 @@ const (
 	rpcStatusInited
 )
 
+var (
+	ErrNilResponse = errors.New("nil response")
+)
+
 type remoteService struct {
 	name   string
 	route  map[string]func(string) uint32
@@ -116,14 +120,14 @@ func readRequest(data []byte) (*rpc.Request, []byte) {
 	return &request, data[(offset + int(length)):]
 }
 
-func writeResponse(bs *acceptor, response *rpc.Response) {
+func writeResponse(bs *acceptor, response *rpc.Response) error {
 	if response == nil {
-		return
+		return ErrNilResponse
 	}
 	resp, err := json.Marshal(response)
 	if err != nil {
 		fmt.Println(err.Error())
-		return
+		return err
 	}
 	buf := make([]byte, 0)
 	length := len(resp)
@@ -138,11 +142,13 @@ func writeResponse(bs *acceptor, response *rpc.Response) {
 		}
 	}
 	buf = append(buf, resp...)
-	bs.socket.Write(buf)
+	_, err = bs.socket.Write(buf)
+	return err
 }
 
 func (rs *remoteService) processRequest(bs *acceptor, rr *rpc.Request) {
-	if rr.Kind == rpc.SysRpc {
+	switch rr.Kind {
+	case rpc.SysRpc:
 		fmt.Println(string(rr.Args))
 		session := bs.GetUserSession(rr.Sid)
 		returnValues, err := rpc.SysRpcServer.Call(rr.ServiceMethod, []reflect.Value{reflect.ValueOf(session), reflect.ValueOf(rr.Args)})
@@ -161,7 +167,7 @@ func (rs *remoteService) processRequest(bs *acceptor, rr *rpc.Request) {
 			}
 		}
 		writeResponse(bs, response)
-	} else if rr.Kind == rpc.UserRpc {
+	case rpc.UserRpc:
 		var args interface{}
 		var params = []reflect.Value{}
 		json.Unmarshal(rr.Args, &args)
@@ -191,7 +197,7 @@ func (rs *remoteService) processRequest(bs *acceptor, rr *rpc.Request) {
 			}
 		}
 		writeResponse(bs, response)
-	} else {
+	default:
 		log.Error("invalid rpc namespace")
 	}
 }

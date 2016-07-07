@@ -14,6 +14,8 @@ import (
 
 var heartbeatPacket, _ = packet.Pack(&packet.Packet{Type: packet.Heartbeat})
 
+var ErrSessionOnNotify = errors.New("current session working on notify mode")
+
 type netService struct {
 	agentUidLock       sync.RWMutex         // protect agentUid
 	agentUid           uint64               // agent unique id
@@ -98,11 +100,11 @@ func (net *netService) send(session *Session, data []byte) {
 
 // Push message to client
 // call by all package, the last argument was packaged message
-func (net *netService) Push(session *Session, route string, data []byte) {
+func (net *netService) Push(session *Session, route string, data []byte) error {
 	m, err := message.Encode(&message.Message{Type: message.MessageType(message.Push), Route: route, Data: data})
 	if err != nil {
 		log.Error(err.Error())
-		return
+		return err
 	}
 	p := packet.Packet{
 		Type:   packet.Data,
@@ -112,17 +114,18 @@ func (net *netService) Push(session *Session, route string, data []byte) {
 	ep, err := p.Pack()
 	if err != nil {
 		log.Error(err.Error())
-		return
+		return err
 	}
 	net.send(session, ep)
+	return nil
 }
 
 // Response message to client
 // call by all package, the last argument was packaged message
-func (net *netService) Response(session *Session, data []byte) {
+func (net *netService) Response(session *Session, data []byte) error {
 	// current message is notify message, can not response
 	if session.reqId <= 0 {
-		return
+		return ErrSessionOnNotify
 	}
 	m, err := message.Encode(&message.Message{
 		Type: message.MessageType(message.Response),
@@ -131,7 +134,7 @@ func (net *netService) Response(session *Session, data []byte) {
 	})
 	if err != nil {
 		log.Error(err.Error())
-		return
+		return err
 	}
 	p := packet.Packet{
 		Type:   packet.Data,
@@ -141,9 +144,10 @@ func (net *netService) Response(session *Session, data []byte) {
 	ep, err := p.Pack()
 	if err != nil {
 		log.Error(err.Error())
-		return
+		return err
 	}
 	net.send(session, ep)
+	return nil
 }
 
 // Broadcast message to all sessions
