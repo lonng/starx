@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/network"
 	"github.com/chrislonng/starx/network/rpc"
-	"time"
 )
 
 type networkStatus byte

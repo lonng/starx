@@ -3,14 +3,14 @@ package starx
 import (
 	"fmt"
 	"net"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/network/rpc"
 	"github.com/chrislonng/starx/timer"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 type starxApp struct {

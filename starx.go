@@ -2,9 +2,10 @@ package starx
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/serialize"
-	"strings"
 )
 
 // Start application

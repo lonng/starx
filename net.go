@@ -5,11 +5,12 @@ package starx
 
 import (
 	"errors"
+	"net"
+	"sync"
+
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/message"
 	"github.com/chrislonng/starx/packet"
-	"net"
-	"sync"
 )
 
 var heartbeatPacket, _ = packet.Pack(&packet.Packet{Type: packet.Heartbeat})
