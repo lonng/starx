@@ -3,12 +3,15 @@ package starx
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/utils"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/chrislonng/starx/log"
+	"github.com/chrislonng/starx/serialize"
+	"github.com/chrislonng/starx/serialize/protobuf"
+	"github.com/chrislonng/starx/utils"
 )
 
 var VERSION = "0.0.1"
@@ -32,6 +35,7 @@ var (
 	endRunning        chan bool                                           // wait for end application
 	handlers          []Component                                         // all register handler service
 	remotes           []Component                                         // all register remote process call service
+	serializer        serialize.Serializer                                // serializer
 )
 
 type ServerConfig struct {
@@ -64,6 +68,7 @@ func init() {
 	ChannelServive = newChannelServive()
 	connections = newConnectionService()
 	endRunning = make(chan bool, 1)
+	serializer = protobuf.NewProtobufSerializer()
 
 	workPath, _ = os.Getwd()
 	workPath, _ = filepath.Abs(workPath)
