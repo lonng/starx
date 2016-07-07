@@ -53,7 +53,12 @@ func (session *Session) Send(data []byte) {
 }
 
 // Push message to session
-func (session *Session) Push(route string, data []byte) error {
+func (session *Session) Push(route string, v interface{}) error {
+	data, err := serializer.Serialize(v)
+	if err != nil {
+		return err
+	}
+
 	if App.Config.IsFrontend {
 		return defaultNetService.Push(session, route, data)
 	}
@@ -80,7 +85,12 @@ func (session *Session) Push(route string, data []byte) error {
 }
 
 // Response message to session
-func (session *Session) Response(data []byte) error {
+func (session *Session) Response(v interface{}) error {
+	data, err := serializer.Serialize(v)
+	if err != nil {
+		return err
+	}
+
 	if App.Config.IsFrontend {
 		return defaultNetService.Response(session, data)
 	}

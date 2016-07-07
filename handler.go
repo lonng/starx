@@ -29,8 +29,7 @@ type unhandledPacket struct {
 type methodType struct {
 	sync.Mutex // protects counters
 	method     reflect.Method
-	Arg1Type   reflect.Type
-	Arg2Type   reflect.Type
+	dataType   reflect.Type
 	numCalls   uint
 }
 
@@ -169,7 +168,9 @@ func (handler *handlerService) localProcess(session *Session, route *network.Rou
 	}
 	if s, present := handler.serviceMap[route.Service]; present {
 		if m, ok := s.method[route.Method]; ok {
-			ret := m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(msg.Data)})
+			data := reflect.New(m.dataType.Elem()).Interface()
+			serializer.Deserialize(msg.Data, data)
+			ret := m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(data)})
 			if len(ret) > 0 {
 				err := ret[0].Interface()
 				if err != nil {
@@ -252,7 +253,7 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 		mtype := method.Type
 		mname := method.Name
 		if utils.IsHandlerMethod(method) {
-			methods[mname] = &methodType{method: method, Arg1Type: mtype.In(1), Arg2Type: mtype.In(2)}
+			methods[mname] = &methodType{method: method, dataType: mtype.In(2)}
 		}
 	}
 	return methods

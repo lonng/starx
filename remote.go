@@ -147,26 +147,27 @@ func writeResponse(bs *acceptor, response *rpc.Response) error {
 }
 
 func (rs *remoteService) processRequest(bs *acceptor, rr *rpc.Request) {
+	response := &rpc.Response{
+		ServiceMethod: rr.ServiceMethod,
+		Seq:           rr.Seq,
+		Sid:           rr.Sid,
+		Kind:          rpc.RemoteResponse,
+	}
+
 	switch rr.Kind {
 	case rpc.SysRpc:
 		fmt.Println(string(rr.Args))
 		session := bs.GetUserSession(rr.Sid)
-		returnValues, err := rpc.SysRpcServer.Call(rr.ServiceMethod, []reflect.Value{reflect.ValueOf(session), reflect.ValueOf(rr.Args)})
-		response := &rpc.Response{}
-		response.ServiceMethod = rr.ServiceMethod
-		response.Seq = rr.Seq
-		response.Sid = rr.Sid
-		response.Kind = rpc.RemoteResponse
+		ret, err := rpc.SysRpcServer.Call(rr.ServiceMethod, []reflect.Value{reflect.ValueOf(session), reflect.ValueOf(rr.Args)})
 		if err != nil {
 			response.Error = err.Error()
 		} else {
 			// handler method encounter error
-			errInter := returnValues[0].Interface()
-			if errInter != nil {
-				response.Error = errInter.(error).Error()
+
+			if err := ret[0].Interface(); err != nil {
+				response.Error = err.(error).Error()
 			}
 		}
-		writeResponse(bs, response)
 	case rpc.UserRpc:
 		var args interface{}
 		var params = []reflect.Value{}
@@ -179,27 +180,22 @@ func (rs *remoteService) processRequest(bs *acceptor, rr *rpc.Request) {
 		default:
 			fmt.Println("invalid rpc argument")
 		}
-		rets, err := rpc.UserRpcServer.Call(rr.ServiceMethod, params)
-		response := &rpc.Response{}
-		response.ServiceMethod = rr.ServiceMethod
-		response.Seq = rr.Seq
-		response.Sid = rr.Sid
-		response.Kind = rpc.RemoteResponse
+		ret, err := rpc.UserRpcServer.Call(rr.ServiceMethod, params)
 		if err != nil {
 			response.Error = err.Error()
 		} else {
 			// handler method encounter error
-			errInter := rets[1].Interface()
-			if errInter != nil {
-				response.Error = errInter.(error).Error()
+			if err := ret[1].Interface(); err != nil {
+				response.Error = err.(error).Error()
 			} else {
-				response.Data = rets[0].Bytes()
+				response.Data = ret[0].Bytes()
 			}
 		}
-		writeResponse(bs, response)
 	default:
 		log.Error("invalid rpc namespace")
+		return
 	}
+	writeResponse(bs, response)
 }
 
 func (rs *remoteService) asyncRequest(route *network.Route, session *Session, args ...interface{}) {
