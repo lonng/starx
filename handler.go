@@ -9,9 +9,11 @@ import (
 
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/message"
+	"github.com/chrislonng/starx/network"
 	"github.com/chrislonng/starx/network/rpc"
 	"github.com/chrislonng/starx/packet"
 	"github.com/chrislonng/starx/utils"
+	"runtime"
 )
 
 // Unhandled message buffer size
@@ -28,8 +30,7 @@ type unhandledPacket struct {
 type methodType struct {
 	sync.Mutex // protects counters
 	method     reflect.Method
-	Arg1Type   reflect.Type
-	Arg2Type   reflect.Type
+	dataType   reflect.Type
 	numCalls   uint
 }
 
@@ -139,59 +140,71 @@ func (handler *handlerService) processPacket(a *agent, p *packet.Packet) {
 func (handler *handlerService) processMessage(session *Session, m *message.Message) {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Error("processMessage Error: %+v", err)
+			runtime.Caller(2)
+			log.Fatal("processMessage Error: %+v", err)
 		}
 	}()
 	log.Info("Route: %s, Length: %d", m.Route, len(m.Data))
-	ri, err := decodeRouteInfo(m.Route)
+	r, err := network.DecodeRoute(m.Route)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
 	// if serverType equal nil, message handle in local server
-	if ri.serverType == "" || ri.serverType == App.Config.Type {
-		handler.localProcess(session, ri, m)
+	if r.ServerType == "" || r.ServerType == App.Config.Type {
+		handler.localProcess(session, r, m)
 	} else {
-		handler.remoteProcess(session, ri, m)
+		handler.remoteProcess(session, r, m)
 	}
 }
 
 // current message handle in local server
-func (handler *handlerService) localProcess(session *Session, ri *routeInfo, msg *message.Message) {
-	if msg.Type == message.Request {
+func (handler *handlerService) localProcess(session *Session, route *network.Route, msg *message.Message) {
+	switch msg.Type {
+	case message.Request:
 		session.reqId = msg.ID
-	} else if msg.Type == message.Notify {
+	case message.Notify:
 		session.reqId = 0
-	} else {
+	default:
 		log.Error("invalid message type")
 		return
 	}
-	if s, present := handler.serviceMap[ri.service]; present {
-		if m, ok := s.method[ri.method]; ok {
-			ret := m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(msg.Data)})
-			if len(ret) > 0 {
-				err := ret[0].Interface()
-				if err != nil {
-					log.Error(err.(error).Error())
-				}
-			}
-		} else {
-			log.Info("handler: " + ri.service + " does not contain method: " + ri.method)
+
+	s, ok := handler.serviceMap[route.Service]
+	if !ok || s == nil {
+		log.Info("handler: service: " + route.Service + " not found")
+	}
+
+	m, ok := s.method[route.Method]
+	if !ok || m == nil {
+		log.Info("handler: " + route.Service + " does not contain method: " + route.Method)
+	}
+
+	data := reflect.New(m.dataType.Elem()).Interface()
+	err := serializer.Deserialize(msg.Data, data)
+	if err != nil {
+		log.Error("deserialize error: %s", err.Error())
+		return
+	}
+
+	ret := m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(data)})
+	if len(ret) > 0 {
+		err := ret[0].Interface()
+		if err != nil {
+			log.Error(err.(error).Error())
 		}
-	} else {
-		log.Info("handler: service: " + ri.service + " not found")
 	}
 }
 
 // current message handle in remote server
-func (handler *handlerService) remoteProcess(session *Session, ri *routeInfo, msg *message.Message) {
+func (handler *handlerService) remoteProcess(session *Session, route *network.Route, msg *message.Message) {
 	switch msg.Type {
 	case message.Request:
 		session.reqId = msg.ID
-		remote.request(rpc.SysRpc, ri, session, msg.Data)
+		remote.request(rpc.SysRpc, route, session, msg.Data)
 	case message.Notify:
 		session.reqId = 0
-		remote.request(rpc.SysRpc, ri, session, msg.Data)
+		remote.request(rpc.SysRpc, route, session, msg.Data)
 	default:
 		log.Error("invalid message type")
 	}
@@ -251,7 +264,7 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 		mtype := method.Type
 		mname := method.Name
 		if utils.IsHandlerMethod(method) {
-			methods[mname] = &methodType{method: method, Arg1Type: mtype.In(1), Arg2Type: mtype.In(2)}
+			methods[mname] = &methodType{method: method, dataType: mtype.In(2)}
 		}
 	}
 	return methods

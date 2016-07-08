@@ -2,8 +2,10 @@ package starx
 
 import (
 	"fmt"
-	"github.com/chrislonng/starx/log"
 	"strings"
+
+	"github.com/chrislonng/starx/log"
+	"github.com/chrislonng/starx/serialize"
 )
 
 // Start application
@@ -64,4 +66,8 @@ func Remote(comp Component) {
 	} else {
 		remotes = append(remotes, comp)
 	}
+}
+
+func Serializer(seri serialize.Serializer) {
+	serializer = seri
 }

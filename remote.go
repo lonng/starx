@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/chrislonng/starx/log"
 	"net"
 	"reflect"
 
+	"github.com/chrislonng/starx/log"
+	"github.com/chrislonng/starx/network"
 	"github.com/chrislonng/starx/network/rpc"
 	"github.com/chrislonng/starx/packet"
 )
@@ -17,6 +18,10 @@ type rpcStatus int32
 const (
 	rpcStatusUninit rpcStatus = iota
 	rpcStatusInited
+)
+
+var (
+	ErrNilResponse = errors.New("nil response")
 )
 
 type remoteService struct {
@@ -115,14 +120,14 @@ func readRequest(data []byte) (*rpc.Request, []byte) {
 	return &request, data[(offset + int(length)):]
 }
 
-func writeResponse(bs *acceptor, response *rpc.Response) {
+func writeResponse(bs *acceptor, response *rpc.Response) error {
 	if response == nil {
-		return
+		return ErrNilResponse
 	}
 	resp, err := json.Marshal(response)
 	if err != nil {
 		fmt.Println(err.Error())
-		return
+		return err
 	}
 	buf := make([]byte, 0)
 	length := len(resp)
@@ -137,30 +142,33 @@ func writeResponse(bs *acceptor, response *rpc.Response) {
 		}
 	}
 	buf = append(buf, resp...)
-	bs.socket.Write(buf)
+	_, err = bs.socket.Write(buf)
+	return err
 }
 
 func (rs *remoteService) processRequest(bs *acceptor, rr *rpc.Request) {
-	if rr.Kind == rpc.SysRpc {
+	response := &rpc.Response{
+		ServiceMethod: rr.ServiceMethod,
+		Seq:           rr.Seq,
+		Sid:           rr.Sid,
+		Kind:          rpc.RemoteResponse,
+	}
+
+	switch rr.Kind {
+	case rpc.SysRpc:
 		fmt.Println(string(rr.Args))
 		session := bs.GetUserSession(rr.Sid)
-		returnValues, err := rpc.SysRpcServer.Call(rr.ServiceMethod, []reflect.Value{reflect.ValueOf(session), reflect.ValueOf(rr.Args)})
-		response := &rpc.Response{}
-		response.ServiceMethod = rr.ServiceMethod
-		response.Seq = rr.Seq
-		response.Sid = rr.Sid
-		response.Kind = rpc.RemoteResponse
+		ret, err := rpc.SysRpcServer.Call(rr.ServiceMethod, []reflect.Value{reflect.ValueOf(session), reflect.ValueOf(rr.Args)})
 		if err != nil {
 			response.Error = err.Error()
 		} else {
 			// handler method encounter error
-			errInter := returnValues[0].Interface()
-			if errInter != nil {
-				response.Error = errInter.(error).Error()
+
+			if err := ret[0].Interface(); err != nil {
+				response.Error = err.(error).Error()
 			}
 		}
-		writeResponse(bs, response)
-	} else if rr.Kind == rpc.UserRpc {
+	case rpc.UserRpc:
 		var args interface{}
 		var params = []reflect.Value{}
 		json.Unmarshal(rr.Args, &args)
@@ -172,43 +180,38 @@ func (rs *remoteService) processRequest(bs *acceptor, rr *rpc.Request) {
 		default:
 			fmt.Println("invalid rpc argument")
 		}
-		rets, err := rpc.UserRpcServer.Call(rr.ServiceMethod, params)
-		response := &rpc.Response{}
-		response.ServiceMethod = rr.ServiceMethod
-		response.Seq = rr.Seq
-		response.Sid = rr.Sid
-		response.Kind = rpc.RemoteResponse
+		ret, err := rpc.UserRpcServer.Call(rr.ServiceMethod, params)
 		if err != nil {
 			response.Error = err.Error()
 		} else {
 			// handler method encounter error
-			errInter := rets[1].Interface()
-			if errInter != nil {
-				response.Error = errInter.(error).Error()
+			if err := ret[1].Interface(); err != nil {
+				response.Error = err.(error).Error()
 			} else {
-				response.Data = rets[0].Bytes()
+				response.Data = ret[0].Bytes()
 			}
 		}
-		writeResponse(bs, response)
-	} else {
+	default:
 		log.Error("invalid rpc namespace")
+		return
 	}
+	writeResponse(bs, response)
 }
 
-func (rs *remoteService) asyncRequest(route *routeInfo, session *Session, args ...interface{}) {
+func (rs *remoteService) asyncRequest(route *network.Route, session *Session, args ...interface{}) {
 
 }
 
 // Client send request
 // First argument is namespace, can be set `user` or `sys`
-func (this *remoteService) request(rpcKind rpc.RpcKind, route *routeInfo, session *Session, args []byte) ([]byte, error) {
-	client, err := cluster.getClientByType(route.serverType, session)
+func (this *remoteService) request(rpcKind rpc.RpcKind, route *network.Route, session *Session, args []byte) ([]byte, error) {
+	client, err := cluster.getClientByType(route.ServerType, session)
 	if err != nil {
 		log.Info(err.Error())
 		return nil, err
 	}
 	reply := new([]byte)
-	err = client.Call(rpcKind, route.service, route.method, session.entityID, reply, args)
+	err = client.Call(rpcKind, route.Service, route.Method, session.entityID, reply, args)
 	if err != nil {
 		return nil, errors.New(err.Error())
 	}

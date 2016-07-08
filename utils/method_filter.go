@@ -44,7 +44,7 @@ func IsHandlerMethod(method reflect.Method) bool {
 		return false
 	}
 
-	if mtype.In(2) != typeOfBytes || mtype.Out(0) != typeOfError {
+	if mtype.In(2).Kind() != reflect.Ptr || mtype.Out(0) != typeOfError {
 		return false
 	}
 	return true

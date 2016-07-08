@@ -3,10 +3,11 @@ package starx
 import (
 	"errors"
 	"fmt"
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/network/rpc"
 	"math/rand"
 	"sync"
+
+	"github.com/chrislonng/starx/log"
+	"github.com/chrislonng/starx/network/rpc"
 )
 
 type clusterService struct {

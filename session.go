@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/network/rpc"
 	"time"
+
+	"github.com/chrislonng/starx/log"
+	"github.com/chrislonng/starx/network"
+	"github.com/chrislonng/starx/network/rpc"
 )
 
 type networkStatus byte
@@ -20,7 +22,9 @@ const (
 )
 
 var (
-	ErrRPCLocal = errors.New("RPC object must location in different server type")
+	ErrRPCLocal     = errors.New("RPC object must location in different server type")
+	ErrSidNotExists = errors.New("sid not exists")
+	ErrIllegalUID   = errors.New("illegal uid")
 )
 
 // This session type as argument pass to Handler method, is a proxy session
@@ -50,58 +54,74 @@ func (session *Session) Send(data []byte) {
 }
 
 // Push message to session
-func (session *Session) Push(route string, data []byte) {
-	if App.Config.IsFrontend {
-		defaultNetService.Push(session, route, data)
-	} else {
-		rs, err := defaultNetService.getAcceptor(session.entityID)
-		if err != nil {
-			log.Error(err.Error())
-		} else {
-			sid, ok := rs.b2fMap[session.Id]
-			if !ok {
-				log.Error("sid not exists")
-				return
-			}
-			resp := rpc.Response{}
-			resp.Route = route
-			resp.Kind = rpc.HandlerPush
-			resp.Data = data
-			resp.Sid = sid
-			writeResponse(rs, &resp)
-		}
+func (session *Session) Push(route string, v interface{}) error {
+	data, err := serializer.Serialize(v)
+	if err != nil {
+		return err
 	}
+
+	if App.Config.IsFrontend {
+		return defaultNetService.Push(session, route, data)
+	}
+
+	rs, err := defaultNetService.getAcceptor(session.entityID)
+	if err != nil {
+		log.Error(err.Error())
+		return err
+	}
+
+	sid, ok := rs.b2fMap[session.Id]
+	if !ok {
+		log.Error("sid not exists")
+		return ErrSidNotExists
+	}
+
+	resp := rpc.Response{
+		Route: route,
+		Kind:  rpc.HandlerPush,
+		Data:  data,
+		Sid:   sid,
+	}
+	return writeResponse(rs, &resp)
 }
 
 // Response message to session
-func (session *Session) Response(data []byte) {
-	if App.Config.IsFrontend {
-		defaultNetService.Response(session, data)
-	} else {
-		rs, err := defaultNetService.getAcceptor(session.entityID)
-		if err != nil {
-			log.Error(err.Error())
-		} else {
-			sid, ok := rs.b2fMap[session.Id]
-			if !ok {
-				log.Error("sid not exists")
-				return
-			}
-			resp := rpc.Response{}
-			resp.Kind = rpc.HandlerResponse
-			resp.Data = data
-			resp.Sid = sid
-			writeResponse(rs, &resp)
-		}
+func (session *Session) Response(v interface{}) error {
+	data, err := serializer.Serialize(v)
+	if err != nil {
+		return err
 	}
+
+	if App.Config.IsFrontend {
+		return defaultNetService.Response(session, data)
+	}
+
+	rs, err := defaultNetService.getAcceptor(session.entityID)
+	if err != nil {
+		log.Error(err.Error())
+		return err
+	}
+
+	sid, ok := rs.b2fMap[session.Id]
+	if !ok {
+		log.Error("sid not exists")
+		return ErrSidNotExists
+	}
+	resp := rpc.Response{
+		Kind: rpc.HandlerResponse,
+		Data: data,
+		Sid:  sid,
+	}
+	return writeResponse(rs, &resp)
 }
 
-func (session *Session) Bind(uid uint64) {
-	if uid > 0 {
-		session.Uid = uid
-	} else {
+func (session *Session) Bind(uid uint64) error {
+	if uid < 1 {
 		log.Error("uid invalid: %d", uid)
+		return ErrIllegalUID
 	}
+	session.Uid = uid
+	return nil
 }
 
 func (session *Session) String() string {
@@ -109,36 +129,39 @@ func (session *Session) String() string {
 }
 
 func (session *Session) AsyncRPC(route string, args ...interface{}) error {
-	ri, err := decodeRouteInfo(route)
+	r, err := network.DecodeRoute(route)
 	if err != nil {
 		return err
 	}
+
+	if App.Config.Type == r.ServerType {
+		return ErrRPCLocal
+	}
+
 	encodeArgs, err := json.Marshal(args)
 	if err != nil {
 		return err
 	}
-	if App.Config.Type == ri.serverType {
-		return ErrRPCLocal
-	} else {
-		remote.request(rpc.UserRpc, ri, session, encodeArgs)
-		return nil
-	}
+	_, err = remote.request(rpc.UserRpc, r, session, encodeArgs)
+	return err
 }
 
 func (session *Session) RPC(route string, args ...interface{}) ([]byte, error) {
-	ri, err := decodeRouteInfo(route)
+	r, err := network.DecodeRoute(route)
 	if err != nil {
 		return nil, err
 	}
+
+	if App.Config.Type == r.ServerType {
+		return nil, ErrRPCLocal
+	}
+
 	encodeArgs, err := json.Marshal(args)
 	if err != nil {
 		return nil, err
 	}
-	if App.Config.Type == ri.serverType {
-		return nil, ErrRPCLocal
-	} else {
-		return remote.request(rpc.UserRpc, ri, session, encodeArgs)
-	}
+
+	return remote.request(rpc.UserRpc, r, session, encodeArgs)
 }
 
 // Sync session setting to frontend server

@@ -1,9 +1,10 @@
 package starx
 
 import (
-	"github.com/chrislonng/starx/packet"
 	"reflect"
 	"testing"
+
+	"github.com/chrislonng/starx/packet"
 )
 
 func Test1(t *testing.T) {

@@ -2,10 +2,15 @@ package starx
 
 import (
 	"fmt"
+	"net"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/network/rpc"
-	"net"
-	"time"
+	"github.com/chrislonng/starx/timer"
 )
 
 type starxApp struct {
@@ -25,12 +30,22 @@ func (app *starxApp) start() {
 
 	// enable all app service
 	if app.Config.IsFrontend {
-		go heartbeat.start()
+		timer.Register(heartbeatInternal, func() {
+			defaultNetService.heartbeat()
+		})
 	}
 	app.listenAndServe()
 
+	sg := make(chan os.Signal, 1)
+	signal.Notify(sg, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
 	// stop server
-	<-endRunning
+	select {
+	case <-endRunning:
+		log.Info("The app will shutdown in a few seconds")
+	case s := <-sg:
+		log.Info("Got signal: %v", s)
+	}
 	log.Info("server: " + app.Config.Id + " is stopping...")
 	app.shutdownComps()
 	close(endRunning)
@@ -41,6 +56,7 @@ func (app *starxApp) listenAndServe() {
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", app.Config.Host, app.Config.Port))
 	if err != nil {
 		log.Error(err.Error())
+		os.Exit(-1)
 	}
 	log.Info("listen at %s:%d(%s)",
 		app.Config.Host,

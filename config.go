@@ -3,12 +3,15 @@ package starx
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/utils"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/chrislonng/starx/log"
+	"github.com/chrislonng/starx/serialize"
+	"github.com/chrislonng/starx/serialize/protobuf"
+	"github.com/chrislonng/starx/utils"
 )
 
 var VERSION = "0.0.1"
@@ -25,15 +28,14 @@ var (
 	remote            *remoteService                                      // remote service
 	handler           *handlerService                                     // handler service
 	defaultNetService *netService                                         // net service
-	TimerManager      Timer                                               // timer component
 	route             map[string]func(*Session) string                    // server route function
 	ChannelServive    *channelServive                                     // channel service component
 	connections       *connectionService                                  // connection service component
 	heartbeatInternal time.Duration                    = time.Second * 60 // beatheart time internal, second unit
-	heartbeat         *heartbeatService                                   // beatheart service
 	endRunning        chan bool                                           // wait for end application
 	handlers          []Component                                         // all register handler service
 	remotes           []Component                                         // all register remote process call service
+	serializer        serialize.Serializer                                // serializer
 )
 
 type ServerConfig struct {
@@ -63,11 +65,10 @@ func init() {
 	handler = newHandler()
 	defaultNetService = newNetService()
 	route = make(map[string]func(*Session) string)
-	TimerManager = newTimer()
 	ChannelServive = newChannelServive()
 	connections = newConnectionService()
-	heartbeat = newHeartbeatService()
 	endRunning = make(chan bool, 1)
+	serializer = protobuf.NewProtobufSerializer()
 
 	workPath, _ = os.Getwd()
 	workPath, _ = filepath.Abs(workPath)
