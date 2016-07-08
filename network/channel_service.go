@@ -1,4 +1,4 @@
-package starx
+package network
 
 type channelServive struct {
 	channels map[string]*Channel // all server channels
@@ -15,15 +15,15 @@ func (c *channelServive) NewChannel(name string) *Channel {
 }
 
 // Get channel by channel name
-func (c *channelServive) GetChannel(name string) (*Channel, bool) {
+func (c *channelServive) Channel(name string) (*Channel, bool) {
 	channel, exists := c.channels[name]
 	return channel, exists
 }
 
 // Get all members in channel by channel name
-func (c *channelServive) GetMembers(name string) []uint64 {
+func (c *channelServive) Members(name string) []uint64 {
 	if channel, ok := c.channels[name]; ok {
-		return channel.GetMembers()
+		return channel.Members()
 	}
 	return make([]uint64, 0)
 }

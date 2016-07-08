@@ -1,4 +1,4 @@
-package utils
+package network
 
 import (
 	"reflect"
@@ -9,7 +9,7 @@ import (
 var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
 var typeOfBytes = reflect.TypeOf(([]byte)(nil))
 
-func IsExported(name string) bool {
+func isExported(name string) bool {
 	rune, _ := utf8.DecodeRuneInString(name)
 	return unicode.IsUpper(rune)
 }
@@ -20,18 +20,19 @@ func IsExportedOrBuiltinType(t reflect.Type) bool {
 	}
 	// PkgPath will be non-empty even for an exported type,
 	// so we need to check the type name as well.
-	return IsExported(t.Name()) || t.PkgPath() == ""
+	return isExported(t.Name()) || t.PkgPath() == ""
 }
 
 // IsHandlerMethod
 // decide a method is suitable handler method
-func IsHandlerMethod(method reflect.Method) bool {
+func isHandlerMethod(method reflect.Method) bool {
 	mtype := method.Type
 	// Method must be exported.
 	if method.PkgPath != "" {
 		return false
 	}
-	// Method needs three ins: receiver, *Session, []byte.
+
+	// Method needs three ins: receiver, *Session, []byte or pointer.
 	if mtype.NumIn() != 3 {
 		return false
 	}
@@ -52,7 +53,7 @@ func IsHandlerMethod(method reflect.Method) bool {
 
 // IsRemoteMethod
 // decide a method is suitable remote methd
-func IsRemoteMethod(method reflect.Method) bool {
+func isRemoteMethod(method reflect.Method) bool {
 	mtype := method.Type
 	// Method must be exported.
 	if method.PkgPath != "" {
@@ -68,4 +69,33 @@ func IsRemoteMethod(method reflect.Method) bool {
 	}
 
 	return true
+}
+
+// suitableMethods returns suitable methods of typ, it will report
+// error using log if reportErr is true.
+func suitableHandlerMethods(typ reflect.Type, reportErr bool) map[string]*handlerMethod {
+	methods := make(map[string]*handlerMethod)
+	for m := 0; m < typ.NumMethod(); m++ {
+		method := typ.Method(m)
+		mtype := method.Type
+		mname := method.Name
+		if isHandlerMethod(method) {
+			methods[mname] = &handlerMethod{method: method, dataType: mtype.In(2)}
+		}
+	}
+	return methods
+}
+
+// suitableMethods returns suitable Rpc methods of typ, it will report
+// error using log if reportErr is true.
+func suitableRemoteMethods(typ reflect.Type, reportErr bool) map[string]*remoteMethod {
+	methods := make(map[string]*remoteMethod)
+	for m := 0; m < typ.NumMethod(); m++ {
+		method := typ.Method(m)
+		mname := method.Name
+		if isRemoteMethod(method) {
+			methods[mname] = &remoteMethod{method: method}
+		}
+	}
+	return methods
 }

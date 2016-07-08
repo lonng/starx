@@ -5,52 +5,29 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/serialize"
-	"github.com/chrislonng/starx/serialize/protobuf"
-	"github.com/chrislonng/starx/service"
-	"github.com/chrislonng/starx/utils"
+	"github.com/chrislonng/starx/network"
 )
 
 var VERSION = "0.0.1"
 
 var (
-	App               *starxApp // starx application
-	AppPath           string
-	workPath          string
-	appConfigPath     string
-	serverConfigPath  string
-	masterConfigPath  string
-	clusterS          *clusterService                                     // cluster service
-	settings          map[string][]func()                                 // all settings
-	remote            *remoteService                                      // remote service
-	handler           *handlerService                                     // handler service
-	defaultNetService *NetService                                         // net service
-	route             map[string]func(*Session) string                    // server route function
-	ChannelServive    *channelServive                                     // channel service component
-	connections       *service.ConnectionService                          // connection service component
-	heartbeatInternal time.Duration                    = time.Second * 60 // beatheart time internal, second unit
-	endRunning        chan bool                                           // wait for end application
-	handlers          []Component                                         // all register handler service
-	remotes           []Component                                         // all register remote process call service
-	serializer        serialize.Serializer                                // serializer
+	App              *starxApp // starx application
+	AppPath          string
+	workPath         string
+	appConfigPath    string
+	serverConfigPath string
+	masterConfigPath string
+	settings         map[string][]func() // all settings
+	endRunning       chan bool           // wait for end application
 )
 
 func init() {
 	App = newApp()
-	clusterS = NewClusterService()
 	settings = make(map[string][]func())
-	remote = newRemote()
-	handler = newHandler()
-	defaultNetService = NewNetService()
-	route = make(map[string]func(*Session) string)
-	ChannelServive = newChannelServive()
-	connections = service.NewConnectionService()
 	endRunning = make(chan bool, 1)
-	serializer = protobuf.NewProtobufSerializer()
 
 	workPath, _ = os.Getwd()
 	workPath, _ = filepath.Abs(workPath)
@@ -61,19 +38,19 @@ func init() {
 	serverConfigPath = filepath.Join(AppPath, "configs", "servers.json")
 	masterConfigPath = filepath.Join(AppPath, "configs", "master.json")
 	if workPath != AppPath {
-		if utils.FileExists(appConfigPath) {
+		if fileExists(appConfigPath) {
 			os.Chdir(AppPath)
 		} else {
 			appConfigPath = filepath.Join(workPath, "configs", "app.json")
 		}
 
-		if utils.FileExists(serverConfigPath) {
+		if fileExists(serverConfigPath) {
 			os.Chdir(AppPath)
 		} else {
 			serverConfigPath = filepath.Join(workPath, "configs", "servers.json")
 		}
 
-		if utils.FileExists(masterConfigPath) {
+		if fileExists(masterConfigPath) {
 			os.Chdir(AppPath)
 		} else {
 			masterConfigPath = filepath.Join(workPath, "configs", "master.json")
@@ -83,7 +60,7 @@ func init() {
 
 func parseConfig() {
 	// initialize app config
-	if !utils.FileExists(appConfigPath) {
+	if !fileExists(appConfigPath) {
 		log.Info("%s not found", appConfigPath)
 		os.Exit(-1)
 	} else {
@@ -109,7 +86,7 @@ func parseConfig() {
 	}
 
 	// initialize servers config
-	if !utils.FileExists(serverConfigPath) {
+	if !fileExists(serverConfigPath) {
 		log.Info("%s not found", serverConfigPath)
 		os.Exit(-1)
 	} else {
@@ -129,10 +106,10 @@ func parseConfig() {
 		for svrType, svrs := range servers {
 			for _, svr := range svrs {
 				svr.Type = svrType
-				clusterS.RegisterServer(svr)
+				cluster.Register(svr)
 			}
 		}
-		clusterS.DumpSvrTypeMaps()
+		cluster.DumpSvrTypeMaps()
 	}
 
 	if App.Standalone {
@@ -141,7 +118,7 @@ func parseConfig() {
 			os.Exit(-1)
 		}
 		serverId := os.Args[1]
-		App.Config = clusterS.svrIdMaps[serverId]
+		App.Config, _ = cluster.Server(serverId)
 		if App.Config == nil {
 			log.Info("%s infomation not found in %s", serverId, serverConfigPath)
 			os.Exit(-1)
@@ -149,7 +126,7 @@ func parseConfig() {
 	} else {
 		// if server running in cluster mode, master server config require
 		// initialize master server config
-		if !utils.FileExists(masterConfigPath) {
+		if !fileExists(masterConfigPath) {
 			log.Info("%s not found", masterConfigPath)
 			os.Exit(-1)
 		} else {
@@ -169,7 +146,7 @@ func parseConfig() {
 			master.Type = "master"
 			master.IsMaster = true
 			App.Master = master
-			clusterS.RegisterServer(master)
+			cluster.Register(master)
 		}
 		if App.Master == nil {
 			log.Info("wrong master server config file(%s)", masterConfigPath)
@@ -181,11 +158,20 @@ func parseConfig() {
 		} else {
 			// other server
 			serverId := os.Args[1]
-			App.Config = clusterS.svrIdMaps[serverId]
+			App.Config, _ = cluster.Server(serverId)
 			if App.Config == nil {
 				log.Info("%s infomation not found in %s", serverId, serverConfigPath)
 				os.Exit(-1)
 			}
 		}
 	}
+
+	// dependencies initialization
+	network.SetAppConfig(App.Config)
+	cluster.SetAppConfig(App.Config)
+}
+
+func fileExists(filename string) bool {
+	_, err := os.Stat(filename)
+	return err == nil || os.IsExist(err)
 }

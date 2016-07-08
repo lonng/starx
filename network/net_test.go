@@ -1,4 +1,4 @@
-package starx
+package network
 
 import (
 	"reflect"

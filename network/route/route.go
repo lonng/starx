@@ -1,10 +1,11 @@
-package network
+package route
 
 import (
 	"errors"
 	"fmt"
-	"github.com/chrislonng/starx/log"
 	"strings"
+
+	"github.com/chrislonng/starx/log"
 )
 
 var (
@@ -26,7 +27,7 @@ func (r *Route) String() string {
 	return fmt.Sprintf("%s.%s.%s", r.ServerType, r.Service, r.Method)
 }
 
-func DecodeRoute(route string) (*Route, error) {
+func Decode(route string) (*Route, error) {
 	r := strings.Split(route, ".")
 	for _, s := range r {
 		if strings.TrimSpace(s) == "" {

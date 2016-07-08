@@ -4,43 +4,45 @@ import (
 	"sync"
 )
 
-type ConnectionService struct {
+var Connections = NewConnectionService()
+
+type connectionService struct {
 	countLock sync.RWMutex // protect connCount
 	connCount int
 	uidLock   sync.RWMutex // protect sessionID
 	sessionID uint64
 }
 
-func NewConnectionService() *ConnectionService {
-	return &ConnectionService{sessionID: 0}
+func NewConnectionService() *connectionService {
+	return &connectionService{sessionID: 0}
 }
 
-func (c *ConnectionService) Increment() {
+func (c *connectionService) Increment() {
 	c.countLock.Lock()
 	defer c.countLock.Unlock()
 	c.connCount++
 }
 
-func (c *ConnectionService) Decrement() {
+func (c *connectionService) Decrement() {
 	c.countLock.Lock()
 	defer c.countLock.Unlock()
 	c.connCount--
 }
 
-func (c *ConnectionService) Count() int {
+func (c *connectionService) Count() int {
 	c.countLock.RLock()
 	defer c.countLock.RUnlock()
 	return c.connCount
 }
 
-func (c *ConnectionService) NewSessionUUID() uint64 {
+func (c *connectionService) NewSessionUUID() uint64 {
 	c.uidLock.Lock()
 	defer c.uidLock.Unlock()
 	c.sessionID++
 	return c.sessionID
 }
 
-func (c *ConnectionService) SessionUUID() uint64 {
+func (c *connectionService) SessionUUID() uint64 {
 	c.uidLock.RLock()
 	defer c.uidLock.RUnlock()
 	return c.sessionID

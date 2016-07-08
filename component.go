@@ -1,12 +1,5 @@
 package starx
 
-type Component interface {
-	Init()
-	AfterInit()
-	BeforeShutdown()
-	Shutdown()
-}
-
 type NopComponent struct{}
 
 func (c *NopComponent) Init()           {}

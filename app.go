@@ -10,8 +10,7 @@ import (
 
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/network/rpc"
-	"github.com/chrislonng/starx/timer"
+	"github.com/chrislonng/starx/network"
 )
 
 type starxApp struct {
@@ -27,14 +26,8 @@ func newApp() *starxApp {
 }
 
 func (app *starxApp) start() {
-	app.loadComps()
+	network.Startup()
 
-	// enable all app service
-	if app.Config.IsFrontend {
-		timer.Register(heartbeatInternal, func() {
-			defaultNetService.heartbeat()
-		})
-	}
 	app.listenAndServe()
 
 	sg := make(chan os.Signal, 1)
@@ -48,7 +41,7 @@ func (app *starxApp) start() {
 		log.Info("Got signal: %v", s)
 	}
 	log.Info("server: " + app.Config.Id + " is stopping...")
-	app.shutdownComps()
+	network.Shutdown()
 	close(endRunning)
 }
 
@@ -72,58 +65,9 @@ func (app *starxApp) listenAndServe() {
 			continue
 		}
 		if app.Config.IsFrontend {
-			go handler.handle(conn)
+			go network.Handler.Handle(conn)
 		} else {
-			go remote.handle(conn)
+			go network.Remote.Handle(conn)
 		}
-	}
-}
-
-func (app *starxApp) loadComps() {
-	// handlers
-	for _, comp := range handlers {
-		comp.Init()
-	}
-	for _, comp := range handlers {
-		comp.AfterInit()
-	}
-
-	// remotes
-	for _, comp := range remotes {
-		comp.Init()
-	}
-	for _, comp := range remotes {
-		comp.AfterInit()
-	}
-
-	// register
-	for _, comp := range handlers {
-		if App.Config.IsFrontend {
-			handler.register(comp)
-		} else {
-			remote.register(rpc.Sys, comp)
-		}
-	}
-	for _, comp := range remotes {
-		remote.register(rpc.User, comp)
-	}
-	handler.dumpServiceMap()
-}
-
-func (app *starxApp) shutdownComps() {
-	// handlers
-	for _, comp := range handlers {
-		comp.BeforeShutdown()
-	}
-	for _, comp := range handlers {
-		comp.Shutdown()
-	}
-
-	// remotes
-	for _, comp := range remotes {
-		comp.BeforeShutdown()
-	}
-	for _, comp := range remotes {
-		comp.Shutdown()
 	}
 }

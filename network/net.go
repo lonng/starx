@@ -1,7 +1,4 @@
-/*
- Network handle
-*/
-package starx
+package network
 
 import (
 	"errors"
@@ -11,28 +8,32 @@ import (
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/message"
 	"github.com/chrislonng/starx/packet"
+	"github.com/chrislonng/starx/session"
 )
-
-var heartbeatPacket, _ = packet.Pack(&packet.Packet{Type: packet.Heartbeat})
 
 var ErrSessionOnNotify = errors.New("current session working on notify mode")
 
-type NetService struct {
-	agentUidLock       sync.RWMutex         // protect agentUid
-	agentUid           uint64               // agent unique id
-	agentMapLock       sync.RWMutex         // protect agentMap
-	agentMap           map[uint64]*agent    // agents map
-	acceptorUidLock    sync.RWMutex         // protect acceptorUid
-	acceptorUid        uint64               // acceptor unique id
-	acceptorMapLock    sync.RWMutex         // protect acceptorMap
-	acceptorMap        map[uint64]*acceptor // acceptor map
-	sessionCloseCbLock sync.RWMutex         // protect sessionCloseCb
-	sessionCloseCb     []func(*Session)     // callback on session closed
+var (
+	heartbeatPacket, _ = packet.Pack(&packet.Packet{Type: packet.Heartbeat})
+	defaultNetService  = NewNetService()
+)
+
+type netService struct {
+	agentUidLock       sync.RWMutex             // protect agentUid
+	agentUid           uint64                   // agent unique id
+	agentMapLock       sync.RWMutex             // protect agentMap
+	agentMap           map[uint64]*agent        // agents map
+	acceptorUidLock    sync.RWMutex             // protect acceptorUid
+	acceptorUid        uint64                   // acceptor unique id
+	acceptorMapLock    sync.RWMutex             // protect acceptorMap
+	acceptorMap        map[uint64]*acceptor     // acceptor map
+	sessionCloseCbLock sync.RWMutex             // protect sessionCloseCb
+	sessionCloseCb     []func(*session.Session) // callback on session closed
 }
 
 // Create new netservive
-func NewNetService() *NetService {
-	return &NetService{
+func NewNetService() *netService {
+	return &netService{
 		agentUid:    1,
 		agentMap:    make(map[uint64]*agent),
 		acceptorUid: 1,
@@ -41,7 +42,7 @@ func NewNetService() *NetService {
 }
 
 // Create agent via netService
-func (net *NetService) createAgent(conn net.Conn) *agent {
+func (net *netService) createAgent(conn net.Conn) *agent {
 	net.agentUidLock.Lock()
 	id := net.agentUid
 	net.agentUid++
@@ -55,7 +56,7 @@ func (net *NetService) createAgent(conn net.Conn) *agent {
 }
 
 // get agent by session id
-func (net *NetService) getAgent(sid uint64) (*agent, error) {
+func (net *netService) getAgent(sid uint64) (*agent, error) {
 	if a, ok := net.agentMap[sid]; ok && a != nil {
 		return a, nil
 	} else {
@@ -64,7 +65,7 @@ func (net *NetService) getAgent(sid uint64) (*agent, error) {
 }
 
 // Create acceptor via netService
-func (net *NetService) createAcceptor(conn net.Conn) *acceptor {
+func (net *netService) createAcceptor(conn net.Conn) *acceptor {
 	net.acceptorUidLock.Lock()
 	id := net.acceptorUid
 	net.acceptorUid++
@@ -77,7 +78,7 @@ func (net *NetService) createAcceptor(conn net.Conn) *acceptor {
 	return a
 }
 
-func (net *NetService) getAcceptor(sid uint64) (*acceptor, error) {
+func (net *netService) getAcceptor(sid uint64) (*acceptor, error) {
 	if rs, ok := net.acceptorMap[sid]; ok && rs != nil {
 		return rs, nil
 	} else {
@@ -88,21 +89,13 @@ func (net *NetService) getAcceptor(sid uint64) (*acceptor, error) {
 // Send packet data, call by package internal, the second argument was packaged packet
 // if current server is frontend server, send to client by agent, else send to frontend
 // server by acceptor
-func (net *NetService) send(session *Session, data []byte) {
-	if App.Config.IsFrontend {
-		if fs, ok := net.agentMap[session.entityID]; ok && (fs != nil) {
-			go fs.send(data)
-		}
-	} else {
-		if bs, ok := net.acceptorMap[session.entityID]; ok && (bs != nil) {
-			go bs.send(data)
-		}
-	}
+func (net *netService) send(session *session.Session, data []byte) {
+	session.Entity.Send(data)
 }
 
 // Push message to client
 // call by all package, the last argument was packaged message
-func (net *NetService) Push(session *Session, route string, data []byte) error {
+func (net *netService) Push(session *session.Session, route string, data []byte) error {
 	m, err := message.Encode(&message.Message{Type: message.MessageType(message.Push), Route: route, Data: data})
 	if err != nil {
 		log.Error(err.Error())
@@ -124,14 +117,14 @@ func (net *NetService) Push(session *Session, route string, data []byte) error {
 
 // Response message to client
 // call by all package, the last argument was packaged message
-func (net *NetService) Response(session *Session, data []byte) error {
+func (net *netService) Response(session *session.Session, data []byte) error {
 	// current message is notify message, can not response
-	if session.reqId <= 0 {
+	if session.LastID <= 0 {
 		return ErrSessionOnNotify
 	}
 	m, err := message.Encode(&message.Message{
 		Type: message.MessageType(message.Response),
-		ID:   session.reqId,
+		ID:   session.LastID,
 		Data: data,
 	})
 	if err != nil {
@@ -155,8 +148,8 @@ func (net *NetService) Response(session *Session, data []byte) error {
 // Broadcast message to all sessions
 // Message level method
 // call by all package, the last argument was packaged message
-func (net *NetService) Broadcast(route string, data []byte) {
-	if App.Config.IsFrontend {
+func (net *netService) Broadcast(route string, data []byte) {
+	if appConfig.IsFrontend {
 		for _, s := range net.agentMap {
 			net.Push(s.session, route, data)
 		}
@@ -164,7 +157,7 @@ func (net *NetService) Broadcast(route string, data []byte) {
 }
 
 // Multicast message to special agent ids
-func (net *NetService) Multicast(aids []uint64, route string, data []byte) {
+func (net *netService) Multicast(aids []uint64, route string, data []byte) {
 	for _, aid := range aids {
 		if agent, ok := net.agentMap[aid]; ok && agent != nil {
 			net.Push(agent.session, route, data)
@@ -173,7 +166,7 @@ func (net *NetService) Multicast(aids []uint64, route string, data []byte) {
 }
 
 // Close session
-func (net *NetService) closeSession(session *Session) {
+func (net *netService) closeSession(session *session.Session) {
 	// TODO: notify all backend server, current session has closed.
 	// session close callback
 	net.sessionCloseCbLock.RLock()
@@ -185,10 +178,10 @@ func (net *NetService) closeSession(session *Session) {
 		}
 	}
 	net.sessionCloseCbLock.RUnlock()
-	if App.Config.IsFrontend {
+	if appConfig.IsFrontend {
 		net.agentMapLock.Lock()
-		if agent, ok := net.agentMap[session.entityID]; ok && (agent != nil) {
-			delete(net.agentMap, session.entityID)
+		if agent, ok := net.agentMap[session.Entity.ID()]; ok && (agent != nil) {
+			delete(net.agentMap, session.Entity.ID())
 		}
 		net.agentMapLock.Unlock()
 		defaultNetService.dumpAgents()
@@ -203,15 +196,15 @@ func (net *NetService) closeSession(session *Session) {
 	}*/
 }
 
-func (net *NetService) removeAcceptor(a *acceptor) {
+func (net *netService) removeAcceptor(a *acceptor) {
 	net.acceptorMapLock.Lock()
 	delete(net.acceptorMap, a.id)
 	net.acceptorMapLock.Unlock()
 }
 
 // Send heartbeat packet
-func (net *NetService) heartbeat() {
-	if !App.Config.IsFrontend || net.agentMap == nil {
+func (net *netService) heartbeat() {
+	if !appConfig.IsFrontend || net.agentMap == nil {
 		return
 	}
 	for _, session := range net.agentMap {
@@ -223,7 +216,7 @@ func (net *NetService) heartbeat() {
 }
 
 // Dump all agents
-func (net *NetService) dumpAgents() {
+func (net *netService) dumpAgents() {
 	net.agentMapLock.RLock()
 	defer net.agentMapLock.RUnlock()
 	log.Info("current agent count: %d", len(net.agentMap))
@@ -233,7 +226,7 @@ func (net *NetService) dumpAgents() {
 }
 
 // Dump all acceptor
-func (net *NetService) dumpAcceptor() {
+func (net *netService) dumpAcceptor() {
 	net.acceptorMapLock.RLock()
 	defer net.acceptorMapLock.RUnlock()
 	log.Info("current acceptor count: %d", len(net.acceptorMap))
@@ -242,7 +235,7 @@ func (net *NetService) dumpAcceptor() {
 	}
 }
 
-func (net *NetService) sessionClosedCallback(cb func(*Session)) {
+func (net *netService) sessionClosedCallback(cb func(*session.Session)) {
 	net.sessionCloseCbLock.Lock()
 	defer net.sessionCloseCbLock.Unlock()
 	net.sessionCloseCb = append(net.sessionCloseCb, cb)
@@ -250,6 +243,6 @@ func (net *NetService) sessionClosedCallback(cb func(*Session)) {
 
 // Callback when session closed
 // Waring: session has closed,
-func OnSessionClosed(cb func(*Session)) {
+func OnSessionClosed(cb func(*session.Session)) {
 	defaultNetService.sessionClosedCallback(cb)
 }
