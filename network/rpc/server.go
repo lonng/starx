@@ -2,13 +2,17 @@ package rpc
 
 import (
 	"errors"
-	"github.com/chrislonng/starx/utils"
 	"reflect"
+	stddebug "runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/chrislonng/starx/log"
+	"github.com/chrislonng/starx/utils"
+	"os"
 )
 
 type ResponseKind byte
@@ -198,7 +202,18 @@ func (m *methodType) NumCalls() (n uint) {
 	return n
 }
 
-func (server *Server) Call(serviceMethod string, args []reflect.Value) ([]reflect.Value, error) {
+func (server *Server) Call(serviceMethod string, args []reflect.Value) (r []reflect.Value, err error) {
+	defer func() {
+		if recov := recover(); recov != nil {
+			log.Fatal("RpcCall Error: %+v", recov)
+			os.Stderr.Write(stddebug.Stack())
+			if s, ok := recov.(string); ok {
+				err = errors.New(s)
+			} else {
+				err = errors.New("RpcCall internal error")
+			}
+		}
+	}()
 	parts := strings.Split(serviceMethod, ".")
 	if len(parts) != 2 {
 		return nil, errors.New("wrong route string: " + serviceMethod)
@@ -209,13 +224,11 @@ func (server *Server) Call(serviceMethod string, args []reflect.Value) ([]reflec
 	service, ok := server.serviceMap[s]
 	if !ok || service == nil {
 		return nil, errors.New("remote: servive " + s + " does not exists")
-
 	}
 
 	method, ok := service.method[m]
 	if !ok || method == nil {
 		return nil, errors.New("remote: service " + s + "does not contain method: " + m)
-
 	}
 	args = append([]reflect.Value{service.rcvr}, args...)
 	rets := method.method.Func.Call(args)

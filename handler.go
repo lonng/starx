@@ -13,6 +13,7 @@ import (
 	"github.com/chrislonng/starx/network/rpc"
 	"github.com/chrislonng/starx/packet"
 	"github.com/chrislonng/starx/utils"
+	"runtime"
 )
 
 // Unhandled message buffer size
@@ -139,7 +140,8 @@ func (handler *handlerService) processPacket(a *agent, p *packet.Packet) {
 func (handler *handlerService) processMessage(session *Session, m *message.Message) {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Error("processMessage Error: %+v", err)
+			runtime.Caller(2)
+			log.Fatal("processMessage Error: %+v", err)
 		}
 	}()
 	log.Info("Route: %s, Length: %d", m.Route, len(m.Data))
