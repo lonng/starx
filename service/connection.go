@@ -1,4 +1,4 @@
-package starx
+package service
 
 import (
 	"sync"
@@ -11,9 +11,8 @@ type ConnectionService struct {
 	sessionID uint64
 }
 
-func newConnectionService() *ConnectionService {
-	return &ConnectionService{
-		sessionID: 0}
+func NewConnectionService() *ConnectionService {
+	return &ConnectionService{sessionID: 0}
 }
 
 func (c *ConnectionService) Increment() {

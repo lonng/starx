@@ -11,6 +11,7 @@ import (
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/serialize"
 	"github.com/chrislonng/starx/serialize/protobuf"
+	"github.com/chrislonng/starx/service"
 	"github.com/chrislonng/starx/utils"
 )
 
@@ -27,10 +28,10 @@ var (
 	settings          map[string][]func()                                 // all settings
 	remote            *remoteService                                      // remote service
 	handler           *handlerService                                     // handler service
-	defaultNetService *netService                                         // net service
+	defaultNetService *NetService                                         // net service
 	route             map[string]func(*Session) string                    // server route function
 	ChannelServive    *channelServive                                     // channel service component
-	connections       *ConnectionService                                  // connection service component
+	connections       *service.ConnectionService                          // connection service component
 	heartbeatInternal time.Duration                    = time.Second * 60 // beatheart time internal, second unit
 	endRunning        chan bool                                           // wait for end application
 	handlers          []Component                                         // all register handler service
@@ -63,10 +64,10 @@ func init() {
 	settings = make(map[string][]func())
 	remote = newRemote()
 	handler = newHandler()
-	defaultNetService = newNetService()
+	defaultNetService = NewNetService()
 	route = make(map[string]func(*Session) string)
 	ChannelServive = newChannelServive()
-	connections = newConnectionService()
+	connections = service.NewConnectionService()
 	endRunning = make(chan bool, 1)
 	serializer = protobuf.NewProtobufSerializer()
 

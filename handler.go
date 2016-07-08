@@ -34,7 +34,7 @@ type methodType struct {
 	numCalls   uint
 }
 
-type service struct {
+type Service struct {
 	name   string                 // name of service
 	rcvr   reflect.Value          // receiver of methods for the service
 	typ    reflect.Type           // type of the receiver
@@ -42,14 +42,14 @@ type service struct {
 }
 
 type handlerService struct {
-	serviceMap   map[string]*service
+	serviceMap   map[string]*Service
 	routeMap     map[string]uint
 	routeCodeMap map[uint]string
 }
 
 func newHandler() *handlerService {
 	return &handlerService{
-		serviceMap:   make(map[string]*service),
+		serviceMap:   make(map[string]*Service),
 		routeMap:     make(map[string]uint),
 		routeCodeMap: make(map[uint]string),
 	}
@@ -222,9 +222,9 @@ func (handler *handlerService) remoteProcess(session *Session, route *network.Ro
 //	- the second argument is []byte
 func (handler *handlerService) register(rcvr Component) error {
 	if handler.serviceMap == nil {
-		handler.serviceMap = make(map[string]*service)
+		handler.serviceMap = make(map[string]*Service)
 	}
-	s := new(service)
+	s := new(Service)
 	s.typ = reflect.TypeOf(rcvr)
 	s.rcvr = reflect.ValueOf(rcvr)
 	sname := reflect.Indirect(s.rcvr).Type().Name()
