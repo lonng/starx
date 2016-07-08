@@ -51,7 +51,7 @@ func newHandler() *handlerService {
 	return &handlerService{
 		serviceMap:   make(map[string]*service),
 		routeMap:     make(map[string]uint),
-		routeCodeMap: make(map[string]string),
+		routeCodeMap: make(map[uint]string),
 	}
 }
 
