@@ -44,7 +44,7 @@ type Session struct {
 // Create new session instance
 func newSession() *Session {
 	return &Session{
-		Id:       connections.getNewSessionUUID(),
+		Id:       connections.NewSessionUUID(),
 		lastTime: time.Now().Unix()}
 }
 

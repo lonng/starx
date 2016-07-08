@@ -30,7 +30,7 @@ var (
 	defaultNetService *netService                                         // net service
 	route             map[string]func(*Session) string                    // server route function
 	ChannelServive    *channelServive                                     // channel service component
-	connections       *connectionService                                  // connection service component
+	connections       *ConnectionService                                  // connection service component
 	heartbeatInternal time.Duration                    = time.Second * 60 // beatheart time internal, second unit
 	endRunning        chan bool                                           // wait for end application
 	handlers          []Component                                         // all register handler service

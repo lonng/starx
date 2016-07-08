@@ -4,45 +4,45 @@ import (
 	"sync"
 )
 
-type connectionService struct {
-	connCountLock sync.RWMutex // protect connCount
-	connCount     int
-	sessUIDLock   sync.RWMutex // protect sessUID
-	sessUID       uint64
+type ConnectionService struct {
+	countLock sync.RWMutex // protect connCount
+	connCount int
+	uidLock   sync.RWMutex // protect sessionID
+	sessionID uint64
 }
 
-func newConnectionService() *connectionService {
-	return &connectionService{
-		sessUID: 0}
+func newConnectionService() *ConnectionService {
+	return &ConnectionService{
+		sessionID: 0}
 }
 
-func (c *connectionService) incrementConnCount() {
-	c.connCountLock.Lock()
-	defer c.connCountLock.Unlock()
+func (c *ConnectionService) Increment() {
+	c.countLock.Lock()
+	defer c.countLock.Unlock()
 	c.connCount++
 }
 
-func (c *connectionService) decrementConnCount() {
-	c.connCountLock.Lock()
-	defer c.connCountLock.Unlock()
+func (c *ConnectionService) Decrement() {
+	c.countLock.Lock()
+	defer c.countLock.Unlock()
 	c.connCount--
 }
 
-func (c *connectionService) getCurrentConnCount() int {
-	c.connCountLock.RLock()
-	defer c.connCountLock.RUnlock()
+func (c *ConnectionService) Count() int {
+	c.countLock.RLock()
+	defer c.countLock.RUnlock()
 	return c.connCount
 }
 
-func (c *connectionService) getNewSessionUUID() uint64 {
-	c.sessUIDLock.Lock()
-	defer c.sessUIDLock.Unlock()
-	c.sessUID++
-	return c.sessUID
+func (c *ConnectionService) NewSessionUUID() uint64 {
+	c.uidLock.Lock()
+	defer c.uidLock.Unlock()
+	c.sessionID++
+	return c.sessionID
 }
 
-func (c *connectionService) getCurrentSessionUUID() uint64 {
-	c.sessUIDLock.RLock()
-	defer c.sessUIDLock.RUnlock()
-	return c.sessUID
+func (c *ConnectionService) SessionUUID() uint64 {
+	c.uidLock.RLock()
+	defer c.uidLock.RUnlock()
+	return c.sessionID
 }
