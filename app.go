@@ -8,14 +8,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/network/rpc"
 	"github.com/chrislonng/starx/timer"
 )
 
 type starxApp struct {
-	Master     *ServerConfig // master server config
-	Config     *ServerConfig // current server information
+	Master     *cluster.ServerConfig // master server config
+	Config     *cluster.ServerConfig // current server information
 	AppName    string
 	Standalone bool // current server is running in standalone mode
 	StartTime  time.Time

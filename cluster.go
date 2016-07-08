@@ -6,22 +6,23 @@ import (
 	"math/rand"
 	"sync"
 
+	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/network/rpc"
 )
 
 type clusterService struct {
-	svrTypes     []string                 // all server type
-	svrTypeMaps  map[string][]string      // all servers type maps
-	svrIdMaps    map[string]*ServerConfig // all servers id maps
-	lock         sync.RWMutex             // protect ClientIdMaps
-	clientIdMaps map[string]*rpc.Client   // all rpc clients
+	svrTypes     []string                         // all server type
+	svrTypeMaps  map[string][]string              // all servers type maps
+	svrIdMaps    map[string]*cluster.ServerConfig // all servers id maps
+	lock         sync.RWMutex                     // protect ClientIdMaps
+	clientIdMaps map[string]*rpc.Client           // all rpc clients
 }
 
 func NewClusterService() *clusterService {
 	return &clusterService{
 		svrTypeMaps:  make(map[string][]string),
-		svrIdMaps:    make(map[string]*ServerConfig),
+		svrIdMaps:    make(map[string]*cluster.ServerConfig),
 		clientIdMaps: make(map[string]*rpc.Client)}
 }
 
@@ -43,7 +44,7 @@ func (c *clusterService) DumpSvrTypeMaps() {
 	}
 }
 
-func (c *clusterService) RegisterServer(server *ServerConfig) {
+func (c *clusterService) RegisterServer(server *cluster.ServerConfig) {
 	// server exists
 	if _, ok := c.svrIdMaps[server.Id]; ok {
 		log.Info("serverId: %s already existed(%s)", server.Id, server.String())
@@ -96,7 +97,7 @@ func (c *clusterService) RemoveServer(svrId string) {
 	}
 }
 
-func (c *clusterService) UpdateServer(newSvr *ServerConfig) {
+func (c *clusterService) UpdateServer(newSvr *cluster.ServerConfig) {
 	if srv, ok := c.svrIdMaps[newSvr.Id]; ok && srv != nil {
 		c.svrIdMaps[srv.Id] = newSvr
 	} else {

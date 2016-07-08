@@ -3,6 +3,7 @@ package starx
 import (
 	"encoding/json"
 
+	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
 )
 
@@ -22,23 +23,23 @@ func (this *Manager) Shutdown()       {}
 
 // attachment methods
 func (m *Manager) UpdateServer(session *Session, data []byte) error {
-	var newServerInfo *ServerConfig
+	var newServerInfo *cluster.ServerConfig
 	err := json.Unmarshal(data, newServerInfo)
 	if err != nil {
 		return err
 	}
-	cluster.UpdateServer(newServerInfo)
+	clusterS.UpdateServer(newServerInfo)
 	return nil
 }
 
 func (m *Manager) RegisterServer(session *Session, data []byte) error {
-	var newServerInfo *ServerConfig
+	var newServerInfo *cluster.ServerConfig
 	err := json.Unmarshal(data, newServerInfo)
 	if err != nil {
 		return err
 	}
 	log.Info("new server connected in")
-	cluster.RegisterServer(newServerInfo)
+	clusterS.RegisterServer(newServerInfo)
 	return nil
 }
 
@@ -48,6 +49,6 @@ func (m *Manager) RemoveServer(session *Session, data []byte) error {
 	if err != nil {
 		return err
 	}
-	cluster.RemoveServer(srvId)
+	clusterS.RemoveServer(srvId)
 	return nil
 }

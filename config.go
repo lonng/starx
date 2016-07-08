@@ -2,12 +2,12 @@ package starx
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/serialize"
 	"github.com/chrislonng/starx/serialize/protobuf"
@@ -24,7 +24,7 @@ var (
 	appConfigPath     string
 	serverConfigPath  string
 	masterConfigPath  string
-	cluster           *clusterService                                     // cluster service
+	clusterS          *clusterService                                     // cluster service
 	settings          map[string][]func()                                 // all settings
 	remote            *remoteService                                      // remote service
 	handler           *handlerService                                     // handler service
@@ -39,28 +39,9 @@ var (
 	serializer        serialize.Serializer                                // serializer
 )
 
-type ServerConfig struct {
-	Type       string
-	Id         string
-	Host       string
-	Port       int32
-	IsFrontend bool
-	IsMaster   bool
-}
-
-func (this *ServerConfig) String() string {
-	return fmt.Sprintf("Type: %s, Id: %s, Host: %s, Port: %d, IsFrontend: %t, IsMaster: %t",
-		this.Type,
-		this.Id,
-		this.Host,
-		this.Port,
-		this.IsFrontend,
-		this.IsMaster)
-}
-
 func init() {
 	App = newApp()
-	cluster = NewClusterService()
+	clusterS = NewClusterService()
 	settings = make(map[string][]func())
 	remote = newRemote()
 	handler = newHandler()
@@ -136,7 +117,7 @@ func parseConfig() {
 		defer f.Close()
 
 		reader := json.NewDecoder(f)
-		var servers map[string][]*ServerConfig
+		var servers map[string][]*cluster.ServerConfig
 		for {
 			if err := reader.Decode(&servers); err == io.EOF {
 				break
@@ -148,10 +129,10 @@ func parseConfig() {
 		for svrType, svrs := range servers {
 			for _, svr := range svrs {
 				svr.Type = svrType
-				cluster.RegisterServer(svr)
+				clusterS.RegisterServer(svr)
 			}
 		}
-		cluster.DumpSvrTypeMaps()
+		clusterS.DumpSvrTypeMaps()
 	}
 
 	if App.Standalone {
@@ -160,7 +141,7 @@ func parseConfig() {
 			os.Exit(-1)
 		}
 		serverId := os.Args[1]
-		App.Config = cluster.svrIdMaps[serverId]
+		App.Config = clusterS.svrIdMaps[serverId]
 		if App.Config == nil {
 			log.Info("%s infomation not found in %s", serverId, serverConfigPath)
 			os.Exit(-1)
@@ -176,7 +157,7 @@ func parseConfig() {
 			defer f.Close()
 
 			reader := json.NewDecoder(f)
-			var master *ServerConfig
+			var master *cluster.ServerConfig
 			for {
 				if err := reader.Decode(master); err == io.EOF {
 					break
@@ -188,7 +169,7 @@ func parseConfig() {
 			master.Type = "master"
 			master.IsMaster = true
 			App.Master = master
-			cluster.RegisterServer(master)
+			clusterS.RegisterServer(master)
 		}
 		if App.Master == nil {
 			log.Info("wrong master server config file(%s)", masterConfigPath)
@@ -200,7 +181,7 @@ func parseConfig() {
 		} else {
 			// other server
 			serverId := os.Args[1]
-			App.Config = cluster.svrIdMaps[serverId]
+			App.Config = clusterS.svrIdMaps[serverId]
 			if App.Config == nil {
 				log.Info("%s infomation not found in %s", serverId, serverConfigPath)
 				os.Exit(-1)
