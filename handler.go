@@ -23,7 +23,7 @@ const (
 )
 
 type unhandledPacket struct {
-	fs     *agent
+	agent  *agent
 	packet *packet.Packet
 }
 
@@ -49,7 +49,10 @@ type handlerService struct {
 
 func newHandler() *handlerService {
 	return &handlerService{
-		serviceMap: make(map[string]*service)}
+		serviceMap:   make(map[string]*service),
+		routeMap:     make(map[string]uint),
+		routeCodeMap: make(map[string]string),
+	}
 }
 
 // Handle network connection
@@ -63,13 +66,13 @@ func (handler *handlerService) handle(conn net.Conn) {
 	// all user logic will be handled in single goroutine
 	// synchronized in below routine
 	go func() {
+	loop:
 		for {
 			select {
-			case cpkg := <-packetChan:
-				handler.processPacket(cpkg.fs, cpkg.packet)
+			case p := <-packetChan:
+				handler.processPacket(p.agent, p.packet)
 			case <-endChan:
-				close(packetChan)
-				return
+				break loop
 			}
 		}
 
@@ -82,20 +85,21 @@ func (handler *handlerService) handle(conn net.Conn) {
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
-			log.Info("session closed(" + err.Error() + ")")
-			agent.close()
+			log.Info("session closed, id: %d, ip: %s", agent.session.Id, agent.socket.RemoteAddr())
+			close(packetChan)
 			endChan <- true
+			agent.close()
 			break
 		}
 		tmp = append(tmp, buf[:n]...)
-		var pkg *packet.Packet // save decoded packet
+		var p *packet.Packet // save decoded packet
 		for len(tmp) >= packet.HeadLength {
-			pkg, tmp, err = packet.Unpack(tmp)
+			p, tmp, err = packet.Unpack(tmp)
 			if err != nil {
 				agent.close()
 				break
 			}
-			packetChan <- &unhandledPacket{agent, pkg}
+			packetChan <- &unhandledPacket{agent: agent, packet: p}
 		}
 	}
 }
