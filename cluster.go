@@ -18,20 +18,20 @@ type clusterService struct {
 	clientIdMaps map[string]*rpc.Client   // all rpc clients
 }
 
-func newClusterService() *clusterService {
+func NewClusterService() *clusterService {
 	return &clusterService{
 		svrTypeMaps:  make(map[string][]string),
 		svrIdMaps:    make(map[string]*ServerConfig),
 		clientIdMaps: make(map[string]*rpc.Client)}
 }
 
-func (c *clusterService) dumpSvrIdMaps() {
+func (c *clusterService) DumpSvrIdMaps() {
 	for _, v := range c.svrIdMaps {
 		log.Info("id: %s(%s)", v.Id, v.String())
 	}
 }
 
-func (c *clusterService) dumpSvrTypeMaps() {
+func (c *clusterService) DumpSvrTypeMaps() {
 	for _, t := range c.svrTypes {
 		svrs := c.svrTypeMaps[t]
 		if len(svrs) == 0 {
@@ -43,13 +43,13 @@ func (c *clusterService) dumpSvrTypeMaps() {
 	}
 }
 
-func (c *clusterService) registerServer(server ServerConfig) {
+func (c *clusterService) RegisterServer(server *ServerConfig) {
 	// server exists
 	if _, ok := c.svrIdMaps[server.Id]; ok {
 		log.Info("serverId: %s already existed(%s)", server.Id, server.String())
 		return
 	}
-	svr := &server
+	svr := server
 	if len(c.svrTypes) > 0 {
 		for k, t := range c.svrTypes {
 			// duplicate
@@ -68,7 +68,7 @@ func (c *clusterService) registerServer(server ServerConfig) {
 	c.svrTypeMaps[svr.Type] = append(c.svrTypeMaps[svr.Type], svr.Id)
 }
 
-func (c *clusterService) removeServer(svrId string) {
+func (c *clusterService) RemoveServer(svrId string) {
 
 	if _, ok := c.svrIdMaps[svrId]; ok {
 		// remove from ServerIdMaps map
@@ -90,21 +90,21 @@ func (c *clusterService) removeServer(svrId string) {
 		}
 		// remove from ServerIdMaps
 		delete(c.svrIdMaps, svrId)
-		c.closeClient(svrId)
+		c.CloseClient(svrId)
 	} else {
 		log.Info("serverId: %s not found", svrId)
 	}
 }
 
-func (c *clusterService) updateServer(newSvr ServerConfig) {
+func (c *clusterService) UpdateServer(newSvr *ServerConfig) {
 	if srv, ok := c.svrIdMaps[newSvr.Id]; ok && srv != nil {
-		c.svrIdMaps[srv.Id] = &newSvr
+		c.svrIdMaps[srv.Id] = newSvr
 	} else {
 		log.Error(newSvr.Id + " not exists")
 	}
 }
 
-func (c *clusterService) closeClient(svrId string) {
+func (c *clusterService) CloseClient(svrId string) {
 	if client, ok := c.clientIdMaps[svrId]; ok {
 		c.lock.Lock()
 		delete(c.clientIdMaps, svrId)
@@ -115,13 +115,13 @@ func (c *clusterService) closeClient(svrId string) {
 	}
 
 	log.Info("%s rpc client has been removed.", svrId)
-	c.dumpClientIdMaps()
+	c.DumpClientIdMaps()
 }
 
 // TODO: add another argment session, to select a exact server when the
 // server type has more than one server
 // all established `rpc.Client` will be disconnected in `App.Stop()`
-func (c *clusterService) getClientByType(svrType string, session *Session) (*rpc.Client, error) {
+func (c *clusterService) ClientByType(svrType string, session *Session) (*rpc.Client, error) {
 	if svrType == App.Config.Type {
 		return nil, errors.New(fmt.Sprintf("current server has the same type(Type: %s)", svrType))
 	}
@@ -129,12 +129,12 @@ func (c *clusterService) getClientByType(svrType string, session *Session) (*rpc
 	if nums := len(svrIds); nums > 0 {
 		if fn := route[svrType]; fn != nil {
 			// try to get user-define route function
-			return c.getClientById(fn(session))
+			return c.ClientById(fn(session))
 		} else {
 			// if can not abtain user-define route function,
 			// select a random server establish rpc connection
 			random := rand.Intn(nums)
-			return c.getClientById(svrIds[random])
+			return c.ClientById(svrIds[random])
 		}
 	}
 	return nil, errors.New("not found rpc client")
@@ -145,7 +145,7 @@ func (c *clusterService) getClientByType(svrType string, session *Session) (*rpc
 // connect remote server when remote server network connectoin has not made
 // by now, and return a nil value when server id not found or target machine
 // refuse it.
-func (c *clusterService) getClientById(svrId string) (*rpc.Client, error) {
+func (c *clusterService) ClientById(svrId string) (*rpc.Client, error) {
 	c.lock.RLock()
 	client := c.clientIdMaps[svrId]
 	c.lock.RUnlock()
@@ -165,7 +165,7 @@ func (c *clusterService) getClientById(svrId string) (*rpc.Client, error) {
 		}
 		// on client shutdown
 		client.OnShutdown(func() {
-			c.removeServer(svr.Id)
+			c.RemoveServer(svr.Id)
 		})
 		c.lock.Lock()
 		c.clientIdMaps[svr.Id] = client
@@ -191,23 +191,23 @@ func (c *clusterService) getClientById(svrId string) (*rpc.Client, error) {
 			}
 		}()
 		log.Info("%s establish rpc client successful.", svr.Id)
-		c.dumpClientIdMaps()
+		c.DumpClientIdMaps()
 		return client, nil
 	}
 	return nil, errors.New(fmt.Sprintf("server id does not exists(Id: %s)", svrId))
 }
 
 // Dump all clients that has established netword connection with remote server
-func (c *clusterService) dumpClientIdMaps() {
+func (c *clusterService) DumpClientIdMaps() {
 	for id, _ := range c.clientIdMaps {
 		log.Info("[%s] is contained in rpc client list", id)
 	}
 }
 
-func (c *clusterService) close() {
+func (c *clusterService) Close() {
 	// close rpc clients
 	log.Info("close all of socket connections")
 	for svrId, _ := range c.clientIdMaps {
-		c.closeClient(svrId)
+		c.CloseClient(svrId)
 	}
 }

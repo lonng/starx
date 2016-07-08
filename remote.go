@@ -205,7 +205,7 @@ func (rs *remoteService) asyncRequest(route *network.Route, session *Session, ar
 // Client send request
 // First argument is namespace, can be set `user` or `sys`
 func (this *remoteService) request(rpcKind rpc.RpcKind, route *network.Route, session *Session, args []byte) ([]byte, error) {
-	client, err := cluster.getClientByType(route.ServerType, session)
+	client, err := cluster.ClientByType(route.ServerType, session)
 	if err != nil {
 		log.Info(err.Error())
 		return nil, err

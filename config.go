@@ -60,7 +60,7 @@ func (this *ServerConfig) String() string {
 
 func init() {
 	App = newApp()
-	cluster = newClusterService()
+	cluster = NewClusterService()
 	settings = make(map[string][]func())
 	remote = newRemote()
 	handler = newHandler()
@@ -136,7 +136,7 @@ func parseConfig() {
 		defer f.Close()
 
 		reader := json.NewDecoder(f)
-		var servers map[string][]ServerConfig
+		var servers map[string][]*ServerConfig
 		for {
 			if err := reader.Decode(&servers); err == io.EOF {
 				break
@@ -148,10 +148,10 @@ func parseConfig() {
 		for svrType, svrs := range servers {
 			for _, svr := range svrs {
 				svr.Type = svrType
-				cluster.registerServer(svr)
+				cluster.RegisterServer(svr)
 			}
 		}
-		cluster.dumpSvrTypeMaps()
+		cluster.DumpSvrTypeMaps()
 	}
 
 	if App.Standalone {
@@ -176,9 +176,9 @@ func parseConfig() {
 			defer f.Close()
 
 			reader := json.NewDecoder(f)
-			var master ServerConfig
+			var master *ServerConfig
 			for {
-				if err := reader.Decode(&master); err == io.EOF {
+				if err := reader.Decode(master); err == io.EOF {
 					break
 				} else if err != nil {
 					log.Error(err.Error())
@@ -187,8 +187,8 @@ func parseConfig() {
 
 			master.Type = "master"
 			master.IsMaster = true
-			App.Master = &master
-			cluster.registerServer(master)
+			App.Master = master
+			cluster.RegisterServer(master)
 		}
 		if App.Master == nil {
 			log.Info("wrong master server config file(%s)", masterConfigPath)

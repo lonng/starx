@@ -22,23 +22,23 @@ func (this *Manager) Shutdown()       {}
 
 // attachment methods
 func (m *Manager) UpdateServer(session *Session, data []byte) error {
-	var newServerInfo ServerConfig
-	err := json.Unmarshal(data, &newServerInfo)
+	var newServerInfo *ServerConfig
+	err := json.Unmarshal(data, newServerInfo)
 	if err != nil {
 		return err
 	}
-	cluster.updateServer(newServerInfo)
+	cluster.UpdateServer(newServerInfo)
 	return nil
 }
 
 func (m *Manager) RegisterServer(session *Session, data []byte) error {
-	var newServerInfo ServerConfig
-	err := json.Unmarshal(data, &newServerInfo)
+	var newServerInfo *ServerConfig
+	err := json.Unmarshal(data, newServerInfo)
 	if err != nil {
 		return err
 	}
 	log.Info("new server connected in")
-	cluster.registerServer(newServerInfo)
+	cluster.RegisterServer(newServerInfo)
 	return nil
 }
 
@@ -48,6 +48,6 @@ func (m *Manager) RemoveServer(session *Session, data []byte) error {
 	if err != nil {
 		return err
 	}
-	cluster.removeServer(srvId)
+	cluster.RemoveServer(srvId)
 	return nil
 }
