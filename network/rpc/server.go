@@ -2,17 +2,17 @@ package rpc
 
 import (
 	"errors"
+	"os"
 	"reflect"
 	stddebug "runtime/debug"
 	"strconv"
-	"strings"
 	"sync"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/chrislonng/starx/log"
+	"github.com/chrislonng/starx/network"
 	"github.com/chrislonng/starx/utils"
-	"os"
 )
 
 type ResponseKind byte
@@ -28,9 +28,9 @@ const (
 type RpcKind byte
 
 const (
-	_       RpcKind = iota
-	SysRpc          // sys namespace rpc
-	UserRpc         // user namespace rpc
+	_    RpcKind = iota
+	Sys          // sys namespace rpc
+	User         // user namespace rpc
 )
 
 type methodType struct {
@@ -85,10 +85,10 @@ func NewServer(kind RpcKind) *Server {
 }
 
 // SysRpcServer is the system namespace rpc instance of *Server.
-var SysRpcServer = NewServer(SysRpc)
+var SysRpcServer = NewServer(Sys)
 
 // UserRpcServer is the user namespace rpc instance of *Server
-var UserRpcServer = NewServer(UserRpc)
+var UserRpcServer = NewServer(User)
 
 // Is this an exported - upper case - name?
 func isExported(name string) bool {
@@ -174,7 +174,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 func suitableMethods(kind RpcKind, typ reflect.Type, reportErr bool) map[string]*methodType {
 	methods := make(map[string]*methodType)
 	switch kind {
-	case SysRpc:
+	case Sys:
 		for m := 0; m < typ.NumMethod(); m++ {
 			method := typ.Method(m)
 			mtype := method.Type
@@ -183,7 +183,7 @@ func suitableMethods(kind RpcKind, typ reflect.Type, reportErr bool) map[string]
 				methods[mname] = &methodType{method: method, ArgType: mtype.In(1), ReplyType: mtype.In(2)}
 			}
 		}
-	case UserRpc:
+	case User:
 		for m := 0; m < typ.NumMethod(); m++ {
 			method := typ.Method(m)
 			mname := method.Name
@@ -214,21 +214,20 @@ func (server *Server) Call(serviceMethod string, args []reflect.Value) (r []refl
 			}
 		}
 	}()
-	parts := strings.Split(serviceMethod, ".")
-	if len(parts) != 2 {
-		return nil, errors.New("wrong route string: " + serviceMethod)
+
+	route, err := network.DecodeRoute(serviceMethod)
+	if err != nil {
+		return nil, err
 	}
 
-	s, m := parts[0], parts[1]
-
-	service, ok := server.serviceMap[s]
+	service, ok := server.serviceMap[route.Service]
 	if !ok || service == nil {
-		return nil, errors.New("remote: servive " + s + " does not exists")
+		return nil, errors.New("remote: servive " + route.Service + " does not exists")
 	}
 
-	method, ok := service.method[m]
+	method, ok := service.method[route.Method]
 	if !ok || method == nil {
-		return nil, errors.New("remote: service " + s + "does not contain method: " + m)
+		return nil, errors.New("remote: service " + route.Service + "does not contain method: " + route.Method)
 	}
 	args = append([]reflect.Value{service.rcvr}, args...)
 	rets := method.method.Func.Call(args)
@@ -249,8 +248,8 @@ func (k ResponseKind) String() string {
 }
 
 var rpcKindNames = []string{
-	SysRpc:  "SysRpc",  // system rpc
-	UserRpc: "UserRpc", // user rpc
+	Sys:  "SysRpc",  // system rpc
+	User: "UserRpc", // user rpc
 }
 
 func (k RpcKind) String() string {

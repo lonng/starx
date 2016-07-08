@@ -44,9 +44,9 @@ func newRemote() *remoteService {
 
 func (rs *remoteService) register(rpcKind rpc.RpcKind, comp Component) {
 	comp.Init()
-	if rpcKind == rpc.SysRpc {
+	if rpcKind == rpc.Sys {
 		rpc.SysRpcServer.Register(comp)
-	} else if rpcKind == rpc.UserRpc {
+	} else if rpcKind == rpc.User {
 		rpc.UserRpcServer.Register(comp)
 	} else {
 		log.Error("invalid rpc kind")
@@ -155,9 +155,9 @@ func (rs *remoteService) processRequest(bs *acceptor, rr *rpc.Request) {
 	}
 
 	switch rr.Kind {
-	case rpc.SysRpc:
+	case rpc.Sys:
 		fmt.Println(string(rr.Args))
-		session := bs.GetUserSession(rr.Sid)
+		session := bs.Session(rr.Sid)
 		ret, err := rpc.SysRpcServer.Call(rr.ServiceMethod, []reflect.Value{reflect.ValueOf(session), reflect.ValueOf(rr.Args)})
 		if err != nil {
 			response.Error = err.Error()
@@ -168,7 +168,7 @@ func (rs *remoteService) processRequest(bs *acceptor, rr *rpc.Request) {
 				response.Error = err.(error).Error()
 			}
 		}
-	case rpc.UserRpc:
+	case rpc.User:
 		var args interface{}
 		var params = []reflect.Value{}
 		json.Unmarshal(rr.Args, &args)

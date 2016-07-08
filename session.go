@@ -128,7 +128,7 @@ func (session *Session) String() string {
 	return fmt.Sprintf("Id: %d, Uid: %d", session.Id, session.Uid)
 }
 
-func (session *Session) AsyncRPC(route string, args ...interface{}) error {
+func (session *Session) AsyncCall(route string, args ...interface{}) error {
 	r, err := network.DecodeRoute(route)
 	if err != nil {
 		return err
@@ -142,11 +142,11 @@ func (session *Session) AsyncRPC(route string, args ...interface{}) error {
 	if err != nil {
 		return err
 	}
-	_, err = remote.request(rpc.UserRpc, r, session, encodeArgs)
+	_, err = remote.request(rpc.User, r, session, encodeArgs)
 	return err
 }
 
-func (session *Session) RPC(route string, args ...interface{}) ([]byte, error) {
+func (session *Session) Call(route string, args ...interface{}) ([]byte, error) {
 	r, err := network.DecodeRoute(route)
 	if err != nil {
 		return nil, err
@@ -161,7 +161,7 @@ func (session *Session) RPC(route string, args ...interface{}) ([]byte, error) {
 		return nil, err
 	}
 
-	return remote.request(rpc.UserRpc, r, session, encodeArgs)
+	return remote.request(rpc.User, r, session, encodeArgs)
 }
 
 // Sync session setting to frontend server

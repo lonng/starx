@@ -28,7 +28,8 @@ func newAcceptor(id uint64, conn net.Conn) *acceptor {
 		sessionMap: make(map[uint64]*Session),
 		f2bMap:     make(map[uint64]uint64),
 		b2fMap:     make(map[uint64]uint64),
-		lastTime:   time.Now().Unix()}
+		lastTime:   time.Now().Unix(),
+	}
 }
 
 // String implement Stringer interface
@@ -47,17 +48,17 @@ func (a *acceptor) heartbeat() {
 	a.lastTime = time.Now().Unix()
 }
 
-func (a *acceptor) GetUserSession(sid uint64) *Session {
+func (a *acceptor) Session(sid uint64) *Session {
 	if bsid, ok := a.f2bMap[sid]; ok && bsid > 0 {
 		return a.sessionMap[bsid]
-	} else {
-		s := newSession()
-		s.entityID = a.id
-		a.sessionMap[s.Id] = s
-		a.f2bMap[sid] = s.Id
-		a.b2fMap[s.Id] = sid
-		return s
 	}
+
+	s := newSession()
+	s.entityID = a.id
+	a.sessionMap[s.Id] = s
+	a.f2bMap[sid] = s.Id
+	a.b2fMap[s.Id] = sid
+	return s
 }
 
 func (a *acceptor) close() {

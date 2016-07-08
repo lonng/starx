@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"reflect"
+	"runtime"
 	"sync"
 
 	"github.com/chrislonng/starx/log"
@@ -13,7 +14,6 @@ import (
 	"github.com/chrislonng/starx/network/rpc"
 	"github.com/chrislonng/starx/packet"
 	"github.com/chrislonng/starx/utils"
-	"runtime"
 )
 
 // Unhandled message buffer size
@@ -201,10 +201,10 @@ func (handler *handlerService) remoteProcess(session *Session, route *network.Ro
 	switch msg.Type {
 	case message.Request:
 		session.reqId = msg.ID
-		remote.request(rpc.SysRpc, route, session, msg.Data)
+		remote.request(rpc.Sys, route, session, msg.Data)
 	case message.Notify:
 		session.reqId = 0
-		remote.request(rpc.SysRpc, route, session, msg.Data)
+		remote.request(rpc.Sys, route, session, msg.Data)
 	default:
 		log.Error("invalid message type")
 	}

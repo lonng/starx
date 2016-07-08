@@ -100,11 +100,11 @@ func (app *starxApp) loadComps() {
 		if App.Config.IsFrontend {
 			handler.register(comp)
 		} else {
-			remote.register(rpc.SysRpc, comp)
+			remote.register(rpc.Sys, comp)
 		}
 	}
 	for _, comp := range remotes {
-		remote.register(rpc.UserRpc, comp)
+		remote.register(rpc.User, comp)
 	}
 	handler.dumpServiceMap()
 }
