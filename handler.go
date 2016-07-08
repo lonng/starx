@@ -158,34 +158,39 @@ func (handler *handlerService) processMessage(session *Session, m *message.Messa
 
 // current message handle in local server
 func (handler *handlerService) localProcess(session *Session, route *network.Route, msg *message.Message) {
-	if msg.Type == message.Request {
+	switch msg.Type {
+	case message.Request:
 		session.reqId = msg.ID
-	} else if msg.Type == message.Notify {
+	case message.Notify:
 		session.reqId = 0
-	} else {
+	default:
 		log.Error("invalid message type")
 		return
 	}
-	if s, present := handler.serviceMap[route.Service]; present {
-		if m, ok := s.method[route.Method]; ok {
-			data := reflect.New(m.dataType.Elem()).Interface()
-			err := serializer.Deserialize(msg.Data, data)
-			if err != nil {
-				log.Error("deserialize error: %s", err.Error())
-				return
-			}
-			ret := m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(data)})
-			if len(ret) > 0 {
-				err := ret[0].Interface()
-				if err != nil {
-					log.Error(err.(error).Error())
-				}
-			}
-		} else {
-			log.Info("handler: " + route.Service + " does not contain method: " + route.Method)
-		}
-	} else {
+
+	s, ok := handler.serviceMap[route.Service]
+	if !ok || s == nil {
 		log.Info("handler: service: " + route.Service + " not found")
+	}
+
+	m, ok := s.method[route.Method]
+	if !ok || m == nil {
+		log.Info("handler: " + route.Service + " does not contain method: " + route.Method)
+	}
+
+	data := reflect.New(m.dataType.Elem()).Interface()
+	err := serializer.Deserialize(msg.Data, data)
+	if err != nil {
+		log.Error("deserialize error: %s", err.Error())
+		return
+	}
+
+	ret := m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(data)})
+	if len(ret) > 0 {
+		err := ret[0].Interface()
+		if err != nil {
+			log.Error(err.(error).Error())
+		}
 	}
 }
 

@@ -169,7 +169,8 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 // error using log if reportErr is true.
 func suitableMethods(kind RpcKind, typ reflect.Type, reportErr bool) map[string]*methodType {
 	methods := make(map[string]*methodType)
-	if kind == SysRpc {
+	switch kind {
+	case SysRpc:
 		for m := 0; m < typ.NumMethod(); m++ {
 			method := typ.Method(m)
 			mtype := method.Type
@@ -178,7 +179,7 @@ func suitableMethods(kind RpcKind, typ reflect.Type, reportErr bool) map[string]
 				methods[mname] = &methodType{method: method, ArgType: mtype.In(1), ReplyType: mtype.In(2)}
 			}
 		}
-	} else if kind == UserRpc {
+	case UserRpc:
 		for m := 0; m < typ.NumMethod(); m++ {
 			method := typ.Method(m)
 			mname := method.Name
@@ -202,18 +203,23 @@ func (server *Server) Call(serviceMethod string, args []reflect.Value) ([]reflec
 	if len(parts) != 2 {
 		return nil, errors.New("wrong route string: " + serviceMethod)
 	}
-	sname, smethod := parts[0], parts[1]
-	if s, present := server.serviceMap[sname]; present && s != nil {
-		if m, present := s.method[smethod]; present && m != nil {
-			args = append([]reflect.Value{s.rcvr}, args...)
-			rets := m.method.Func.Call(args)
-			return rets, nil
-		} else {
-			return nil, errors.New("remote: service " + sname + "does not contain method: " + smethod)
-		}
-	} else {
-		return nil, errors.New("remote: servive " + sname + " does not exists")
+
+	s, m := parts[0], parts[1]
+
+	service, ok := server.serviceMap[s]
+	if !ok || service == nil {
+		return nil, errors.New("remote: servive " + s + " does not exists")
+
 	}
+
+	method, ok := service.method[m]
+	if !ok || method == nil {
+		return nil, errors.New("remote: service " + s + "does not contain method: " + m)
+
+	}
+	args = append([]reflect.Value{service.rcvr}, args...)
+	rets := method.method.Func.Call(args)
+	return rets, nil
 }
 
 var rpcResponseKindNames = []string{
