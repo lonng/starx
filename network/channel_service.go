@@ -1,9 +1,15 @@
 package network
 
+import (
+	"sync"
+	"github.com/golang/protobuf/protoc-gen-go/descriptor"
+)
+
 var ChannelServive = newChannelServive()
 
 type channelServive struct {
 	channels map[string]*Channel // all server channels
+	sync.RWMutex
 }
 
 func newChannelServive() *channelServive {
@@ -12,18 +18,23 @@ func newChannelServive() *channelServive {
 
 func (c *channelServive) NewChannel(name string) *Channel {
 	channel := newChannel(name, c)
+	c.Lock()
+	defer c.Unlock()
 	c.channels[name] = channel
 	return channel
 }
 
 // Get channel by channel name
 func (c *channelServive) Channel(name string) (*Channel, bool) {
-	channel, exists := c.channels[name]
-	return channel, exists
+	c.RLock()
+	defer c.RUnlock()
+	return c.channels[name]
 }
 
 // Get all members in channel by channel name
 func (c *channelServive) Members(name string) []uint64 {
+	c.RLock()
+	defer c.RUnlock()
 	if channel, ok := c.channels[name]; ok {
 		return channel.Members()
 	}
@@ -32,6 +43,8 @@ func (c *channelServive) Members(name string) []uint64 {
 
 // Destroy channel by channel name
 func (c *channelServive) DestroyChannel(name string) {
+	c.RLock()
+	c.RUnlock()
 	if channel, ok := c.channels[name]; ok {
 		channel.Destroy()
 	}
