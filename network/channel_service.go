@@ -18,9 +18,10 @@ func newChannelServive() *channelService {
 }
 
 func (c *channelService) NewChannel(name string) *Channel {
-	channel := newChannel(name, c)
 	c.Lock()
 	defer c.Unlock()
+
+	channel := newChannel(name, c)
 	c.channels[name] = channel
 	return channel
 }
@@ -29,13 +30,16 @@ func (c *channelService) NewChannel(name string) *Channel {
 func (c *channelService) Channel(name string) (*Channel, bool) {
 	c.RLock()
 	defer c.RUnlock()
-	return c.channels[name]
+
+	channel, ok :=  c.channels[name]
+	return channel, ok
 }
 
 // Get all members in channel by channel name
 func (c *channelService) Members(name string) []uint64 {
 	c.RLock()
 	defer c.RUnlock()
+
 	if channel, ok := c.channels[name]; ok {
 		return channel.Members()
 	}
@@ -46,6 +50,7 @@ func (c *channelService) Members(name string) []uint64 {
 func (c *channelService) DestroyChannel(name string) {
 	c.RLock()
 	c.RUnlock()
+
 	if channel, ok := c.channels[name]; ok {
 		channel.Destroy()
 	}
