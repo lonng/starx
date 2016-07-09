@@ -2,7 +2,6 @@ package session
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/chrislonng/starx/log"
@@ -19,7 +18,9 @@ type Entity interface {
 }
 
 var (
-	ErrIllegalUID = errors.New("illegal uid")
+	ErrIllegalUID     = errors.New("illegal uid")
+	ErrKeyNotFound    = errors.New("current session does not contain key")
+	ErrWrongValueType = errors.New("current key has different data type")
 )
 
 // This session type as argument pass to Handler method, is a proxy session
@@ -71,10 +72,6 @@ func (s *Session) Bind(uid uint64) error {
 	return nil
 }
 
-func (s *Session) String() string {
-	return fmt.Sprintf("Id: %d, Uid: %d", s.Id, s.Uid)
-}
-
 func (s *Session) AsyncCall(route string, args ...interface{}) error {
 	return s.Entity.AsyncCall(s, route, args...)
 }
@@ -93,5 +90,187 @@ func (s *Session) Sync(string) {
 func (s *Session) SyncAll() {
 }
 
-// TODO: session data setting interface
-// ????
+func (s *Session) Set(key string, value interface{}) {
+	s.data[key] = value
+}
+
+func (s *Session) Int(key string) (int, error) {
+	v, ok := s.data[key]
+	if !ok {
+		return 0, ErrKeyNotFound
+	}
+
+	value, ok := v.(int)
+	if !ok {
+		return 0, ErrWrongValueType
+	}
+	return value, nil
+}
+
+func (s *Session) Int8(key string) (int8, error) {
+	v, ok := s.data[key]
+	if !ok {
+		return 0, ErrKeyNotFound
+	}
+
+	value, ok := v.(int8)
+	if !ok {
+		return 0, ErrWrongValueType
+	}
+	return value, nil
+}
+
+func (s *Session) Int16(key string) (int16, error) {
+	v, ok := s.data[key]
+	if !ok {
+		return 0, ErrKeyNotFound
+	}
+
+	value, ok := v.(int16)
+	if !ok {
+		return 0, ErrWrongValueType
+	}
+	return value, nil
+}
+
+
+func (s *Session) Int32(key string) (int32, error) {
+	v, ok := s.data[key]
+	if !ok {
+		return 0, ErrKeyNotFound
+	}
+
+	value, ok := v.(int32)
+	if !ok {
+		return 0, ErrWrongValueType
+	}
+	return value, nil
+}
+
+func (s *Session) Int64(key string) (int64, error) {
+	v, ok := s.data[key]
+	if !ok {
+		return 0, ErrKeyNotFound
+	}
+
+	value, ok := v.(int64)
+	if !ok {
+		return 0, ErrWrongValueType
+	}
+	return value, nil
+}
+
+func (s *Session) Uint(key string) (uint, error) {
+	v, ok := s.data[key]
+	if !ok {
+		return 0, ErrKeyNotFound
+	}
+
+	value, ok := v.(uint)
+	if !ok {
+		return 0, ErrWrongValueType
+	}
+	return value, nil
+}
+
+func (s *Session) Uint8(key string) (uint8, error) {
+	v, ok := s.data[key]
+	if !ok {
+		return 0, ErrKeyNotFound
+	}
+
+	value, ok := v.(uint8)
+	if !ok {
+		return 0, ErrWrongValueType
+	}
+	return value, nil
+}
+
+func (s *Session) Uint16(key string) (uint16, error) {
+	v, ok := s.data[key]
+	if !ok {
+		return 0, ErrKeyNotFound
+	}
+
+	value, ok := v.(uint16)
+	if !ok {
+		return 0, ErrWrongValueType
+	}
+	return value, nil
+}
+
+
+func (s *Session) Uint32(key string) (uint32, error) {
+	v, ok := s.data[key]
+	if !ok {
+		return 0, ErrKeyNotFound
+	}
+
+	value, ok := v.(uint32)
+	if !ok {
+		return 0, ErrWrongValueType
+	}
+	return value, nil
+}
+
+func (s *Session) Uint64(key string) (uint64, error) {
+	v, ok := s.data[key]
+	if !ok {
+		return 0, ErrKeyNotFound
+	}
+
+	value, ok := v.(uint64)
+	if !ok {
+		return 0, ErrWrongValueType
+	}
+	return value, nil
+}
+
+func (s *Session) Float32(key string) (float32, error) {
+	v, ok := s.data[key]
+	if !ok {
+		return 0, ErrKeyNotFound
+	}
+
+	value, ok := v.(float32)
+	if !ok {
+		return 0, ErrWrongValueType
+	}
+	return value, nil
+}
+
+func (s *Session) Float64(key string) (float64, error) {
+	v, ok := s.data[key]
+	if !ok {
+		return 0, ErrKeyNotFound
+	}
+
+	value, ok := v.(float64)
+	if !ok {
+		return 0, ErrWrongValueType
+	}
+	return value, nil
+}
+
+func (s *Session) String(key string) (string, error) {
+	v, ok := s.data[key]
+	if !ok {
+		return "", ErrKeyNotFound
+	}
+
+	value, ok := v.(string)
+	if !ok {
+		return "", ErrWrongValueType
+	}
+	return value, nil
+}
+
+
+func (s *Session) Value(key string) (interface{}, error) {
+	v, ok := s.data[key]
+	if !ok {
+		return nil, ErrKeyNotFound
+	}
+
+	return v, nil
+}
