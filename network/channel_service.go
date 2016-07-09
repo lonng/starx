@@ -1,5 +1,7 @@
 package network
 
+var ChannelServive = newChannelServive()
+
 type channelServive struct {
 	channels map[string]*Channel // all server channels
 }
