@@ -2,7 +2,6 @@ package network
 
 import (
 	"sync"
-	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 )
 
 var ChannelServive = newChannelServive()
@@ -13,7 +12,9 @@ type channelServive struct {
 }
 
 func newChannelServive() *channelServive {
-	return &channelServive{make(map[string]*Channel)}
+	return &channelServive{
+		channels: make(map[string]*Channel),
+	}
 }
 
 func (c *channelServive) NewChannel(name string) *Channel {
