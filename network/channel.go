@@ -7,10 +7,10 @@ type Channel struct {
 	uidMap         map[uint64]*session.Session // uid map to session pointer
 	uids           []uint64                    // all user ids
 	count          int                         // current channel contain user count
-	channelServive *channelServive             // channel service which contain current channel
+	channelServive *channelService             // channel service which contain current channel
 }
 
-func newChannel(n string, cs *channelServive) *Channel {
+func newChannel(n string, cs *channelService) *Channel {
 	return &Channel{
 		name:           n,
 		channelServive: cs,

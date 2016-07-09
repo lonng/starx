@@ -4,20 +4,20 @@ import (
 	"sync"
 )
 
-var ChannelServive = newChannelServive()
+var ChannelService = newChannelServive()
 
-type channelServive struct {
+type channelService struct {
 	channels map[string]*Channel // all server channels
 	sync.RWMutex
 }
 
-func newChannelServive() *channelServive {
-	return &channelServive{
+func newChannelServive() *channelService {
+	return &channelService{
 		channels: make(map[string]*Channel),
 	}
 }
 
-func (c *channelServive) NewChannel(name string) *Channel {
+func (c *channelService) NewChannel(name string) *Channel {
 	channel := newChannel(name, c)
 	c.Lock()
 	defer c.Unlock()
@@ -26,14 +26,14 @@ func (c *channelServive) NewChannel(name string) *Channel {
 }
 
 // Get channel by channel name
-func (c *channelServive) Channel(name string) (*Channel, bool) {
+func (c *channelService) Channel(name string) (*Channel, bool) {
 	c.RLock()
 	defer c.RUnlock()
 	return c.channels[name]
 }
 
 // Get all members in channel by channel name
-func (c *channelServive) Members(name string) []uint64 {
+func (c *channelService) Members(name string) []uint64 {
 	c.RLock()
 	defer c.RUnlock()
 	if channel, ok := c.channels[name]; ok {
@@ -43,7 +43,7 @@ func (c *channelServive) Members(name string) []uint64 {
 }
 
 // Destroy channel by channel name
-func (c *channelServive) DestroyChannel(name string) {
+func (c *channelService) DestroyChannel(name string) {
 	c.RLock()
 	c.RUnlock()
 	if channel, ok := c.channels[name]; ok {
