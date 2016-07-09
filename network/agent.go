@@ -171,3 +171,8 @@ func (a *agent) Call(session *session.Session, route string, args ...interface{}
 
 	return Remote.request(rpc.User, r, session, encodeArgs)
 }
+
+// TODO: implement
+func (a *acceptor) Sync(data map[string]interface{}) error {
+	return nil
+}

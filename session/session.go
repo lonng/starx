@@ -8,13 +8,14 @@ import (
 	"github.com/chrislonng/starx/service"
 )
 
-type Entity interface {
+type NetworkEntity interface {
 	ID() uint64
 	Send([]byte) error
 	Push(session *Session, route string, v interface{}) error
 	Response(session *Session, v interface{}) error
 	AsyncCall(session *Session, route string, args ...interface{}) error
 	Call(session *Session, route string, args ...interface{}) ([]byte, error)
+	Sync(map[string]interface{}) error
 }
 
 var (
@@ -32,14 +33,14 @@ var (
 type Session struct {
 	Id       uint64                 // session global uniqe id
 	Uid      uint64                 // binding user id
-	Entity   Entity                 // raw session id, frontendSession in frontend server, or backendSession in backend server
+	Entity   NetworkEntity          // raw session id, agent in frontend server, or acceptor in backend server
 	LastID   uint                   // last request id
 	data     map[string]interface{} // session data store
 	lastTime int64                  // last heartbeat time
 }
 
 // Create new session instance
-func NewSession(entity Entity) *Session {
+func NewSession(entity NetworkEntity) *Session {
 	return &Session{
 		Id:       service.Connections.NewSessionUUID(),
 		Entity:   entity,
@@ -81,13 +82,23 @@ func (s *Session) Call(route string, args ...interface{}) ([]byte, error) {
 }
 
 // Sync session setting to frontend server
-func (s *Session) Sync(string) {
-	//TODO
-	//synchronize session setting field to frontend server
+func (s *Session) Sync(key string) error {
+	v, ok := s.data[key]
+	if !ok {
+		return ErrKeyNotFound
+	}
+	return s.Entity.Sync(map[string]interface{}{
+		key: v,
+	})
 }
 
 // Sync all settings to frontend server
-func (s *Session) SyncAll() {
+func (s *Session) SyncAll() error {
+	if len(s.data) < 1 {
+		log.Warn("current session did not contain any data")
+		return nil
+	}
+	return s.Entity.Sync(s.data)
 }
 
 func (s *Session) Set(key string, value interface{}) {
@@ -132,7 +143,6 @@ func (s *Session) Int16(key string) (int16, error) {
 	}
 	return value, nil
 }
-
 
 func (s *Session) Int32(key string) (int32, error) {
 	v, ok := s.data[key]
@@ -199,7 +209,6 @@ func (s *Session) Uint16(key string) (uint16, error) {
 	return value, nil
 }
 
-
 func (s *Session) Uint32(key string) (uint32, error) {
 	v, ok := s.data[key]
 	if !ok {
@@ -264,7 +273,6 @@ func (s *Session) String(key string) (string, error) {
 	}
 	return value, nil
 }
-
 
 func (s *Session) Value(key string) (interface{}, error) {
 	v, ok := s.data[key]
