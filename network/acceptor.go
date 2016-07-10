@@ -8,8 +8,8 @@ import (
 	"encoding/json"
 	"github.com/chrislonng/starx/log"
 	routelib "github.com/chrislonng/starx/network/route"
-	"github.com/chrislonng/starx/network/rpc"
 	"github.com/chrislonng/starx/session"
+	"github.com/chrislonng/starx/cluster/rpc"
 )
 
 // Acceptor corresponding a front server, used for store raw socket

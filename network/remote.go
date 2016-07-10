@@ -12,9 +12,9 @@ import (
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/network/route"
-	"github.com/chrislonng/starx/network/rpc"
-	"github.com/chrislonng/starx/packet"
+	"github.com/chrislonng/starx/cluster/rpc"
 	"github.com/chrislonng/starx/session"
+	"github.com/chrislonng/starx/network/packet"
 )
 
 type rpcStatus int32

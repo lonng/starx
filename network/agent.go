@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"github.com/chrislonng/starx/log"
 	routelib "github.com/chrislonng/starx/network/route"
-	"github.com/chrislonng/starx/network/rpc"
+	"github.com/chrislonng/starx/cluster/rpc"
 	"github.com/chrislonng/starx/session"
 )
 

@@ -6,9 +6,9 @@ import (
 	"sync"
 
 	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/message"
-	"github.com/chrislonng/starx/packet"
 	"github.com/chrislonng/starx/session"
+	"github.com/chrislonng/starx/network/packet"
+	"github.com/chrislonng/starx/network/message"
 )
 
 var ErrSessionOnNotify = errors.New("current session working on notify mode")
