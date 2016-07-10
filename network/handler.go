@@ -43,9 +43,11 @@ func newHandlerService() *handlerService {
 // individual logic routine
 func (hs *handlerService) Handle(conn net.Conn) {
 	defer conn.Close()
+
 	// message buffer
 	packetChan := make(chan *unhandledPacket, packetBufferSize)
 	endChan := make(chan bool, 1)
+
 	// all user logic will be handled in single goroutine
 	// synchronized in below routine
 	go func() {
@@ -53,22 +55,25 @@ func (hs *handlerService) Handle(conn net.Conn) {
 		for {
 			select {
 			case p := <-packetChan:
-				hs.processPacket(p.agent, p.packet)
+				if p != nil {
+					hs.processPacket(p.agent, p.packet)
+				}
 			case <-endChan:
 				break loop
 			}
 		}
 
 	}()
+
 	// register new session when new connection connected in
 	agent := defaultNetService.createAgent(conn)
-	defaultNetService.dumpAgents()
+	log.Debug("new agent(%s)", agent.String())
 	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
-			log.Info("session closed, id: %d, ip: %s", agent.session.Id, agent.socket.RemoteAddr())
+			log.Debug("session closed, id: %d, ip: %s", agent.session.Id, agent.socket.RemoteAddr())
 			close(packetChan)
 			endChan <- true
 			agent.close()
@@ -124,29 +129,14 @@ func (hs *handlerService) processPacket(a *agent, p *packet.Packet) {
 	}
 }
 
-func (hs *handlerService) processMessage(session *session.Session, m *message.Message) {
+func (hs *handlerService) processMessage(session *session.Session, msg *message.Message) {
 	defer func() {
 		if err := recover(); err != nil {
 			runtime.Caller(2)
 			log.Fatal("processMessage Error: %+v", err)
 		}
 	}()
-	log.Info("Route: %s, Length: %d", m.Route, len(m.Data))
-	r, err := route.Decode(m.Route)
-	if err != nil {
-		log.Error(err.Error())
-		return
-	}
-	// if serverType equal nil, message handle in local server
-	if r.ServerType == "" || r.ServerType == appConfig.Type {
-		hs.localProcess(session, r, m)
-	} else {
-		hs.remoteProcess(session, r, m)
-	}
-}
 
-// current message handle in local server
-func (hs *handlerService) localProcess(session *session.Session, route *route.Route, msg *message.Message) {
 	switch msg.Type {
 	case message.Request:
 		session.LastID = msg.ID
@@ -157,6 +147,28 @@ func (hs *handlerService) localProcess(session *session.Session, route *route.Ro
 		return
 	}
 
+	log.Debug("message(%s)", msg.String())
+	r, err := route.Decode(msg.Route)
+	if err != nil {
+		log.Error(err.Error())
+		return
+	}
+
+	// current server as default server type
+	if r.ServerType == "" {
+		r.ServerType = appConfig.Type
+	}
+
+	// message dispatch
+	if r.ServerType == appConfig.Type {
+		hs.localProcess(session, r, msg)
+	} else {
+		hs.remoteProcess(session, r, msg)
+	}
+}
+
+// current message handle in local server
+func (hs *handlerService) localProcess(session *session.Session, route *route.Route, msg *message.Message) {
 	s, ok := hs.serviceMap[route.Service]
 	if !ok || s == nil {
 		log.Info("handler: service: " + route.Service + " not found")
@@ -192,16 +204,7 @@ func (hs *handlerService) localProcess(session *session.Session, route *route.Ro
 
 // current message handle in remote server
 func (hs *handlerService) remoteProcess(session *session.Session, route *route.Route, msg *message.Message) {
-	switch msg.Type {
-	case message.Request:
-		session.LastID = msg.ID
-		Remote.request(rpc.Sys, route, session, msg.Data)
-	case message.Notify:
-		session.LastID = 0
-		Remote.request(rpc.Sys, route, session, msg.Data)
-	default:
-		log.Error("invalid message type")
-	}
+	Remote.request(rpc.Sys, route, session, msg.Data)
 }
 
 // Register publishes in the service the set of methods of the
