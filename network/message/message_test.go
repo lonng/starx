@@ -6,11 +6,19 @@ import (
 )
 
 func TestEncode(t *testing.T) {
+	dict := map[string]uint16{
+		"test.test.test":  100,
+		"test.test.test1": 101,
+		"test.test.test2": 102,
+		"test.test.test3": 103,
+	}
+	SetDict(dict)
 	m1 := &Message{
-		Type:  Request,
-		ID:    100,
-		Route: "test.test.test",
-		Data:  []byte(`hello world`),
+		Type:       Request,
+		ID:         100,
+		Route:      "test.test.test",
+		Data:       []byte(`hello world`),
+		compressed: true,
 	}
 	em1, err := m1.Encode()
 	if err != nil {
@@ -26,11 +34,10 @@ func TestEncode(t *testing.T) {
 	}
 
 	m2 := &Message{
-		Type:       Request,
-		ID:         100,
-		RouteCode:  1000,
-		IsCompress: true,
-		Data:       []byte(`hello world`),
+		Type:  Request,
+		ID:    100,
+		Route: "test.test.test4",
+		Data:  []byte(`hello world`),
 	}
 	em2, err := m2.Encode()
 	if err != nil {
@@ -48,7 +55,7 @@ func TestEncode(t *testing.T) {
 	m3 := &Message{
 		Type:  Response,
 		ID:    100,
-		Route: "test.test.test",
+		Route: "test.test.test0",
 		Data:  []byte(`hello world`),
 	}
 	em3, err := m3.Encode()
@@ -67,9 +74,9 @@ func TestEncode(t *testing.T) {
 	m4 := &Message{
 		Type:       Response,
 		ID:         100,
-		RouteCode:  1000,
-		IsCompress: true,
+		Route:      "test.test.test1",
 		Data:       []byte(`hello world`),
+		compressed: true,
 	}
 	em4, err := m4.Encode()
 	if err != nil {
@@ -85,9 +92,10 @@ func TestEncode(t *testing.T) {
 	}
 
 	m5 := &Message{
-		Type:  Notify,
-		Route: "test.test.test",
-		Data:  []byte(`hello world`),
+		Type:       Notify,
+		Route:      "test.test.test",
+		Data:       []byte(`hello world`),
+		compressed: true,
 	}
 	em5, err := m5.Encode()
 	if err != nil {
@@ -103,10 +111,9 @@ func TestEncode(t *testing.T) {
 	}
 
 	m6 := &Message{
-		Type:       Notify,
-		RouteCode:  1000,
-		IsCompress: true,
-		Data:       []byte(`hello world`),
+		Type:  Notify,
+		Route: "test.test.test20",
+		Data:  []byte(`hello world`),
 	}
 	em6, err := m6.Encode()
 	if err != nil {
@@ -123,7 +130,7 @@ func TestEncode(t *testing.T) {
 
 	m7 := &Message{
 		Type:  Push,
-		Route: "test.test.test",
+		Route: "test.test.test9",
 		Data:  []byte(`hello world`),
 	}
 	em7, err := m7.Encode()
@@ -141,9 +148,9 @@ func TestEncode(t *testing.T) {
 
 	m8 := &Message{
 		Type:       Push,
-		RouteCode:  1000,
-		IsCompress: true,
+		Route:      "test.test.test3",
 		Data:       []byte(`hello world`),
+		compressed: true,
 	}
 	em8, err := m8.Encode()
 	if err != nil {

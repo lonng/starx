@@ -1,19 +1,18 @@
-package starx
+package network
 
 import (
 	"encoding/json"
 	"errors"
 	"net"
 	"reflect"
-	"sync"
-
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/message"
-	"github.com/chrislonng/starx/network"
-	"github.com/chrislonng/starx/network/rpc"
-	"github.com/chrislonng/starx/packet"
-	"github.com/chrislonng/starx/utils"
 	"runtime"
+
+	"github.com/chrislonng/starx/cluster/rpc"
+	"github.com/chrislonng/starx/log"
+	"github.com/chrislonng/starx/network/message"
+	"github.com/chrislonng/starx/network/packet"
+	"github.com/chrislonng/starx/network/route"
+	"github.com/chrislonng/starx/session"
 )
 
 // Unhandled message buffer size
@@ -22,40 +21,27 @@ const (
 	packetBufferSize = 256
 )
 
+var Handler = newHandlerService()
+
 type unhandledPacket struct {
-	fs     *agent
+	agent  *agent
 	packet *packet.Packet
 }
 
-type methodType struct {
-	sync.Mutex // protects counters
-	method     reflect.Method
-	dataType   reflect.Type
-	numCalls   uint
-}
-
-type service struct {
-	name   string                 // name of service
-	rcvr   reflect.Value          // receiver of methods for the service
-	typ    reflect.Type           // type of the receiver
-	method map[string]*methodType // registered methods
-}
-
 type handlerService struct {
-	serviceMap   map[string]*service
-	routeMap     map[string]uint
-	routeCodeMap map[uint]string
+	serviceMap map[string]*service
 }
 
-func newHandler() *handlerService {
+func newHandlerService() *handlerService {
 	return &handlerService{
-		serviceMap: make(map[string]*service)}
+		serviceMap: make(map[string]*service),
+	}
 }
 
 // Handle network connection
 // Read data from Socket file descriptor and decode it, handle message in
 // individual logic routine
-func (handler *handlerService) handle(conn net.Conn) {
+func (hs *handlerService) Handle(conn net.Conn) {
 	defer conn.Close()
 	// message buffer
 	packetChan := make(chan *unhandledPacket, packetBufferSize)
@@ -63,13 +49,13 @@ func (handler *handlerService) handle(conn net.Conn) {
 	// all user logic will be handled in single goroutine
 	// synchronized in below routine
 	go func() {
+	loop:
 		for {
 			select {
-			case cpkg := <-packetChan:
-				handler.processPacket(cpkg.fs, cpkg.packet)
+			case p := <-packetChan:
+				hs.processPacket(p.agent, p.packet)
 			case <-endChan:
-				close(packetChan)
-				return
+				break loop
 			}
 		}
 
@@ -82,25 +68,26 @@ func (handler *handlerService) handle(conn net.Conn) {
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
-			log.Info("session closed(" + err.Error() + ")")
-			agent.close()
+			log.Info("session closed, id: %d, ip: %s", agent.session.Id, agent.socket.RemoteAddr())
+			close(packetChan)
 			endChan <- true
+			agent.close()
 			break
 		}
 		tmp = append(tmp, buf[:n]...)
-		var pkg *packet.Packet // save decoded packet
+		var p *packet.Packet // save decoded packet
 		for len(tmp) >= packet.HeadLength {
-			pkg, tmp, err = packet.Unpack(tmp)
+			p, tmp, err = packet.Unpack(tmp)
 			if err != nil {
 				agent.close()
 				break
 			}
-			packetChan <- &unhandledPacket{agent, pkg}
+			packetChan <- &unhandledPacket{agent: agent, packet: p}
 		}
 	}
 }
 
-func (handler *handlerService) processPacket(a *agent, p *packet.Packet) {
+func (hs *handlerService) processPacket(a *agent, p *packet.Packet) {
 	switch p.Type {
 	case packet.Handshake:
 		a.status = statusHandshake
@@ -127,7 +114,7 @@ func (handler *handlerService) processPacket(a *agent, p *packet.Packet) {
 			log.Error(err.Error())
 			return
 		}
-		handler.processMessage(a.session, m)
+		hs.processMessage(a.session, m)
 		fallthrough
 	case packet.Heartbeat:
 		go a.heartbeat()
@@ -137,7 +124,7 @@ func (handler *handlerService) processPacket(a *agent, p *packet.Packet) {
 	}
 }
 
-func (handler *handlerService) processMessage(session *Session, m *message.Message) {
+func (hs *handlerService) processMessage(session *session.Session, m *message.Message) {
 	defer func() {
 		if err := recover(); err != nil {
 			runtime.Caller(2)
@@ -145,46 +132,51 @@ func (handler *handlerService) processMessage(session *Session, m *message.Messa
 		}
 	}()
 	log.Info("Route: %s, Length: %d", m.Route, len(m.Data))
-	r, err := network.DecodeRoute(m.Route)
+	r, err := route.Decode(m.Route)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
 	// if serverType equal nil, message handle in local server
-	if r.ServerType == "" || r.ServerType == App.Config.Type {
-		handler.localProcess(session, r, m)
+	if r.ServerType == "" || r.ServerType == appConfig.Type {
+		hs.localProcess(session, r, m)
 	} else {
-		handler.remoteProcess(session, r, m)
+		hs.remoteProcess(session, r, m)
 	}
 }
 
 // current message handle in local server
-func (handler *handlerService) localProcess(session *Session, route *network.Route, msg *message.Message) {
+func (hs *handlerService) localProcess(session *session.Session, route *route.Route, msg *message.Message) {
 	switch msg.Type {
 	case message.Request:
-		session.reqId = msg.ID
+		session.LastID = msg.ID
 	case message.Notify:
-		session.reqId = 0
+		session.LastID = 0
 	default:
 		log.Error("invalid message type")
 		return
 	}
 
-	s, ok := handler.serviceMap[route.Service]
+	s, ok := hs.serviceMap[route.Service]
 	if !ok || s == nil {
 		log.Info("handler: service: " + route.Service + " not found")
 	}
 
-	m, ok := s.method[route.Method]
+	m, ok := s.handlerMethod[route.Method]
 	if !ok || m == nil {
 		log.Info("handler: " + route.Service + " does not contain method: " + route.Method)
 	}
 
-	data := reflect.New(m.dataType.Elem()).Interface()
-	err := serializer.Deserialize(msg.Data, data)
-	if err != nil {
-		log.Error("deserialize error: %s", err.Error())
-		return
+	var data interface{}
+	if m.raw {
+		data = msg.Data
+	} else {
+		data = reflect.New(m.dataType.Elem()).Interface()
+		err := serializer.Deserialize(msg.Data, data)
+		if err != nil {
+			log.Error("deserialize error: %s", err.Error())
+			return
+		}
 	}
 
 	ret := m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(data)})
@@ -197,14 +189,14 @@ func (handler *handlerService) localProcess(session *Session, route *network.Rou
 }
 
 // current message handle in remote server
-func (handler *handlerService) remoteProcess(session *Session, route *network.Route, msg *message.Message) {
+func (hs *handlerService) remoteProcess(session *session.Session, route *route.Route, msg *message.Message) {
 	switch msg.Type {
 	case message.Request:
-		session.reqId = msg.ID
-		remote.request(rpc.SysRpc, route, session, msg.Data)
+		session.LastID = msg.ID
+		Remote.request(rpc.Sys, route, session, msg.Data)
 	case message.Notify:
-		session.reqId = 0
-		remote.request(rpc.SysRpc, route, session, msg.Data)
+		session.LastID = 0
+		Remote.request(rpc.Sys, route, session, msg.Data)
 	default:
 		log.Error("invalid message type")
 	}
@@ -214,11 +206,11 @@ func (handler *handlerService) remoteProcess(session *Session, route *network.Ro
 // receiver value that satisfy the following conditions:
 //	- exported method of exported type
 //	- two arguments, both of exported type
-//	- the first argument is *starx.Session
-//	- the second argument is []byte
-func (handler *handlerService) register(rcvr Component) error {
-	if handler.serviceMap == nil {
-		handler.serviceMap = make(map[string]*service)
+//	- the first argument is *session.Session
+//	- the second argument is []byte or a pointer
+func (hs *handlerService) Register(rcvr Component) error {
+	if hs.serviceMap == nil {
+		hs.serviceMap = make(map[string]*service)
 	}
 	s := new(service)
 	s.typ = reflect.TypeOf(rcvr)
@@ -227,23 +219,23 @@ func (handler *handlerService) register(rcvr Component) error {
 	if sname == "" {
 		return errors.New("handler.Register: no service name for type " + s.typ.String())
 	}
-	if !utils.IsExported(sname) {
+	if !isExported(sname) {
 		return errors.New("handler.Register: type " + sname + " is not exported")
 
 	}
-	if _, present := handler.serviceMap[sname]; present {
+	if _, present := hs.serviceMap[sname]; present {
 		return errors.New("handler: service already defined: " + sname)
 	}
 	s.name = sname
 
 	// Install the methods
-	s.method = suitableMethods(s.typ, true)
+	s.handlerMethod = suitableHandlerMethods(s.typ, true)
 
-	if len(s.method) == 0 {
+	if len(s.handlerMethod) == 0 {
 		str := ""
 
 		// To help the user, see if a pointer receiver would work.
-		method := suitableMethods(reflect.PtrTo(s.typ), false)
+		method := suitableHandlerMethods(reflect.PtrTo(s.typ), false)
 		if len(method) != 0 {
 			str = "handler.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
 		} else {
@@ -251,28 +243,13 @@ func (handler *handlerService) register(rcvr Component) error {
 		}
 		return errors.New(str)
 	}
-	handler.serviceMap[s.name] = s
+	hs.serviceMap[s.name] = s
 	return nil
 }
 
-// suitableMethods returns suitable methods of typ, it will report
-// error using log if reportErr is true.
-func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
-	methods := make(map[string]*methodType)
-	for m := 0; m < typ.NumMethod(); m++ {
-		method := typ.Method(m)
-		mtype := method.Type
-		mname := method.Name
-		if utils.IsHandlerMethod(method) {
-			methods[mname] = &methodType{method: method, dataType: mtype.In(2)}
-		}
-	}
-	return methods
-}
-
-func (handler *handlerService) dumpServiceMap() {
-	for sname, s := range handler.serviceMap {
-		for mname, _ := range s.method {
+func (hs *handlerService) dumpServiceMap() {
+	for sname, s := range hs.serviceMap {
+		for mname, _ := range s.handlerMethod {
 			log.Info("registered service: %s.%s", sname, mname)
 		}
 	}

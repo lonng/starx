@@ -1,9 +1,10 @@
-package starx
+package cluster
 
 import (
 	"encoding/json"
 
 	"github.com/chrislonng/starx/log"
+	"github.com/chrislonng/starx/session"
 )
 
 type Manager struct {
@@ -21,33 +22,33 @@ func (this *Manager) BeforeShutdown() {}
 func (this *Manager) Shutdown()       {}
 
 // attachment methods
-func (m *Manager) UpdateServer(session *Session, data []byte) error {
-	var newServerInfo ServerConfig
-	err := json.Unmarshal(data, &newServerInfo)
+func (m *Manager) UpdateServer(session *session.Session, data []byte) error {
+	var newServerInfo *ServerConfig
+	err := json.Unmarshal(data, newServerInfo)
 	if err != nil {
 		return err
 	}
-	cluster.updateServer(newServerInfo)
+	UpdateServer(newServerInfo)
 	return nil
 }
 
-func (m *Manager) RegisterServer(session *Session, data []byte) error {
-	var newServerInfo ServerConfig
-	err := json.Unmarshal(data, &newServerInfo)
+func (m *Manager) RegisterServer(session *session.Session, data []byte) error {
+	var newServerInfo *ServerConfig
+	err := json.Unmarshal(data, newServerInfo)
 	if err != nil {
 		return err
 	}
 	log.Info("new server connected in")
-	cluster.registerServer(newServerInfo)
+	Register(newServerInfo)
 	return nil
 }
 
-func (m *Manager) RemoveServer(session *Session, data []byte) error {
+func (m *Manager) RemoveServer(session *session.Session, data []byte) error {
 	var srvId string
 	err := json.Unmarshal(data, &srvId)
 	if err != nil {
 		return err
 	}
-	cluster.removeServer(srvId)
+	RemoveServer(srvId)
 	return nil
 }

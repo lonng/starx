@@ -1,6 +1,7 @@
 # Starx -- golang based game server framework
 
 Inspired by [Pomelo](https://github.com/NetEase/pomelo), rewrite with golang.
+
 ```
  _______ _________ _______  _______
 (  ____ \\__   __/(  ___  )(  ____ )|\     /|
@@ -11,15 +12,16 @@ Inspired by [Pomelo](https://github.com/NetEase/pomelo), rewrite with golang.
 /\____) |   | |   | )   ( || ) \ \__( /   \ )
 \_______)   )_(   |/     \||/   \__/|/     \|
 ```
+
 ## Demo
+
 Client: [starx-demo-unity](https://github.com/chrislonng/starx-demo-unity)
 
 Server: [starx-demo-server](https://github.com/chrislonng/starx-demo-server)
 
 ## Wiki
-[Homepage](docs/Home.md)
 
-QQ交流群：309800774
+[Homepage](docs/homepage.md)
 
 ## The MIT License
 

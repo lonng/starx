@@ -1,21 +1,23 @@
-package starx
+package network
+
+import "github.com/chrislonng/starx/session"
 
 type Channel struct {
-	name           string              // channel name
-	uidMap         map[uint64]*Session // uid map to session pointer
-	uids           []uint64            // all user ids
-	count          int                 // current channel contain user count
-	channelServive *channelServive     // channel service which contain current channel
+	name           string                      // channel name
+	uidMap         map[uint64]*session.Session // uid map to session pointer
+	uids           []uint64                    // all user ids
+	count          int                         // current channel contain user count
+	channelServive *channelService             // channel service which contain current channel
 }
 
-func newChannel(n string, cs *channelServive) *Channel {
+func newChannel(n string, cs *channelService) *Channel {
 	return &Channel{
 		name:           n,
 		channelServive: cs,
-		uidMap:         make(map[uint64]*Session)}
+		uidMap:         make(map[uint64]*session.Session)}
 }
 
-func (c *Channel) GetMembers() []uint64 {
+func (c *Channel) Members() []uint64 {
 	return c.uids
 }
 
@@ -42,7 +44,7 @@ func (c *Channel) IsContain(uid uint64) bool {
 	return false
 }
 
-func (c *Channel) Add(session *Session) {
+func (c *Channel) Add(session *session.Session) {
 	c.uidMap[session.Uid] = session
 	c.uids = append(c.uids, session.Uid)
 	c.count++
@@ -65,7 +67,7 @@ func (c *Channel) LeaveAll() {
 	c.count = 0
 }
 
-func (c *Channel) GetCount() int {
+func (c *Channel) Count() int {
 	return c.count
 }
 
