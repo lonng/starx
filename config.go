@@ -38,19 +38,19 @@ func init() {
 	serverConfigPath = filepath.Join(AppPath, "configs", "servers.json")
 	masterConfigPath = filepath.Join(AppPath, "configs", "master.json")
 	if workPath != AppPath {
-		if fileExists(appConfigPath) {
+		if fileExist(appConfigPath) {
 			os.Chdir(AppPath)
 		} else {
 			appConfigPath = filepath.Join(workPath, "configs", "app.json")
 		}
 
-		if fileExists(serverConfigPath) {
+		if fileExist(serverConfigPath) {
 			os.Chdir(AppPath)
 		} else {
 			serverConfigPath = filepath.Join(workPath, "configs", "servers.json")
 		}
 
-		if fileExists(masterConfigPath) {
+		if fileExist(masterConfigPath) {
 			os.Chdir(AppPath)
 		} else {
 			masterConfigPath = filepath.Join(workPath, "configs", "master.json")
@@ -60,7 +60,7 @@ func init() {
 
 func parseConfig() {
 	// initialize app config
-	if !fileExists(appConfigPath) {
+	if !fileExist(appConfigPath) {
 		log.Info("%s not found", appConfigPath)
 		os.Exit(-1)
 	} else {
@@ -86,7 +86,7 @@ func parseConfig() {
 	}
 
 	// initialize servers config
-	if !fileExists(serverConfigPath) {
+	if !fileExist(serverConfigPath) {
 		log.Info("%s not found", serverConfigPath)
 		os.Exit(-1)
 	} else {
@@ -126,7 +126,7 @@ func parseConfig() {
 	} else {
 		// if server running in cluster mode, master server config require
 		// initialize master server config
-		if !fileExists(masterConfigPath) {
+		if !fileExist(masterConfigPath) {
 			log.Info("%s not found", masterConfigPath)
 			os.Exit(-1)
 		} else {
@@ -171,7 +171,7 @@ func parseConfig() {
 	cluster.SetAppConfig(App.Config)
 }
 
-func fileExists(filename string) bool {
+func fileExist(filename string) bool {
 	_, err := os.Stat(filename)
 	return err == nil || os.IsExist(err)
 }
