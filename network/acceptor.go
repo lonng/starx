@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"encoding/json"
+	"github.com/chrislonng/starx/cluster/rpc"
 	"github.com/chrislonng/starx/log"
 	routelib "github.com/chrislonng/starx/network/route"
 	"github.com/chrislonng/starx/session"
-	"github.com/chrislonng/starx/cluster/rpc"
 )
 
 // Acceptor corresponding a front server, used for store raw socket
@@ -67,14 +67,11 @@ func (a *acceptor) Session(sid uint64) *session.Session {
 
 func (a *acceptor) close() {
 	a.status = statusClosed
-	//TODO:FIXED IT
-	/*
-		for _, session := range a.sessionMap {
-			defaultNetService.closeSession(session)
-		}
-		defaultNetService.removeAcceptor(a)
-		a.socket.Close()
-	*/
+	for _, session := range a.sessionMap {
+		defaultNetService.closeSession(session)
+	}
+	defaultNetService.removeAcceptor(a)
+	a.socket.Close()
 }
 
 func (a *acceptor) ID() uint64 {

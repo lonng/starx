@@ -160,11 +160,13 @@ func (hs *handlerService) localProcess(session *session.Session, route *route.Ro
 	s, ok := hs.serviceMap[route.Service]
 	if !ok || s == nil {
 		log.Info("handler: service: " + route.Service + " not found")
+		return
 	}
 
 	m, ok := s.handlerMethod[route.Method]
 	if !ok || m == nil {
 		log.Info("handler: " + route.Service + " does not contain method: " + route.Method)
+		return
 	}
 
 	var data interface{}

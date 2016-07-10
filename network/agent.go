@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"encoding/json"
+	"github.com/chrislonng/starx/cluster/rpc"
 	"github.com/chrislonng/starx/log"
 	routelib "github.com/chrislonng/starx/network/route"
-	"github.com/chrislonng/starx/cluster/rpc"
 	"github.com/chrislonng/starx/session"
 )
 
@@ -59,11 +59,8 @@ func (a *agent) heartbeat() {
 
 func (a *agent) close() {
 	a.status = statusClosed
-	//TODO:FIXED IT
-	/*
-	   defaultNetService.closeSession(a.session)
-	   a.socket.Close()
-	*/
+	defaultNetService.closeSession(a.session)
+	a.socket.Close()
 }
 
 func (a *agent) ID() uint64 {
