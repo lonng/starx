@@ -9,6 +9,7 @@ type handlerMethod struct {
 	sync.Mutex // protects counters
 	method     reflect.Method
 	dataType   reflect.Type
+	raw        bool //Whether the data need to serialize
 	numCalls   uint
 }
 

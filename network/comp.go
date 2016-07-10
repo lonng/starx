@@ -41,6 +41,8 @@ func Startup() {
 			Remote.Register(c)
 		}
 	}
+
+	Handler.dumpServiceMap()
 }
 
 func Shutdown() {

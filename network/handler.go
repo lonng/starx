@@ -7,12 +7,12 @@ import (
 	"reflect"
 	"runtime"
 
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/network/route"
 	"github.com/chrislonng/starx/cluster/rpc"
-	"github.com/chrislonng/starx/session"
+	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/network/message"
 	"github.com/chrislonng/starx/network/packet"
+	"github.com/chrislonng/starx/network/route"
+	"github.com/chrislonng/starx/session"
 )
 
 // Unhandled message buffer size
@@ -171,11 +171,16 @@ func (hs *handlerService) localProcess(session *session.Session, route *route.Ro
 		log.Info("handler: " + route.Service + " does not contain method: " + route.Method)
 	}
 
-	data := reflect.New(m.dataType.Elem()).Interface()
-	err := serializer.Deserialize(msg.Data, data)
-	if err != nil {
-		log.Error("deserialize error: %s", err.Error())
-		return
+	var data interface{}
+	if m.raw {
+		data = msg.Data
+	} else {
+		data = reflect.New(m.dataType.Elem()).Interface()
+		err := serializer.Deserialize(msg.Data, data)
+		if err != nil {
+			log.Error("deserialize error: %s", err.Error())
+			return
+		}
 	}
 
 	ret := m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(data)})

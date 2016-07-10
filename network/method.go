@@ -4,10 +4,15 @@ import (
 	"reflect"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/chrislonng/starx/session"
 )
 
-var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
-var typeOfBytes = reflect.TypeOf(([]byte)(nil))
+var (
+	typeOfError   = reflect.TypeOf((*error)(nil)).Elem()
+	typeOfBytes   = reflect.TypeOf(([]byte)(nil))
+	typeOfSession = reflect.TypeOf(session.NewSession(nil))
+)
 
 func isExported(name string) bool {
 	rune, _ := utf8.DecodeRuneInString(name)
@@ -41,18 +46,18 @@ func isHandlerMethod(method reflect.Method) bool {
 		return false
 	}
 
-	if arg1Type := mtype.In(1); arg1Type.Kind() != reflect.Ptr || arg1Type.Elem().Name() != "Session" {
+	if sessType := mtype.In(1); sessType.Kind() != reflect.Ptr || sessType != typeOfSession {
 		return false
 	}
 
-	if mtype.In(2).Kind() != reflect.Ptr || mtype.Out(0) != typeOfError {
+	if (mtype.In(2).Kind() != reflect.Ptr && mtype.In(2) != typeOfBytes) || mtype.Out(0) != typeOfError {
 		return false
 	}
 	return true
 }
 
 // IsRemoteMethod
-// decide a method is suitable remote methd
+// decide a method is suitable remote method
 func isRemoteMethod(method reflect.Method) bool {
 	mtype := method.Type
 	// Method must be exported.
@@ -80,7 +85,11 @@ func suitableHandlerMethods(typ reflect.Type, reportErr bool) map[string]*handle
 		mtype := method.Type
 		mname := method.Name
 		if isHandlerMethod(method) {
-			methods[mname] = &handlerMethod{method: method, dataType: mtype.In(2)}
+			raw := false
+			if mtype.In(2) == typeOfBytes {
+				raw = true
+			}
+			methods[mname] = &handlerMethod{method: method, dataType: mtype.In(2), raw: raw}
 		}
 	}
 	return methods
