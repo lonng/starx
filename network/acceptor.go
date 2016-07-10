@@ -46,10 +46,6 @@ func (a *acceptor) String() string {
 		a.lastTime)
 }
 
-func (a *acceptor) send(data []byte) {
-	a.socket.Write(data)
-}
-
 func (a *acceptor) heartbeat() {
 	a.lastTime = time.Now().Unix()
 }
@@ -89,10 +85,6 @@ func (a *acceptor) Push(session *session.Session, route string, v interface{}) e
 		return err
 	}
 
-	if appConfig.IsFrontend {
-		return defaultNetService.Push(session, route, data)
-	}
-
 	rs, err := defaultNetService.getAcceptor(session.Entity.ID())
 	if err != nil {
 		log.Error(err.Error())
@@ -119,10 +111,6 @@ func (a *acceptor) Response(session *session.Session, v interface{}) error {
 	data, err := serializer.Serialize(v)
 	if err != nil {
 		return err
-	}
-
-	if appConfig.IsFrontend {
-		return defaultNetService.Response(session, data)
 	}
 
 	rs, err := defaultNetService.getAcceptor(session.Entity.ID())

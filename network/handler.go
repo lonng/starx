@@ -110,7 +110,10 @@ func (hs *handlerService) processPacket(a *agent, p *packet.Packet) {
 			log.Error(err.Error())
 			a.close()
 		}
-		a.send(resp)
+		if err := a.Send(resp); err != nil {
+			log.Error(err.Error())
+			a.close()
+		}
 	case packet.HandshakeAck:
 		a.status = statusWorking
 	case packet.Data:

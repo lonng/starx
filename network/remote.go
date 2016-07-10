@@ -17,13 +17,6 @@ import (
 	"github.com/chrislonng/starx/network/packet"
 )
 
-type rpcStatus int32
-
-const (
-	rpcStatusUninit rpcStatus = iota
-	rpcStatusInited
-)
-
 var (
 	ErrNilResponse = errors.New("nil response")
 )

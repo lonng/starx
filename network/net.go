@@ -6,9 +6,9 @@ import (
 	"sync"
 
 	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/session"
-	"github.com/chrislonng/starx/network/packet"
 	"github.com/chrislonng/starx/network/message"
+	"github.com/chrislonng/starx/network/packet"
+	"github.com/chrislonng/starx/session"
 )
 
 var ErrSessionOnNotify = errors.New("current session working on notify mode")
@@ -79,11 +79,13 @@ func (net *netService) createAcceptor(conn net.Conn) *acceptor {
 }
 
 func (net *netService) getAcceptor(sid uint64) (*acceptor, error) {
+	net.acceptorMapLock.RLock()
+	defer net.acceptorMapLock.RUnlock()
 	if rs, ok := net.acceptorMap[sid]; ok && rs != nil {
 		return rs, nil
-	} else {
-		return nil, errors.New("acceptor id: " + string(sid) + " not exists!")
 	}
+
+	return nil, errors.New("acceptor id: " + string(sid) + " not exists!")
 }
 
 // Send packet data, call by package internal, the second argument was packaged packet
@@ -158,6 +160,9 @@ func (net *netService) Broadcast(route string, data []byte) {
 
 // Multicast message to special agent ids
 func (net *netService) Multicast(aids []uint64, route string, data []byte) {
+	net.agentMapLock.RLock()
+	defer net.agentMapLock.RUnlock()
+
 	for _, aid := range aids {
 		if agent, ok := net.agentMap[aid]; ok && agent != nil {
 			net.Push(agent.session, route, data)
@@ -207,10 +212,13 @@ func (net *netService) heartbeat() {
 	if !appConfig.IsFrontend || net.agentMap == nil {
 		return
 	}
-	for _, session := range net.agentMap {
-		if session.status == statusWorking {
-			session.send(heartbeatPacket)
-			session.heartbeat()
+	for _, agent := range net.agentMap {
+		if agent.status == statusWorking {
+			if err := agent.Send(heartbeatPacket); err != nil {
+				agent.close()
+				continue
+			}
+			agent.heartbeat()
 		}
 	}
 }
