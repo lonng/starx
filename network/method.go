@@ -19,7 +19,7 @@ func isExported(name string) bool {
 	return unicode.IsUpper(rune)
 }
 
-func IsExportedOrBuiltinType(t reflect.Type) bool {
+func isExportedOrBuiltinType(t reflect.Type) bool {
 	for t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
