@@ -26,6 +26,16 @@ func Set(svrTypes string, fn func()) {
 	}
 }
 
+// Register component
+func Register(comp network.Component) {
+	network.Register(comp)
+}
+
+// Set customized serializer
+func Serializer(seri serialize.Serializer) {
+	network.Serializer(seri)
+}
+
 func loadSettings() {
 	log.Info("loading %s settings", App.Config.Type)
 	if setting, ok := settings[App.Config.Type]; ok && len(setting) > 0 {
@@ -37,13 +47,4 @@ func loadSettings() {
 
 func welcomeMsg() {
 	fmt.Println(asciiLogo)
-}
-
-// Handler register
-func Register(comp network.Component) {
-	network.Register(comp)
-}
-
-func Serializer(seri serialize.Serializer) {
-	network.Serializer(seri)
 }
