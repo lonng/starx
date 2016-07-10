@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/chrislonng/starx/log"
+	"strings"
 )
 
 type MessageType byte
@@ -25,17 +26,22 @@ const (
 )
 
 var (
-	ErrWrongMessageType = errors.New("wrong message type")
-	ErrInvalidMessage   = errors.New("invalid message")
+	routeDict = make(map[string]uint16)
+	codeDict  = make(map[uint16]string)
+)
+
+var (
+	ErrWrongMessageType  = errors.New("wrong message type")
+	ErrInvalidMessage    = errors.New("invalid message")
+	ErrRouteInfoNotFound = errors.New("route info not found in dictionary")
 )
 
 type Message struct {
 	Type       MessageType
 	ID         uint
 	Route      string
-	RouteCode  uint16
-	IsCompress bool
 	Data       []byte
+	compressed bool
 }
 
 func NewMessage() *Message {
@@ -43,12 +49,11 @@ func NewMessage() *Message {
 }
 
 func (m *Message) String() string {
-	return fmt.Sprintf("Type: %d, ID: %d, Route: %s, IsCompress: %t, RouteCode: %d, Body: %s",
+	return fmt.Sprintf("Type: %d, ID: %d, Route: %s, Compressed: %t, Body: %s",
 		m.Type,
 		m.ID,
 		m.Route,
-		m.IsCompress,
-		m.RouteCode,
+		m.compressed,
 		m.Data)
 }
 
@@ -70,7 +75,9 @@ func (m *Message) Encode() ([]byte, error) {
 func Encode(m *Message) ([]byte, error) {
 	buf := make([]byte, 0)
 	flag := byte(m.Type) << 1
-	if m.IsCompress {
+
+	code, compressed := routeDict[m.Route]
+	if compressed {
 		flag |= msgRouteCompressMask
 	}
 	buf = append(buf, flag)
@@ -91,9 +98,9 @@ func Encode(m *Message) ([]byte, error) {
 		}
 		fallthrough
 	case Notify, Push:
-		if m.IsCompress {
-			buf = append(buf, byte((m.RouteCode>>8)&0xFF))
-			buf = append(buf, byte(m.RouteCode&0xFF))
+		if compressed {
+			buf = append(buf, byte((code>>8)&0xFF))
+			buf = append(buf, byte(code&0xFF))
 		} else {
 			buf = append(buf, byte(len(m.Route)))
 			buf = append(buf, []byte(m.Route)...)
@@ -133,11 +140,17 @@ func Decode(data []byte) (*Message, error) {
 		fallthrough
 	case Notify, Push:
 		if flag&msgRouteCompressMask == 1 {
-			m.IsCompress = true
-			m.RouteCode = binary.BigEndian.Uint16(data[offset:(offset + 2)])
+			m.compressed = true
+			code := binary.BigEndian.Uint16(data[offset:(offset + 2)])
+			route, ok := codeDict[code]
+			if !ok {
+				log.Error("message compressed, but can not find route infomation in dictionary")
+				return nil, ErrRouteInfoNotFound
+			}
+			m.Route = route
 			offset += 2
 		} else {
-			m.IsCompress = false
+			m.compressed = false
 			rl := data[offset]
 			offset += 1
 			m.Route = string(data[offset:(offset + int(rl))])
@@ -149,4 +162,25 @@ func Decode(data []byte) (*Message, error) {
 	}
 	m.Data = data[offset:]
 	return m, nil
+}
+
+// TODO: ***NOTICE***
+// Runtime set dictionary will be a dangerous operation!!!!!!
+func SetDict(dict map[string]uint16) {
+	for route, code := range dict {
+		r := strings.TrimSpace(route)
+
+		// duplication check
+		if _, ok := routeDict[r]; ok {
+			log.Warn("duplicated route(route: %s, code: %d)", r, code)
+		}
+
+		if _, ok := codeDict[code]; ok {
+			log.Warn("duplicated route(route: %s, code: %d)", r, code)
+		}
+
+		// update map, using last value when key duplicated
+		routeDict[r] = code
+		codeDict[code] = r
+	}
 }

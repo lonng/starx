@@ -197,6 +197,7 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 			Kind:          rpc.RemoteResponse,
 		}
 	)
+
 	route, err := route.Decode(rr.ServiceMethod)
 	if err != nil {
 		response.Error = err.Error()
@@ -237,7 +238,7 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 				params = append(params, reflect.ValueOf(arg))
 			}
 		default:
-			fmt.Println("invalid rpc argument")
+			log.Error("invalid rpc argument")
 		}
 		m, ok := service.handlerMethod[route.Method]
 		if !ok || m == nil {

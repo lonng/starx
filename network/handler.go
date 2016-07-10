@@ -30,15 +30,11 @@ type unhandledPacket struct {
 
 type handlerService struct {
 	serviceMap map[string]*service
-	routeMap   map[string]int // route dictionary
-	codeMap    map[int]string // reverse if route dictionary
 }
 
 func newHandlerService() *handlerService {
 	return &handlerService{
 		serviceMap: make(map[string]*service),
-		routeMap:   make(map[string]int),
-		codeMap:    make(map[int]string),
 	}
 }
 
@@ -210,8 +206,8 @@ func (hs *handlerService) remoteProcess(session *session.Session, route *route.R
 // receiver value that satisfy the following conditions:
 //	- exported method of exported type
 //	- two arguments, both of exported type
-//	- the first argument is *starx.Session
-//	- the second argument is []byte
+//	- the first argument is *session.Session
+//	- the second argument is []byte or a pointer
 func (hs *handlerService) Register(rcvr Component) error {
 	if hs.serviceMap == nil {
 		hs.serviceMap = make(map[string]*service)
