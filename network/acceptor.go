@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"encoding/json"
+	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/cluster/rpc"
 	"github.com/chrislonng/starx/log"
 	routelib "github.com/chrislonng/starx/network/route"
@@ -146,7 +147,7 @@ func (a *acceptor) AsyncCall(session *session.Session, route string, args ...int
 	if err != nil {
 		return err
 	}
-	_, err = Remote.request(rpc.User, r, session, encodeArgs)
+	_, err = cluster.Call(rpc.User, r, session, encodeArgs)
 	return err
 }
 
@@ -165,7 +166,7 @@ func (a *acceptor) Call(session *session.Session, route string, args ...interfac
 		return nil, err
 	}
 
-	return Remote.request(rpc.User, r, session, encodeArgs)
+	return cluster.Call(rpc.User, r, session, encodeArgs)
 }
 
 // TODO: implement

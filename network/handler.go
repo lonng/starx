@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"runtime"
 
+	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/cluster/rpc"
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/network/message"
@@ -207,7 +208,7 @@ func (hs *handlerService) localProcess(session *session.Session, route *route.Ro
 
 // current message handle in remote server
 func (hs *handlerService) remoteProcess(session *session.Session, route *route.Route, msg *message.Message) {
-	Remote.request(rpc.Sys, route, session, msg.Data)
+	cluster.Call(rpc.Sys, route, session, msg.Data)
 }
 
 // Register publishes in the service the set of methods of the

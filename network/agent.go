@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"encoding/json"
+	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/cluster/rpc"
 	routelib "github.com/chrislonng/starx/network/route"
 	"github.com/chrislonng/starx/session"
@@ -99,7 +100,7 @@ func (a *agent) AsyncCall(session *session.Session, route string, args ...interf
 	if err != nil {
 		return err
 	}
-	_, err = Remote.request(rpc.User, r, session, encodeArgs)
+	_, err = cluster.Call(rpc.User, r, session, encodeArgs)
 	return err
 }
 
@@ -118,7 +119,7 @@ func (a *agent) Call(session *session.Session, route string, args ...interface{}
 		return nil, err
 	}
 
-	return Remote.request(rpc.User, r, session, encodeArgs)
+	return cluster.Call(rpc.User, r, session, encodeArgs)
 }
 
 // TODO: implement
