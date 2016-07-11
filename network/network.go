@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	appConfig *cluster.ServerConfig
+	appConfig         *cluster.ServerConfig
 	comps             = make([]Component, 0)
 	heartbeatInternal = 60 * time.Second
 )
@@ -17,7 +17,6 @@ func SetAppConfig(c *cluster.ServerConfig) {
 	appConfig = c
 	// enable all app service
 }
-
 
 func Register(c Component) {
 	comps = append(comps, c)
@@ -45,6 +44,7 @@ func Startup() {
 	}
 
 	Handler.dumpServiceMap()
+	Remote.dumpServiceMap()
 }
 
 func Shutdown() {

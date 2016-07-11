@@ -145,7 +145,7 @@ func readRequest(data []byte) (*rpc.Request, []byte) {
 	request := rpc.Request{}
 	err := json.Unmarshal(data[offset:(offset+int(length))], &request)
 	if err != nil {
-		//TODO
+		log.Error(err.Error())
 	}
 	return &request, data[(offset + int(length)):]
 }
@@ -191,13 +191,16 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 
 	route, err := route.Decode(rr.ServiceMethod)
 	if err != nil {
+		log.Error(err.Error())
 		response.Error = err.Error()
 		goto WRITE_RESPONSE
 	}
 
 	service, ok = rs.serviceMap[route.Service]
 	if !ok || service == nil {
-		response.Error = "remote: servive " + route.Service + " does not exists"
+		str := "remote: servive " + route.Service + " does not exists"
+		log.Error(str)
+		response.Error = str
 		goto WRITE_RESPONSE
 	}
 
@@ -207,15 +210,36 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 		session := ac.Session(rr.Sid)
 		m, ok := service.handlerMethod[route.Method]
 		if !ok || m == nil {
-			response.Error = "remote: service " + route.Service + "does not contain method: " + route.Method
+			str := "remote: service " + route.Service + "does not contain method: " + route.Method
+			log.Error(str)
+			response.Error = str
 			goto WRITE_RESPONSE
 		}
-		ret, err := rs.call(m.method, []reflect.Value{reflect.ValueOf(session), reflect.ValueOf(rr.Args)})
+		var data interface{}
+		if m.raw {
+			data = rr.Args
+		} else {
+			data = reflect.New(m.dataType.Elem()).Interface()
+			err := serializer.Deserialize(rr.Args, data)
+			if err != nil {
+				str := "deserialize error: " + err.Error()
+				log.Error(str)
+				response.Error = str
+				goto WRITE_RESPONSE
+			}
+		}
+
+		ret, err := rs.call(m.method, []reflect.Value{
+			service.rcvr,
+			reflect.ValueOf(session),
+			reflect.ValueOf(data)})
 		if err != nil {
+			log.Error(err.Error())
 			response.Error = err.Error()
 		} else {
 			// handler method encounter error
 			if err := ret[0].Interface(); err != nil {
+				log.Error(err.(error).Error())
 				response.Error = err.(error).Error()
 			}
 		}
@@ -269,4 +293,16 @@ func (rs *remoteService) call(method reflect.Method, args []reflect.Value) (rets
 	}()
 	rets = method.Func.Call(args)
 	return rets, nil
+}
+
+func (rs *remoteService) dumpServiceMap() {
+	for sname, s := range rs.serviceMap {
+		for mname, _ := range s.handlerMethod {
+			log.Info("registered service: %s.%s", sname, mname)
+		}
+
+		for mname, _ := range s.remoteMethod {
+			log.Info("registered service: %s.%s", sname, mname)
+		}
+	}
 }

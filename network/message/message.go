@@ -49,12 +49,12 @@ func NewMessage() *Message {
 }
 
 func (m *Message) String() string {
-	return fmt.Sprintf("Type: %d, ID: %d, Route: %s, Compressed: %t, Body: %s",
+	return fmt.Sprintf("Type: %d, ID: %d, Route: %s, Compressed: %t, BodyLength: %d",
 		m.Type,
 		m.ID,
 		m.Route,
 		m.compressed,
-		m.Data)
+		len(m.Data))
 }
 
 func (m *Message) Encode() ([]byte, error) {
