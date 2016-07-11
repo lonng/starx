@@ -39,6 +39,51 @@ func newHandlerService() *handlerService {
 	}
 }
 
+// Register publishes in the service the set of methods of the
+// receiver value that satisfy the following conditions:
+//	- exported method of exported type
+//	- two arguments, both of exported type
+//	- the first argument is *session.Session
+//	- the second argument is []byte or a pointer
+func (hs *handlerService) Register(rcvr Component) error {
+	if hs.serviceMap == nil {
+		hs.serviceMap = make(map[string]*service)
+	}
+	s := new(service)
+	s.typ = reflect.TypeOf(rcvr)
+	s.rcvr = reflect.ValueOf(rcvr)
+	sname := reflect.Indirect(s.rcvr).Type().Name()
+	if sname == "" {
+		return errors.New("handler.Register: no service name for type " + s.typ.String())
+	}
+	if !isExported(sname) {
+		return errors.New("handler.Register: type " + sname + " is not exported")
+
+	}
+	if _, present := hs.serviceMap[sname]; present {
+		return errors.New("handler: service already defined: " + sname)
+	}
+	s.name = sname
+
+	// Install the methods
+	s.handlerMethod = suitableHandlerMethods(s.typ, true)
+
+	if len(s.handlerMethod) == 0 {
+		str := ""
+
+		// To help the user, see if a pointer receiver would work.
+		method := suitableHandlerMethods(reflect.PtrTo(s.typ), false)
+		if len(method) != 0 {
+			str = "handler.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
+		} else {
+			str = "handler.Register: type " + sname + " has no exported methods of suitable type"
+		}
+		return errors.New(str)
+	}
+	hs.serviceMap[s.name] = s
+	return nil
+}
+
 // Handle network connection
 // Read data from Socket file descriptor and decode it, handle message in
 // individual logic routine
@@ -209,51 +254,6 @@ func (hs *handlerService) localProcess(session *session.Session, route *route.Ro
 // current message handle in remote server
 func (hs *handlerService) remoteProcess(session *session.Session, route *route.Route, msg *message.Message) {
 	cluster.Call(rpc.Sys, route, session, msg.Data)
-}
-
-// Register publishes in the service the set of methods of the
-// receiver value that satisfy the following conditions:
-//	- exported method of exported type
-//	- two arguments, both of exported type
-//	- the first argument is *session.Session
-//	- the second argument is []byte or a pointer
-func (hs *handlerService) Register(rcvr Component) error {
-	if hs.serviceMap == nil {
-		hs.serviceMap = make(map[string]*service)
-	}
-	s := new(service)
-	s.typ = reflect.TypeOf(rcvr)
-	s.rcvr = reflect.ValueOf(rcvr)
-	sname := reflect.Indirect(s.rcvr).Type().Name()
-	if sname == "" {
-		return errors.New("handler.Register: no service name for type " + s.typ.String())
-	}
-	if !isExported(sname) {
-		return errors.New("handler.Register: type " + sname + " is not exported")
-
-	}
-	if _, present := hs.serviceMap[sname]; present {
-		return errors.New("handler: service already defined: " + sname)
-	}
-	s.name = sname
-
-	// Install the methods
-	s.handlerMethod = suitableHandlerMethods(s.typ, true)
-
-	if len(s.handlerMethod) == 0 {
-		str := ""
-
-		// To help the user, see if a pointer receiver would work.
-		method := suitableHandlerMethods(reflect.PtrTo(s.typ), false)
-		if len(method) != 0 {
-			str = "handler.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
-		} else {
-			str = "handler.Register: type " + sname + " has no exported methods of suitable type"
-		}
-		return errors.New(str)
-	}
-	hs.serviceMap[s.name] = s
-	return nil
 }
 
 func (hs *handlerService) dumpServiceMap() {
