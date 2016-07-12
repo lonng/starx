@@ -143,7 +143,7 @@ func (client *Client) send(rpcKind RpcKind, call *Call) {
 	// Encode and send the request.
 	client.request.Seq = seq
 	client.request.ServiceMethod = call.ServiceMethod
-	client.request.Args = call.Args
+	client.request.Data = call.Args
 	client.request.Kind = rpcKind
 	client.request.Sid = call.Sid
 	err := client.codec.writeRequest(&client.request)

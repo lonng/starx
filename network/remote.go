@@ -206,7 +206,7 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 
 	switch rr.Kind {
 	case rpc.Sys:
-		fmt.Println(string(rr.Args))
+		fmt.Println(string(rr.Data))
 		session := ac.Session(rr.Sid)
 		m, ok := service.handlerMethod[route.Method]
 		if !ok || m == nil {
@@ -217,10 +217,10 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 		}
 		var data interface{}
 		if m.raw {
-			data = rr.Args
+			data = rr.Data
 		} else {
 			data = reflect.New(m.dataType.Elem()).Interface()
-			err := serializer.Deserialize(rr.Args, data)
+			err := serializer.Deserialize(rr.Data, data)
 			if err != nil {
 				str := "deserialize error: " + err.Error()
 				log.Error(str)
@@ -246,7 +246,7 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 	case rpc.User:
 		var args interface{}
 		var params = []reflect.Value{}
-		json.Unmarshal(rr.Args, &args)
+		json.Unmarshal(rr.Data, &args)
 		switch args.(type) {
 		case []interface{}:
 			for _, arg := range args.([]interface{}) {
