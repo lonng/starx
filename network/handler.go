@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"runtime"
 
+	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/cluster/rpc"
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/network/message"
@@ -35,170 +36,6 @@ type handlerService struct {
 func newHandlerService() *handlerService {
 	return &handlerService{
 		serviceMap: make(map[string]*service),
-	}
-}
-
-// Handle network connection
-// Read data from Socket file descriptor and decode it, handle message in
-// individual logic routine
-func (hs *handlerService) Handle(conn net.Conn) {
-	defer conn.Close()
-	// message buffer
-	packetChan := make(chan *unhandledPacket, packetBufferSize)
-	endChan := make(chan bool, 1)
-	// all user logic will be handled in single goroutine
-	// synchronized in below routine
-	go func() {
-	loop:
-		for {
-			select {
-			case p := <-packetChan:
-				hs.processPacket(p.agent, p.packet)
-			case <-endChan:
-				break loop
-			}
-		}
-
-	}()
-	// register new session when new connection connected in
-	agent := defaultNetService.createAgent(conn)
-	defaultNetService.dumpAgents()
-	tmp := make([]byte, 0) // save truncated data
-	buf := make([]byte, 512)
-	for {
-		n, err := conn.Read(buf)
-		if err != nil {
-			log.Info("session closed, id: %d, ip: %s", agent.session.Id, agent.socket.RemoteAddr())
-			close(packetChan)
-			endChan <- true
-			agent.close()
-			break
-		}
-		tmp = append(tmp, buf[:n]...)
-		var p *packet.Packet // save decoded packet
-		for len(tmp) >= packet.HeadLength {
-			p, tmp, err = packet.Unpack(tmp)
-			if err != nil {
-				agent.close()
-				break
-			}
-			packetChan <- &unhandledPacket{agent: agent, packet: p}
-		}
-	}
-}
-
-func (hs *handlerService) processPacket(a *agent, p *packet.Packet) {
-	switch p.Type {
-	case packet.Handshake:
-		a.status = statusHandshake
-		data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
-		if err != nil {
-			log.Info(err.Error())
-		}
-		rp := &packet.Packet{
-			Type:   packet.Handshake,
-			Length: len(data),
-			Data:   data,
-		}
-		resp, err := rp.Pack()
-		if err != nil {
-			log.Error(err.Error())
-			a.close()
-		}
-		a.send(resp)
-	case packet.HandshakeAck:
-		a.status = statusWorking
-	case packet.Data:
-		m, err := message.Decode(p.Data)
-		if err != nil {
-			log.Error(err.Error())
-			return
-		}
-		hs.processMessage(a.session, m)
-		fallthrough
-	case packet.Heartbeat:
-		go a.heartbeat()
-	default:
-		log.Info("invalid packet type")
-		a.close()
-	}
-}
-
-func (hs *handlerService) processMessage(session *session.Session, m *message.Message) {
-	defer func() {
-		if err := recover(); err != nil {
-			runtime.Caller(2)
-			log.Fatal("processMessage Error: %+v", err)
-		}
-	}()
-	log.Info("Route: %s, Length: %d", m.Route, len(m.Data))
-	r, err := route.Decode(m.Route)
-	if err != nil {
-		log.Error(err.Error())
-		return
-	}
-	// if serverType equal nil, message handle in local server
-	if r.ServerType == "" || r.ServerType == appConfig.Type {
-		hs.localProcess(session, r, m)
-	} else {
-		hs.remoteProcess(session, r, m)
-	}
-}
-
-// current message handle in local server
-func (hs *handlerService) localProcess(session *session.Session, route *route.Route, msg *message.Message) {
-	switch msg.Type {
-	case message.Request:
-		session.LastID = msg.ID
-	case message.Notify:
-		session.LastID = 0
-	default:
-		log.Error("invalid message type")
-		return
-	}
-
-	s, ok := hs.serviceMap[route.Service]
-	if !ok || s == nil {
-		log.Info("handler: service: " + route.Service + " not found")
-	}
-
-	m, ok := s.handlerMethod[route.Method]
-	if !ok || m == nil {
-		log.Info("handler: " + route.Service + " does not contain method: " + route.Method)
-	}
-
-	var data interface{}
-	if m.raw {
-		data = msg.Data
-	} else {
-		data = reflect.New(m.dataType.Elem()).Interface()
-		err := serializer.Deserialize(msg.Data, data)
-		if err != nil {
-			log.Error("deserialize error: %s", err.Error())
-			return
-		}
-	}
-
-	ret := m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(data)})
-	if len(ret) > 0 {
-		err := ret[0].Interface()
-		if err != nil {
-			log.Error(err.(error).Error())
-		}
-	}
-}
-
-// current message handle in remote server
-func (hs *handlerService) remoteProcess(session *session.Session, route *route.Route, msg *message.Message) {
-	switch msg.Type {
-	case message.Request:
-		session.LastID = msg.ID
-		Remote.request(rpc.Sys, route, session, msg.Data)
-	case message.Notify:
-		session.LastID = 0
-		Remote.request(rpc.Sys, route, session, msg.Data)
-	default:
-		log.Error("invalid message type")
 	}
 }
 
@@ -245,6 +82,178 @@ func (hs *handlerService) Register(rcvr Component) error {
 	}
 	hs.serviceMap[s.name] = s
 	return nil
+}
+
+// Handle network connection
+// Read data from Socket file descriptor and decode it, handle message in
+// individual logic routine
+func (hs *handlerService) Handle(conn net.Conn) {
+	defer conn.Close()
+
+	// message buffer
+	packetChan := make(chan *unhandledPacket, packetBufferSize)
+	endChan := make(chan bool, 1)
+
+	// all user logic will be handled in single goroutine
+	// synchronized in below routine
+	go func() {
+	loop:
+		for {
+			select {
+			case p := <-packetChan:
+				if p != nil {
+					hs.processPacket(p.agent, p.packet)
+				}
+			case <-endChan:
+				break loop
+			}
+		}
+
+	}()
+
+	// register new session when new connection connected in
+	agent := defaultNetService.createAgent(conn)
+	log.Debug("new agent(%s)", agent.String())
+	tmp := make([]byte, 0) // save truncated data
+	buf := make([]byte, 512)
+	for {
+		n, err := conn.Read(buf)
+		if err != nil {
+			log.Debug("session closed, id: %d, ip: %s", agent.session.Id, agent.socket.RemoteAddr())
+			close(packetChan)
+			endChan <- true
+			agent.close()
+			break
+		}
+		tmp = append(tmp, buf[:n]...)
+		var p *packet.Packet // save decoded packet
+		for len(tmp) >= packet.HeadLength {
+			p, tmp, err = packet.Unpack(tmp)
+			if err != nil {
+				agent.close()
+				break
+			}
+			packetChan <- &unhandledPacket{agent: agent, packet: p}
+		}
+	}
+}
+
+func (hs *handlerService) processPacket(a *agent, p *packet.Packet) {
+	switch p.Type {
+	case packet.Handshake:
+		a.status = statusHandshake
+		data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
+		if err != nil {
+			log.Info(err.Error())
+		}
+		rp := &packet.Packet{
+			Type:   packet.Handshake,
+			Length: len(data),
+			Data:   data,
+		}
+		resp, err := rp.Pack()
+		if err != nil {
+			log.Error(err.Error())
+			a.close()
+		}
+		if err := a.Send(resp); err != nil {
+			log.Error(err.Error())
+			a.close()
+		}
+	case packet.HandshakeAck:
+		a.status = statusWorking
+	case packet.Data:
+		m, err := message.Decode(p.Data)
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+		hs.processMessage(a.session, m)
+		fallthrough
+	case packet.Heartbeat:
+		go a.heartbeat()
+	default:
+		log.Info("invalid packet type")
+		a.close()
+	}
+}
+
+func (hs *handlerService) processMessage(session *session.Session, msg *message.Message) {
+	defer func() {
+		if err := recover(); err != nil {
+			runtime.Caller(2)
+			log.Fatal("processMessage Error: %+v", err)
+		}
+	}()
+
+	switch msg.Type {
+	case message.Request:
+		session.LastID = msg.ID
+	case message.Notify:
+		session.LastID = 0
+	default:
+		log.Error("invalid message type")
+		return
+	}
+
+	log.Debug("message(%s)", msg.String())
+	r, err := route.Decode(msg.Route)
+	if err != nil {
+		log.Error(err.Error())
+		return
+	}
+
+	// current server as default server type
+	if r.ServerType == "" {
+		r.ServerType = appConfig.Type
+	}
+
+	// message dispatch
+	if r.ServerType == appConfig.Type {
+		hs.localProcess(session, r, msg)
+	} else {
+		hs.remoteProcess(session, r, msg)
+	}
+}
+
+// current message handle in local server
+func (hs *handlerService) localProcess(session *session.Session, route *route.Route, msg *message.Message) {
+	s, ok := hs.serviceMap[route.Service]
+	if !ok || s == nil {
+		log.Info("handler: service: " + route.Service + " not found")
+		return
+	}
+
+	m, ok := s.handlerMethod[route.Method]
+	if !ok || m == nil {
+		log.Info("handler: " + route.Service + " does not contain method: " + route.Method)
+		return
+	}
+
+	var data interface{}
+	if m.raw {
+		data = msg.Data
+	} else {
+		data = reflect.New(m.dataType.Elem()).Interface()
+		err := serializer.Deserialize(msg.Data, data)
+		if err != nil {
+			log.Error("deserialize error: %s", err.Error())
+			return
+		}
+	}
+
+	ret := m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(data)})
+	if len(ret) > 0 {
+		err := ret[0].Interface()
+		if err != nil {
+			log.Error(err.(error).Error())
+		}
+	}
+}
+
+// current message handle in remote server
+func (hs *handlerService) remoteProcess(session *session.Session, route *route.Route, msg *message.Message) {
+	cluster.Call(rpc.Sys, route, session, msg.Data)
 }
 
 func (hs *handlerService) dumpServiceMap() {

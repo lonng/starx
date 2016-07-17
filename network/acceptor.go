@@ -6,10 +6,12 @@ import (
 	"time"
 
 	"encoding/json"
+	"github.com/chrislonng/starx/cluster"
+	"github.com/chrislonng/starx/cluster/rpc"
 	"github.com/chrislonng/starx/log"
 	routelib "github.com/chrislonng/starx/network/route"
 	"github.com/chrislonng/starx/session"
-	"github.com/chrislonng/starx/cluster/rpc"
+	"github.com/tinylib/msgp/msgp"
 )
 
 // Acceptor corresponding a front server, used for store raw socket
@@ -17,6 +19,8 @@ import (
 // only used in package internal, can not accessible by other package
 type acceptor struct {
 	id         uint64
+	reader     *msgp.Reader
+	writer     *msgp.Writer
 	socket     net.Conn
 	status     networkStatus
 	sessionMap map[uint64]*session.Session // backend sessions
@@ -29,6 +33,8 @@ type acceptor struct {
 func newAcceptor(id uint64, conn net.Conn) *acceptor {
 	return &acceptor{
 		id:         id,
+		reader:     msgp.NewReader(conn),
+		writer:     msgp.NewWriter(conn),
 		socket:     conn,
 		status:     statusStart,
 		sessionMap: make(map[uint64]*session.Session),
@@ -44,10 +50,6 @@ func (a *acceptor) String() string {
 		a.id,
 		a.socket.RemoteAddr().String(),
 		a.lastTime)
-}
-
-func (a *acceptor) send(data []byte) {
-	a.socket.Write(data)
 }
 
 func (a *acceptor) heartbeat() {
@@ -67,14 +69,11 @@ func (a *acceptor) Session(sid uint64) *session.Session {
 
 func (a *acceptor) close() {
 	a.status = statusClosed
-	//TODO:FIXED IT
-	/*
-		for _, session := range a.sessionMap {
-			defaultNetService.closeSession(session)
-		}
-		defaultNetService.removeAcceptor(a)
-		a.socket.Close()
-	*/
+	for _, session := range a.sessionMap {
+		defaultNetService.closeSession(session)
+	}
+	defaultNetService.removeAcceptor(a)
+	a.socket.Close()
 }
 
 func (a *acceptor) ID() uint64 {
@@ -92,10 +91,6 @@ func (a *acceptor) Push(session *session.Session, route string, v interface{}) e
 		return err
 	}
 
-	if appConfig.IsFrontend {
-		return defaultNetService.Push(session, route, data)
-	}
-
 	rs, err := defaultNetService.getAcceptor(session.Entity.ID())
 	if err != nil {
 		log.Error(err.Error())
@@ -108,13 +103,13 @@ func (a *acceptor) Push(session *session.Session, route string, v interface{}) e
 		return ErrSidNotExists
 	}
 
-	resp := rpc.Response{
+	resp := &rpc.Response{
 		Route: route,
 		Kind:  rpc.HandlerPush,
 		Data:  data,
 		Sid:   sid,
 	}
-	return writeResponse(rs, &resp)
+	return resp.EncodeMsg(a.writer)
 }
 
 // Response message to session
@@ -124,10 +119,6 @@ func (a *acceptor) Response(session *session.Session, v interface{}) error {
 		return err
 	}
 
-	if appConfig.IsFrontend {
-		return defaultNetService.Response(session, data)
-	}
-
 	rs, err := defaultNetService.getAcceptor(session.Entity.ID())
 	if err != nil {
 		log.Error(err.Error())
@@ -139,12 +130,12 @@ func (a *acceptor) Response(session *session.Session, v interface{}) error {
 		log.Error("sid not exists")
 		return ErrSidNotExists
 	}
-	resp := rpc.Response{
+	resp := &rpc.Response{
 		Kind: rpc.HandlerResponse,
 		Data: data,
 		Sid:  sid,
 	}
-	return writeResponse(rs, &resp)
+	return resp.EncodeMsg(a.writer)
 }
 
 func (a *acceptor) AsyncCall(session *session.Session, route string, args ...interface{}) error {
@@ -161,7 +152,7 @@ func (a *acceptor) AsyncCall(session *session.Session, route string, args ...int
 	if err != nil {
 		return err
 	}
-	_, err = Remote.request(rpc.User, r, session, encodeArgs)
+	_, err = cluster.Call(rpc.User, r, session, encodeArgs)
 	return err
 }
 
@@ -180,7 +171,7 @@ func (a *acceptor) Call(session *session.Session, route string, args ...interfac
 		return nil, err
 	}
 
-	return Remote.request(rpc.User, r, session, encodeArgs)
+	return cluster.Call(rpc.User, r, session, encodeArgs)
 }
 
 // TODO: implement

@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"encoding/json"
-	"github.com/chrislonng/starx/log"
-	routelib "github.com/chrislonng/starx/network/route"
+	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/cluster/rpc"
+	routelib "github.com/chrislonng/starx/network/route"
 	"github.com/chrislonng/starx/session"
 )
 
@@ -48,22 +48,14 @@ func (a *agent) String() string {
 		a.lastTime)
 }
 
-// send data to user
-func (a *agent) send(data []byte) {
-	a.socket.Write(data)
-}
-
 func (a *agent) heartbeat() {
 	a.lastTime = time.Now().Unix()
 }
 
 func (a *agent) close() {
 	a.status = statusClosed
-	//TODO:FIXED IT
-	/*
-	   defaultNetService.closeSession(a.session)
-	   a.socket.Close()
-	*/
+	defaultNetService.closeSession(a.session)
+	a.socket.Close()
 }
 
 func (a *agent) ID() uint64 {
@@ -81,29 +73,7 @@ func (a *agent) Push(session *session.Session, route string, v interface{}) erro
 		return err
 	}
 
-	if appConfig.IsFrontend {
-		return defaultNetService.Push(session, route, data)
-	}
-
-	rs, err := defaultNetService.getAcceptor(session.Entity.ID())
-	if err != nil {
-		log.Error(err.Error())
-		return err
-	}
-
-	sid, ok := rs.b2fMap[session.Id]
-	if !ok {
-		log.Error("sid not exists")
-		return ErrSidNotExists
-	}
-
-	resp := rpc.Response{
-		Route: route,
-		Kind:  rpc.HandlerPush,
-		Data:  data,
-		Sid:   sid,
-	}
-	return writeResponse(rs, &resp)
+	return defaultNetService.Push(session, route, data)
 }
 
 // Response message to session
@@ -113,27 +83,7 @@ func (a *agent) Response(session *session.Session, v interface{}) error {
 		return err
 	}
 
-	if appConfig.IsFrontend {
-		return defaultNetService.Response(session, data)
-	}
-
-	rs, err := defaultNetService.getAcceptor(session.Entity.ID())
-	if err != nil {
-		log.Error(err.Error())
-		return err
-	}
-
-	sid, ok := rs.b2fMap[session.Id]
-	if !ok {
-		log.Error("sid not exists")
-		return ErrSidNotExists
-	}
-	resp := rpc.Response{
-		Kind: rpc.HandlerResponse,
-		Data: data,
-		Sid:  sid,
-	}
-	return writeResponse(rs, &resp)
+	return defaultNetService.Response(session, data)
 }
 
 func (a *agent) AsyncCall(session *session.Session, route string, args ...interface{}) error {
@@ -150,7 +100,7 @@ func (a *agent) AsyncCall(session *session.Session, route string, args ...interf
 	if err != nil {
 		return err
 	}
-	_, err = Remote.request(rpc.User, r, session, encodeArgs)
+	_, err = cluster.Call(rpc.User, r, session, encodeArgs)
 	return err
 }
 
@@ -169,7 +119,7 @@ func (a *agent) Call(session *session.Session, route string, args ...interface{}
 		return nil, err
 	}
 
-	return Remote.request(rpc.User, r, session, encodeArgs)
+	return cluster.Call(rpc.User, r, session, encodeArgs)
 }
 
 // TODO: implement

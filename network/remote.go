@@ -9,23 +9,9 @@ import (
 	"reflect"
 	"runtime/debug"
 
-	"github.com/chrislonng/starx/cluster"
+	"github.com/chrislonng/starx/cluster/rpc"
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/network/route"
-	"github.com/chrislonng/starx/cluster/rpc"
-	"github.com/chrislonng/starx/session"
-	"github.com/chrislonng/starx/network/packet"
-)
-
-type rpcStatus int32
-
-const (
-	rpcStatusUninit rpcStatus = iota
-	rpcStatusInited
-)
-
-var (
-	ErrNilResponse = errors.New("nil response")
 )
 
 var Remote = newRemote()
@@ -114,75 +100,17 @@ func (rs *remoteService) Handle(conn net.Conn) {
 
 	acceptor := defaultNetService.createAcceptor(conn)
 	defaultNetService.dumpAcceptor()
-	tmp := make([]byte, 0) // save truncated data
-	buf := make([]byte, 512)
 	for {
-		n, err := conn.Read(buf)
-		if err != nil {
+		rr := &rpc.Request{} // save decoded packet
+		if err := rr.DecodeMsg(acceptor.reader); err != nil {
 			log.Info("session closed(" + err.Error() + ")")
 			defaultNetService.dumpAgents()
 			acceptor.close()
 			endChan <- true
 			break
 		}
-		tmp = append(tmp, buf[:n]...)
-		var rr *rpc.Request // save decoded packet
-		// TODO
-		// Refactor this loop
-		// read all request from buffer, and send to handle queue
-		for len(tmp) > packet.HeadLength {
-			if rr, tmp = readRequest(tmp); rr != nil {
-				requestChan <- &unhandledRequest{acceptor, rr}
-			} else {
-				break
-			}
-		}
+		requestChan <- &unhandledRequest{acceptor, rr}
 	}
-}
-
-func readRequest(data []byte) (*rpc.Request, []byte) {
-	var length uint
-	var offset = 0
-	for i := 0; i < len(data); i++ {
-		b := data[i]
-		length += (uint(b&0x7F) << uint(7*(i)))
-		if b < 128 {
-			offset = i + 1
-			break
-		}
-	}
-	request := rpc.Request{}
-	err := json.Unmarshal(data[offset:(offset+int(length))], &request)
-	if err != nil {
-		//TODO
-	}
-	return &request, data[(offset + int(length)):]
-}
-
-func writeResponse(bs *acceptor, response *rpc.Response) error {
-	if response == nil {
-		return ErrNilResponse
-	}
-	resp, err := json.Marshal(response)
-	if err != nil {
-		fmt.Println(err.Error())
-		return err
-	}
-	buf := make([]byte, 0)
-	length := len(resp)
-	for {
-		b := byte(length % 128)
-		length >>= 7
-		if length != 0 {
-			buf = append(buf, b+128)
-		} else {
-			buf = append(buf, b)
-			break
-		}
-	}
-	buf = append(buf, resp...)
-	_, err = bs.socket.Write(buf)
-	return err
 }
 
 func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
@@ -200,38 +128,62 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 
 	route, err := route.Decode(rr.ServiceMethod)
 	if err != nil {
+		log.Error(err.Error())
 		response.Error = err.Error()
 		goto WRITE_RESPONSE
 	}
 
 	service, ok = rs.serviceMap[route.Service]
 	if !ok || service == nil {
-		response.Error = "remote: servive " + route.Service + " does not exists"
+		str := "remote: servive " + route.Service + " does not exists"
+		log.Error(str)
+		response.Error = str
 		goto WRITE_RESPONSE
 	}
 
 	switch rr.Kind {
 	case rpc.Sys:
-		fmt.Println(string(rr.Args))
+		fmt.Println(string(rr.Data))
 		session := ac.Session(rr.Sid)
 		m, ok := service.handlerMethod[route.Method]
 		if !ok || m == nil {
-			response.Error = "remote: service " + route.Service + "does not contain method: " + route.Method
+			str := "remote: service " + route.Service + "does not contain method: " + route.Method
+			log.Error(str)
+			response.Error = str
 			goto WRITE_RESPONSE
 		}
-		ret, err := rs.call(m.method, []reflect.Value{reflect.ValueOf(session), reflect.ValueOf(rr.Args)})
+		var data interface{}
+		if m.raw {
+			data = rr.Data
+		} else {
+			data = reflect.New(m.dataType.Elem()).Interface()
+			err := serializer.Deserialize(rr.Data, data)
+			if err != nil {
+				str := "deserialize error: " + err.Error()
+				log.Error(str)
+				response.Error = str
+				goto WRITE_RESPONSE
+			}
+		}
+
+		ret, err := rs.call(m.method, []reflect.Value{
+			service.rcvr,
+			reflect.ValueOf(session),
+			reflect.ValueOf(data)})
 		if err != nil {
+			log.Error(err.Error())
 			response.Error = err.Error()
 		} else {
 			// handler method encounter error
 			if err := ret[0].Interface(); err != nil {
+				log.Error(err.(error).Error())
 				response.Error = err.(error).Error()
 			}
 		}
 	case rpc.User:
 		var args interface{}
 		var params = []reflect.Value{}
-		json.Unmarshal(rr.Args, &args)
+		json.Unmarshal(rr.Data, &args)
 		switch args.(type) {
 		case []interface{}:
 			for _, arg := range args.([]interface{}) {
@@ -261,7 +213,9 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 		return
 	}
 WRITE_RESPONSE:
-	writeResponse(ac, response)
+	if err := response.EncodeMsg(ac.writer); err != nil {
+		log.Error(err.Error())
+	}
 }
 
 func (rs *remoteService) call(method reflect.Method, args []reflect.Value) (rets []reflect.Value, err error) {
@@ -280,22 +234,14 @@ func (rs *remoteService) call(method reflect.Method, args []reflect.Value) (rets
 	return rets, nil
 }
 
-func (rs *remoteService) asyncRequest(route *route.Route, session *session.Session, args ...interface{}) {
+func (rs *remoteService) dumpServiceMap() {
+	for sname, s := range rs.serviceMap {
+		for mname, _ := range s.handlerMethod {
+			log.Info("registered service: %s.%s", sname, mname)
+		}
 
-}
-
-// Client send request
-// First argument is namespace, can be set `user` or `sys`
-func (rs *remoteService) request(rpcKind rpc.RpcKind, route *route.Route, session *session.Session, args []byte) ([]byte, error) {
-	client, err := cluster.ClientByType(route.ServerType, session)
-	if err != nil {
-		log.Info(err.Error())
-		return nil, err
+		for mname, _ := range s.remoteMethod {
+			log.Info("registered service: %s.%s", sname, mname)
+		}
 	}
-	reply := new([]byte)
-	err = client.Call(rpcKind, route.Service, route.Method, session.Entity.ID(), reply, args)
-	if err != nil {
-		return nil, errors.New(err.Error())
-	}
-	return *reply, nil
 }
