@@ -11,6 +11,7 @@ import (
 	"github.com/chrislonng/starx/log"
 	routelib "github.com/chrislonng/starx/network/route"
 	"github.com/chrislonng/starx/session"
+	"github.com/tinylib/msgp/msgp"
 )
 
 // Acceptor corresponding a front server, used for store raw socket
@@ -18,6 +19,8 @@ import (
 // only used in package internal, can not accessible by other package
 type acceptor struct {
 	id         uint64
+	reader     *msgp.Reader
+	writer     *msgp.Writer
 	socket     net.Conn
 	status     networkStatus
 	sessionMap map[uint64]*session.Session // backend sessions
@@ -30,6 +33,8 @@ type acceptor struct {
 func newAcceptor(id uint64, conn net.Conn) *acceptor {
 	return &acceptor{
 		id:         id,
+		reader:     msgp.NewReader(conn),
+		writer:     msgp.NewWriter(conn),
 		socket:     conn,
 		status:     statusStart,
 		sessionMap: make(map[uint64]*session.Session),
@@ -98,13 +103,13 @@ func (a *acceptor) Push(session *session.Session, route string, v interface{}) e
 		return ErrSidNotExists
 	}
 
-	resp := rpc.Response{
+	resp := &rpc.Response{
 		Route: route,
 		Kind:  rpc.HandlerPush,
 		Data:  data,
 		Sid:   sid,
 	}
-	return writeResponse(rs, &resp)
+	return resp.EncodeMsg(a.writer)
 }
 
 // Response message to session
@@ -125,12 +130,12 @@ func (a *acceptor) Response(session *session.Session, v interface{}) error {
 		log.Error("sid not exists")
 		return ErrSidNotExists
 	}
-	resp := rpc.Response{
+	resp := &rpc.Response{
 		Kind: rpc.HandlerResponse,
 		Data: data,
 		Sid:  sid,
 	}
-	return writeResponse(rs, &resp)
+	return resp.EncodeMsg(a.writer)
 }
 
 func (a *acceptor) AsyncCall(session *session.Session, route string, args ...interface{}) error {

@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/chrislonng/starx/log"
+	"github.com/tinylib/msgp/msgp"
 )
 
 // ServerError represents an error that has been returned from
@@ -66,61 +66,14 @@ type Client struct {
 // argument to force the body of the response to be read and then
 // discarded.
 type clientCodec struct {
-	rw  io.ReadWriteCloser
+	w   *msgp.Writer
+	r   *msgp.Reader
+	c   io.Closer
 	buf []byte // save buffer data
 }
 
-// TODO
-func (codec *clientCodec) writeRequest(request *Request) error {
-	data, err := json.Marshal(request)
-	if err != nil {
-		return err
-	}
-	buf := make([]byte, 0)
-	length := len(data)
-	for {
-		b := byte(length % 128)
-		length >>= 7
-		if length != 0 {
-			buf = append(buf, b+128)
-		} else {
-			buf = append(buf, b)
-			break
-		}
-	}
-	buf = append(buf, data...)
-	codec.rw.Write(buf)
-	return nil
-}
-
-// TODO
-func (codec *clientCodec) readResponse(response *Response) error {
-	if len(codec.buf) == 0 {
-		return ErrEmptyBuffer
-	}
-	var length uint
-	var offset = 0
-	for i := 0; i < len(codec.buf); i++ {
-		b := codec.buf[i]
-		length += (uint(b&0x7F) << uint(7*(i)))
-		if b < 128 {
-			offset = i + 1
-			break
-		}
-	}
-	if len(codec.buf) < (int(length) + offset) {
-		return ErrTruncedBuffer
-	}
-	err := json.Unmarshal(codec.buf[offset:(offset+int(length))], &response)
-	if err != nil {
-		return err
-	}
-	codec.buf = codec.buf[(offset + int(length)):]
-	return nil
-}
-
 func (codec *clientCodec) close() error {
-	return codec.rw.Close()
+	return codec.c.Close()
 }
 
 func (client *Client) send(rpcKind RpcKind, call *Call) {
@@ -146,8 +99,8 @@ func (client *Client) send(rpcKind RpcKind, call *Call) {
 	client.request.Data = call.Args
 	client.request.Kind = rpcKind
 	client.request.Sid = call.Sid
-	err := client.codec.writeRequest(&client.request)
-	if err != nil {
+
+	if err := client.request.EncodeMsg(client.codec.w); err != nil {
 		client.mutex.Lock()
 		call = client.pending[seq]
 		delete(client.pending, seq)
@@ -164,7 +117,7 @@ func (client *Client) input() {
 	var response *Response
 	var tmp = make([]byte, 512)
 	for err == nil {
-		n, err := client.codec.rw.Read(tmp)
+		n, err := client.codec.r.Read(tmp)
 		if err != nil {
 			fmt.Println(err.Error())
 			break
@@ -172,7 +125,7 @@ func (client *Client) input() {
 		client.codec.buf = append(client.codec.buf, tmp[:n]...)
 		for {
 			response = &Response{}
-			err = client.codec.readResponse(response)
+			err = response.DecodeMsg(client.codec.r)
 			if err != nil {
 				break
 			}
@@ -257,7 +210,12 @@ func (call *Call) done() {
 // the header and payload are sent as a unit.
 func NewClient(conn io.ReadWriteCloser) *Client {
 	client := &Client{
-		codec:        &clientCodec{conn, make([]byte, 0)},
+		codec: &clientCodec{
+			w:   msgp.NewWriter(conn),
+			r:   msgp.NewReader(conn),
+			c:   conn,
+			buf: make([]byte, 0),
+		},
 		pending:      make(map[uint64]*Call),
 		ResponseChan: make(chan *Response, 2<<10),
 	}

@@ -1,10 +1,15 @@
 package rpc
 
 import (
+	"errors"
 	"strconv"
 	"sync"
 	"unicode"
 	"unicode/utf8"
+)
+
+var (
+	ErrNilResponse = errors.New("nil response")
 )
 
 // Server represents an RPC Server.
