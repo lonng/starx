@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/chrislonng/starx/log"
-	"github.com/tinylib/msgp/msgp"
 )
 
 // ServerError represents an error that has been returned from
@@ -27,6 +26,7 @@ var (
 )
 
 var debugLog = false
+var emptyBytes = make([]byte, 0)
 
 // Call represents an active RPC.
 type Call struct {
@@ -66,14 +66,22 @@ type Client struct {
 // argument to force the body of the response to be read and then
 // discarded.
 type clientCodec struct {
-	w   *msgp.Writer
-	r   *msgp.Reader
-	c   io.Closer
+	rw  io.ReadWriteCloser
 	buf []byte // save buffer data
 }
 
 func (codec *clientCodec) close() error {
-	return codec.c.Close()
+	return codec.rw.Close()
+}
+
+func (client *Client) writeRequest() error {
+	data, err := client.request.MarshalMsg(emptyBytes)
+	if err != nil {
+		log.Error(err.Error())
+		return err
+	}
+	_, err = client.codec.rw.Write(data)
+	return err
 }
 
 func (client *Client) send(rpcKind RpcKind, call *Call) {
@@ -100,7 +108,8 @@ func (client *Client) send(rpcKind RpcKind, call *Call) {
 	client.request.Kind = rpcKind
 	client.request.Sid = call.Sid
 
-	if err := client.request.EncodeMsg(client.codec.w); err != nil {
+	if err := client.writeRequest(); err != nil {
+		log.Error(err.Error())
 		client.mutex.Lock()
 		call = client.pending[seq]
 		delete(client.pending, seq)
@@ -117,7 +126,7 @@ func (client *Client) input() {
 	var response *Response
 	var tmp = make([]byte, 512)
 	for err == nil {
-		n, err := client.codec.r.Read(tmp)
+		n, err := client.codec.rw.Read(tmp)
 		if err != nil {
 			fmt.Println(err.Error())
 			break
@@ -125,8 +134,9 @@ func (client *Client) input() {
 		client.codec.buf = append(client.codec.buf, tmp[:n]...)
 		for {
 			response = &Response{}
-			err = response.DecodeMsg(client.codec.r)
+			client.codec.buf, err = response.UnmarshalMsg(client.codec.buf)
 			if err != nil {
+				log.Error(err.Error())
 				break
 			}
 			if response.Kind == HandlerPush || response.Kind == HandlerResponse {
@@ -211,9 +221,7 @@ func (call *Call) done() {
 func NewClient(conn io.ReadWriteCloser) *Client {
 	client := &Client{
 		codec: &clientCodec{
-			w:   msgp.NewWriter(conn),
-			r:   msgp.NewReader(conn),
-			c:   conn,
+			rw:  conn,
 			buf: make([]byte, 0),
 		},
 		pending:      make(map[uint64]*Call),

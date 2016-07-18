@@ -100,16 +100,29 @@ func (rs *remoteService) Handle(conn net.Conn) {
 
 	acceptor := defaultNetService.createAcceptor(conn)
 	defaultNetService.dumpAcceptor()
+	tmp := make([]byte, 0) // save truncated data
+	buf := make([]byte, 512)
 	for {
-		rr := &rpc.Request{} // save decoded packet
-		if err := rr.DecodeMsg(acceptor.reader); err != nil {
+		n, err := conn.Read(buf)
+		if err != nil {
 			log.Info("session closed(" + err.Error() + ")")
 			defaultNetService.dumpAgents()
 			acceptor.close()
 			endChan <- true
 			break
 		}
-		requestChan <- &unhandledRequest{acceptor, rr}
+		tmp = append(tmp, buf[:n]...)
+		// TODO
+		// Refactor this loop
+		// read all request from buffer, and send to handle queue
+		for {
+			rr := &rpc.Request{} // save decoded packet
+			if tmp, err = rr.UnmarshalMsg(tmp); err != nil {
+				break
+			} else {
+				requestChan <- &unhandledRequest{acceptor, rr}
+			}
+		}
 	}
 }
 
@@ -213,7 +226,7 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 		return
 	}
 WRITE_RESPONSE:
-	if err := response.EncodeMsg(ac.writer); err != nil {
+	if err := rpc.WriteResponse(ac.socket, response); err != nil {
 		log.Error(err.Error())
 	}
 }
