@@ -23,6 +23,7 @@ func Register(c Component) {
 }
 
 func Startup() {
+	cluster.SetSessionManager(defaultNetService)
 	if appConfig.IsFrontend {
 		timer.Register(heartbeatInternal, func() {
 			defaultNetService.heartbeat()

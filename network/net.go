@@ -11,7 +11,10 @@ import (
 	"github.com/chrislonng/starx/session"
 )
 
-var ErrSessionOnNotify = errors.New("current session working on notify mode")
+var (
+	ErrSessionOnNotify = errors.New("current session working on notify mode")
+	ErrSessionNotFound = errors.New("session not found")
+)
 
 var (
 	heartbeatPacket, _ = packet.Pack(&packet.Packet{Type: packet.Heartbeat})
@@ -56,12 +59,16 @@ func (net *netService) createAgent(conn net.Conn) *agent {
 }
 
 // get agent by session id
-func (net *netService) getAgent(sid uint64) (*agent, error) {
-	if a, ok := net.agentMap[sid]; ok && a != nil {
-		return a, nil
-	} else {
-		return nil, errors.New("agent id: " + string(sid) + " not exists!")
+func (net *netService) agent(id uint64) (*agent, error) {
+	net.agentMapLock.RLock()
+	defer net.agentMapLock.RUnlock()
+
+	a, ok := net.agentMap[id]
+	if !ok {
+		return nil, errors.New("agent id: " + string(id) + " not exists!")
 	}
+
+	return a, nil
 }
 
 // Create acceptor via netService
@@ -78,14 +85,16 @@ func (net *netService) createAcceptor(conn net.Conn) *acceptor {
 	return a
 }
 
-func (net *netService) getAcceptor(sid uint64) (*acceptor, error) {
+func (net *netService) acceptor(id uint64) (*acceptor, error) {
 	net.acceptorMapLock.RLock()
 	defer net.acceptorMapLock.RUnlock()
-	if rs, ok := net.acceptorMap[sid]; ok && rs != nil {
-		return rs, nil
+
+	rs, ok := net.acceptorMap[id]
+	if !ok || rs == nil {
+		return nil, errors.New("acceptor id: " + string(id) + " not exists!")
 	}
 
-	return nil, errors.New("acceptor id: " + string(sid) + " not exists!")
+	return rs, nil
 }
 
 // Send packet data, call by package internal, the second argument was packaged packet
@@ -168,6 +177,17 @@ func (net *netService) Multicast(aids []uint64, route string, data []byte) {
 			net.Push(agent.session, route, data)
 		}
 	}
+}
+
+func (net *netService) Session(sid uint64) (*session.Session, error) {
+	net.agentMapLock.RLock()
+	defer net.agentMapLock.RUnlock()
+
+	a, ok := net.agentMap[sid]
+	if !ok {
+		return nil, ErrSessionNotFound
+	}
+	return a.session, nil
 }
 
 // Close session
