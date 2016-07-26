@@ -2,10 +2,13 @@ package rpc
 
 import (
 	"errors"
+	"io"
 	"strconv"
 	"sync"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/chrislonng/starx/log"
 )
 
 var (
@@ -56,4 +59,15 @@ func (k RpcKind) String() string {
 		return rpcKindNames[k]
 	}
 	return strconv.Itoa(int(k))
+}
+
+func WriteResponse(w io.Writer, resp *Response) error {
+	data, err := resp.MarshalMsg(emptyBytes)
+	if err != nil {
+		log.Error(err.Error())
+		return err
+	}
+	// TODO: n
+	_, err = w.Write(data)
+	return err
 }

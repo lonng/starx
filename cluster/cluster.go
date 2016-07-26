@@ -6,8 +6,8 @@ import (
 	"math/rand"
 	"sync"
 
-	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/cluster/rpc"
+	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/session"
 )
 
@@ -19,11 +19,17 @@ var (
 	clientLock   sync.RWMutex             // protect ClientIdMaps
 	clientIdMaps map[string]*rpc.Client   // all rpc clients
 	appConfig    *ServerConfig            // current app config
+
+	sessionManger SessionManager //get session instance
 )
 
 var (
 	ErrServerNotFound = errors.New("server config not found")
 )
+
+type SessionManager interface {
+	Session(sid uint64) (*session.Session, error)
+}
 
 func init() {
 	svrTypeMaps = make(map[string][]string)
@@ -185,26 +191,23 @@ func ClientById(svrId string) (*rpc.Client, error) {
 		clientLock.Unlock()
 		// handle sys rpc push/response
 		go func() {
-			//TODO: refactor it
-			/*
-				for resp := range client.ResponseChan {
-					agent, err := defaultNetService.getAgent(resp.Sid)
-					if err != nil {
-						log.Error(err.Error())
-						continue
-					}
-					if resp.Kind == rpHandlerPush {
-						agent.session.Push(resp.Route, resp.Data)
-					} else if resp.Kind == rpHandlerResponse {
-						agent.session.Response(resp.Data)
-					} else if resp.Kind == rpRemotePush {
-						// TODO
-						// remote server push data
-					} else {
-						log.Error("invalid response kind")
-					}
+			for resp := range client.ResponseChan {
+				sess, err := sessionManger.Session(resp.Sid)
+				if err != nil {
+					log.Error(err.Error())
+					continue
 				}
-			*/
+				if resp.Kind == rpc.HandlerPush {
+					sess.Push(resp.Route, resp.Data)
+				} else if resp.Kind == rpc.HandlerResponse {
+					sess.Response(resp.Data)
+				} else if resp.Kind == rpc.RemotePush {
+					// TODO
+					// remote server push data
+				} else {
+					log.Error("invalid response kind")
+				}
+			}
 		}()
 		log.Info("%s establish rpc client successful.", svr.Id)
 		DumpClientIdMaps()
@@ -230,4 +233,11 @@ func Close() {
 
 func SetAppConfig(c *ServerConfig) {
 	appConfig = c
+}
+
+func SetSessionManager(s SessionManager) {
+	if s == nil {
+		panic("nil session manager")
+	}
+	sessionManger = s
 }

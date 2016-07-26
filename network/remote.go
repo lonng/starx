@@ -3,7 +3,6 @@ package network
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"os"
 	"reflect"
@@ -100,16 +99,29 @@ func (rs *remoteService) Handle(conn net.Conn) {
 
 	acceptor := defaultNetService.createAcceptor(conn)
 	defaultNetService.dumpAcceptor()
+	tmp := make([]byte, 0) // save truncated data
+	buf := make([]byte, 512)
 	for {
-		rr := &rpc.Request{} // save decoded packet
-		if err := rr.DecodeMsg(acceptor.reader); err != nil {
+		n, err := conn.Read(buf)
+		if err != nil {
 			log.Info("session closed(" + err.Error() + ")")
-			defaultNetService.dumpAgents()
+			defaultNetService.dumpAcceptor()
 			acceptor.close()
 			endChan <- true
 			break
 		}
-		requestChan <- &unhandledRequest{acceptor, rr}
+		tmp = append(tmp, buf[:n]...)
+		// TODO
+		// Refactor this loop
+		// read all request from buffer, and send to handle queue
+		for {
+			rr := &rpc.Request{} // save decoded packet
+			if tmp, err = rr.UnmarshalMsg(tmp); err != nil {
+				break
+			} else {
+				requestChan <- &unhandledRequest{acceptor, rr}
+			}
+		}
 	}
 }
 
@@ -143,7 +155,6 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 
 	switch rr.Kind {
 	case rpc.Sys:
-		fmt.Println(string(rr.Data))
 		session := ac.Session(rr.Sid)
 		m, ok := service.handlerMethod[route.Method]
 		if !ok || m == nil {
@@ -213,17 +224,17 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 		return
 	}
 WRITE_RESPONSE:
-	if err := response.EncodeMsg(ac.writer); err != nil {
+	if err := rpc.WriteResponse(ac.socket, response); err != nil {
 		log.Error(err.Error())
 	}
 }
 
 func (rs *remoteService) call(method reflect.Method, args []reflect.Value) (rets []reflect.Value, err error) {
 	defer func() {
-		if recov := recover(); recov != nil {
-			log.Fatal("RpcCall Error: %+v", recov)
+		if rec := recover(); rec != nil {
+			log.Error("rpc call error: %+v", rec)
 			os.Stderr.Write(debug.Stack())
-			if s, ok := recov.(string); ok {
+			if s, ok := rec.(string); ok {
 				err = errors.New(s)
 			} else {
 				err = errors.New("RpcCall internal error")

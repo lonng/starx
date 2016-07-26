@@ -11,7 +11,10 @@ import (
 	"github.com/chrislonng/starx/session"
 )
 
-var ErrSessionOnNotify = errors.New("current session working on notify mode")
+var (
+	ErrSessionOnNotify = errors.New("current session working on notify mode")
+	ErrSessionNotFound = errors.New("session not found")
+)
 
 var (
 	heartbeatPacket, _ = packet.Pack(&packet.Packet{Type: packet.Heartbeat})
@@ -19,14 +22,14 @@ var (
 )
 
 type netService struct {
-	agentUidLock       sync.RWMutex             // protect agentUid
-	agentUid           uint64                   // agent unique id
-	agentMapLock       sync.RWMutex             // protect agentMap
-	agentMap           map[uint64]*agent        // agents map
-	acceptorUidLock    sync.RWMutex             // protect acceptorUid
-	acceptorUid        uint64                   // acceptor unique id
-	acceptorMapLock    sync.RWMutex             // protect acceptorMap
-	acceptorMap        map[uint64]*acceptor     // acceptor map
+	agentMapLock sync.RWMutex      // protect agentMap
+	agentMap     map[uint64]*agent // agents map
+
+	acceptorUidLock sync.RWMutex         // protect acceptorUid
+	acceptorUid     uint64               // acceptor unique id
+	acceptorMapLock sync.RWMutex         // protect acceptorMap
+	acceptorMap     map[uint64]*acceptor // acceptor map
+
 	sessionCloseCbLock sync.RWMutex             // protect sessionCloseCb
 	sessionCloseCb     []func(*session.Session) // callback on session closed
 }
@@ -34,7 +37,6 @@ type netService struct {
 // Create new netservive
 func NewNetService() *netService {
 	return &netService{
-		agentUid:    1,
 		agentMap:    make(map[uint64]*agent),
 		acceptorUid: 1,
 		acceptorMap: make(map[uint64]*acceptor),
@@ -43,25 +45,25 @@ func NewNetService() *netService {
 
 // Create agent via netService
 func (net *netService) createAgent(conn net.Conn) *agent {
-	net.agentUidLock.Lock()
-	id := net.agentUid
-	net.agentUid++
-	net.agentUidLock.Unlock()
-	a := newAgent(id, conn)
+	a := newAgent(conn)
 	// add to maps
 	net.agentMapLock.Lock()
-	net.agentMap[id] = a
+	net.agentMap[a.id] = a
 	net.agentMapLock.Unlock()
 	return a
 }
 
 // get agent by session id
-func (net *netService) getAgent(sid uint64) (*agent, error) {
-	if a, ok := net.agentMap[sid]; ok && a != nil {
-		return a, nil
-	} else {
-		return nil, errors.New("agent id: " + string(sid) + " not exists!")
+func (net *netService) agent(id uint64) (*agent, error) {
+	net.agentMapLock.RLock()
+	defer net.agentMapLock.RUnlock()
+
+	a, ok := net.agentMap[id]
+	if !ok {
+		return nil, errors.New("agent id: " + string(id) + " not exists!")
 	}
+
+	return a, nil
 }
 
 // Create acceptor via netService
@@ -78,14 +80,16 @@ func (net *netService) createAcceptor(conn net.Conn) *acceptor {
 	return a
 }
 
-func (net *netService) getAcceptor(sid uint64) (*acceptor, error) {
+func (net *netService) acceptor(id uint64) (*acceptor, error) {
 	net.acceptorMapLock.RLock()
 	defer net.acceptorMapLock.RUnlock()
-	if rs, ok := net.acceptorMap[sid]; ok && rs != nil {
-		return rs, nil
+
+	rs, ok := net.acceptorMap[id]
+	if !ok || rs == nil {
+		return nil, errors.New("acceptor id: " + string(id) + " not exists!")
 	}
 
-	return nil, errors.New("acceptor id: " + string(sid) + " not exists!")
+	return rs, nil
 }
 
 // Send packet data, call by package internal, the second argument was packaged packet
@@ -170,6 +174,17 @@ func (net *netService) Multicast(aids []uint64, route string, data []byte) {
 	}
 }
 
+func (net *netService) Session(sid uint64) (*session.Session, error) {
+	net.agentMapLock.RLock()
+	defer net.agentMapLock.RUnlock()
+
+	a, ok := net.agentMap[sid]
+	if !ok {
+		return nil, ErrSessionNotFound
+	}
+	return a.session, nil
+}
+
 // Close session
 func (net *netService) closeSession(session *session.Session) {
 	// TODO: notify all backend server, current session has closed.
@@ -190,15 +205,18 @@ func (net *netService) closeSession(session *session.Session) {
 		}
 		net.agentMapLock.Unlock()
 		defaultNetService.dumpAgents()
-	} /* else {
+	} else {
 		net.acceptorMapLock.RLock()
-		if acceptor, ok := net.acceptorMap[session.entityID]; ok && (acceptor != nil) {
-			// TODO: FIXED IT
-			// backend session close should not cause acceptor remove from acceptor map
+		if acceptor, ok := net.acceptorMap[session.Entity.ID()]; ok && (acceptor != nil) {
+			delete(acceptor.sessionMap, session.Id)
+			if fid, ok := acceptor.b2fMap[session.Id]; ok {
+				delete(acceptor.b2fMap, session.Id)
+				delete(acceptor.f2bMap, fid)
+			}
 		}
 		net.acceptorMapLock.RUnlock()
 		defaultNetService.dumpAcceptor()
-	}*/
+	}
 }
 
 func (net *netService) removeAcceptor(a *acceptor) {

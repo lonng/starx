@@ -29,14 +29,14 @@ type agent struct {
 }
 
 // Create new agent instance
-func newAgent(id uint64, conn net.Conn) *agent {
+func newAgent(conn net.Conn) *agent {
 	a := &agent{
-		id:       id,
 		socket:   conn,
 		status:   statusStart,
 		lastTime: time.Now().Unix()}
 	session := session.NewSession(a)
 	a.session = session
+	a.id = session.Id
 	return a
 }
 
