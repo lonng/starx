@@ -97,8 +97,10 @@ func (client *Client) send(rpcKind RpcKind, call *Call) {
 		return
 	}
 	seq := client.seq
-	client.seq++
-	client.pending[seq] = call
+	if call.Reply != nil {
+		client.seq++
+		client.pending[seq] = call
+	}
 	client.mutex.Unlock()
 
 	// Encode and send the request.

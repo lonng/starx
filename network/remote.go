@@ -125,7 +125,17 @@ func (rs *remoteService) Handle(conn net.Conn) {
 	}
 }
 
+func isSessionClosedRequest(rr *rpc.Request) bool {
+	return rr.ServiceMethod == sessionClosedRoute
+}
+
 func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
+	// session closed notify request
+	if isSessionClosedRequest(rr) {
+		defaultNetService.closeSession(ac.Session(rr.Sid))
+		return
+	}
+
 	var (
 		err      error
 		service  *service
