@@ -41,6 +41,7 @@ func isHandlerMethod(method reflect.Method) bool {
 	if mtype.NumIn() != 3 {
 		return false
 	}
+
 	// Method needs one outs: error
 	if mtype.NumOut() != 1 {
 		return false
@@ -60,16 +61,18 @@ func isHandlerMethod(method reflect.Method) bool {
 // decide a method is suitable remote method
 func isRemoteMethod(method reflect.Method) bool {
 	mtype := method.Type
+
 	// Method must be exported.
 	if method.PkgPath != "" {
 		return false
 	}
+
 	// Method needs one outs: []byte, error
 	if mtype.NumOut() != 2 {
 		return false
 	}
 
-	if mtype.Out(0) != typeOfBytes || mtype.Out(1) != typeOfError {
+	if mtype.Out(0).Kind() != reflect.Interface || mtype.Out(1) != typeOfError {
 		return false
 	}
 

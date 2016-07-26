@@ -5,7 +5,6 @@ import (
 	"net"
 	"time"
 
-	"encoding/json"
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/cluster/rpc"
 	"github.com/chrislonng/starx/log"
@@ -133,7 +132,7 @@ func (a *acceptor) Response(session *session.Session, v interface{}) error {
 	return rpc.WriteResponse(a.socket, resp)
 }
 
-func (a *acceptor) Call(session *session.Session, route string, args ...interface{}) ([]byte, error) {
+func (a *acceptor) Call(session *session.Session, route string, args ...interface{}) (interface{}, error) {
 	r, err := routelib.Decode(route)
 	if err != nil {
 		return nil, err
@@ -143,12 +142,17 @@ func (a *acceptor) Call(session *session.Session, route string, args ...interfac
 		return nil, ErrRPCLocal
 	}
 
-	encodeArgs, err := json.Marshal(args)
+	data, err := gobEncode(args...)
 	if err != nil {
 		return nil, err
 	}
 
-	return cluster.Call(rpc.User, r, session, encodeArgs)
+	ret, err := cluster.Call(rpc.User, r, session, data)
+	if err != nil {
+		return nil, err
+	}
+
+	return gobDecode(ret)
 }
 
 // TODO: implement

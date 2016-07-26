@@ -1,7 +1,8 @@
 package network
 
 import (
-	"encoding/json"
+	"bytes"
+	"encoding/gob"
 	"errors"
 	"net"
 	"os"
@@ -130,9 +131,11 @@ func isSessionClosedRequest(rr *rpc.Request) bool {
 }
 
 func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
+	var session = ac.Session(rr.Sid)
+
 	// session closed notify request
 	if isSessionClosedRequest(rr) {
-		defaultNetService.closeSession(ac.Session(rr.Sid))
+		defaultNetService.closeSession(session)
 		return
 	}
 
@@ -165,7 +168,6 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 
 	switch rr.Kind {
 	case rpc.Sys:
-		session := ac.Session(rr.Sid)
 		m, ok := service.handlerMethod[route.Method]
 		if !ok || m == nil {
 			str := "remote: service " + route.Service + "does not contain method: " + route.Method
@@ -202,20 +204,18 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 			}
 		}
 	case rpc.User:
-		var args interface{}
-		var params = []reflect.Value{}
-		json.Unmarshal(rr.Data, &args)
-		switch args.(type) {
-		case []interface{}:
-			for _, arg := range args.([]interface{}) {
-				params = append(params, reflect.ValueOf(arg))
-			}
-		default:
-			log.Error("invalid rpc argument")
+		var args []interface{}
+		var params = []reflect.Value{service.rcvr}
+		//json.Unmarshal(rr.Data, &args)
+		gob.NewDecoder(bytes.NewReader(rr.Data)).Decode(&args)
+
+		for _, arg := range args {
+			params = append(params, reflect.ValueOf(arg))
 		}
-		m, ok := service.handlerMethod[route.Method]
+
+		m, ok := service.remoteMethod[route.Method]
 		if !ok || m == nil {
-			response.Error = "remote: service " + route.Service + "does not contain method: " + route.Method
+			response.Error = "remote: service " + route.Service + " does not contain method: " + route.Method
 			goto WRITE_RESPONSE
 		}
 		ret, err := rs.call(m.method, params)
@@ -226,13 +226,19 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 			if err := ret[1].Interface(); err != nil {
 				response.Error = err.(error).Error()
 			} else {
-				response.Data = ret[0].Bytes()
+				buf := bytes.NewBuffer([]byte(nil))
+				if err := gob.NewEncoder(buf).Encode(ret[0].Interface()); err != nil {
+					response.Error = err.Error()
+					goto WRITE_RESPONSE
+				}
+				response.Data = buf.Bytes()
 			}
 		}
 	default:
 		log.Error("invalid rpc namespace")
 		return
 	}
+
 WRITE_RESPONSE:
 	if err := rpc.WriteResponse(ac.socket, response); err != nil {
 		log.Error(err.Error())
@@ -247,7 +253,7 @@ func (rs *remoteService) call(method reflect.Method, args []reflect.Value) (rets
 			if s, ok := rec.(string); ok {
 				err = errors.New(s)
 			} else {
-				err = errors.New("RpcCall internal error")
+				err = errors.New("rpc call internal error")
 			}
 		}
 	}()

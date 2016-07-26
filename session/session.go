@@ -13,7 +13,7 @@ type NetworkEntity interface {
 	Send([]byte) error
 	Push(session *Session, route string, v interface{}) error
 	Response(session *Session, v interface{}) error
-	Call(session *Session, route string, args ...interface{}) ([]byte, error)
+	Call(session *Session, route string, args ...interface{}) (interface{}, error)
 	Sync(map[string]interface{}) error
 }
 
@@ -72,7 +72,7 @@ func (s *Session) Bind(uid uint64) error {
 	return nil
 }
 
-func (s *Session) Call(route string, args ...interface{}) ([]byte, error) {
+func (s *Session) Call(route string, args ...interface{}) (interface{}, error) {
 	return s.Entity.Call(s, route, args...)
 }
 
