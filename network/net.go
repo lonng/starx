@@ -22,14 +22,14 @@ var (
 )
 
 type netService struct {
-	agentUidLock       sync.RWMutex             // protect agentUid
-	agentUid           uint64                   // agent unique id
-	agentMapLock       sync.RWMutex             // protect agentMap
-	agentMap           map[uint64]*agent        // agents map
-	acceptorUidLock    sync.RWMutex             // protect acceptorUid
-	acceptorUid        uint64                   // acceptor unique id
-	acceptorMapLock    sync.RWMutex             // protect acceptorMap
-	acceptorMap        map[uint64]*acceptor     // acceptor map
+	agentMapLock sync.RWMutex      // protect agentMap
+	agentMap     map[uint64]*agent // agents map
+
+	acceptorUidLock sync.RWMutex         // protect acceptorUid
+	acceptorUid     uint64               // acceptor unique id
+	acceptorMapLock sync.RWMutex         // protect acceptorMap
+	acceptorMap     map[uint64]*acceptor // acceptor map
+
 	sessionCloseCbLock sync.RWMutex             // protect sessionCloseCb
 	sessionCloseCb     []func(*session.Session) // callback on session closed
 }
@@ -37,7 +37,6 @@ type netService struct {
 // Create new netservive
 func NewNetService() *netService {
 	return &netService{
-		agentUid:    1,
 		agentMap:    make(map[uint64]*agent),
 		acceptorUid: 1,
 		acceptorMap: make(map[uint64]*acceptor),
@@ -46,14 +45,10 @@ func NewNetService() *netService {
 
 // Create agent via netService
 func (net *netService) createAgent(conn net.Conn) *agent {
-	net.agentUidLock.Lock()
-	id := net.agentUid
-	net.agentUid++
-	net.agentUidLock.Unlock()
-	a := newAgent(id, conn)
+	a := newAgent(conn)
 	// add to maps
 	net.agentMapLock.Lock()
-	net.agentMap[id] = a
+	net.agentMap[a.id] = a
 	net.agentMapLock.Unlock()
 	return a
 }
