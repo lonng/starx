@@ -9,6 +9,10 @@ import (
 	"github.com/chrislonng/starx/session"
 )
 
+var (
+	sessionClosedRoute = &route.Route{Service: "__Session", Method: "Closed"}
+)
+
 func AsyncCall(route *route.Route, session *session.Session, args ...interface{}) {
 
 }
@@ -27,4 +31,14 @@ func Call(rpcKind rpc.RpcKind, route *route.Route, session *session.Session, arg
 		return nil, errors.New(err.Error())
 	}
 	return *reply, nil
+}
+
+func SessionClosed(session *session.Session) {
+	for _, t := range svrTypes {
+		client, err := ClientByType(t, session)
+		if err != nil {
+			continue
+		}
+		err = client.Call(rpc.Sys, sessionClosedRoute.Service, sessionClosedRoute.Method, session.Entity.ID(), nil, nil)
+	}
 }

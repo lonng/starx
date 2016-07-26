@@ -5,11 +5,14 @@ import (
 	"net"
 	"sync"
 
+	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/network/message"
 	"github.com/chrislonng/starx/network/packet"
 	"github.com/chrislonng/starx/session"
 )
+
+const sessionClosedRoute = "__Session.Closed"
 
 var (
 	ErrSessionOnNotify = errors.New("current session working on notify mode")
@@ -187,8 +190,6 @@ func (net *netService) Session(sid uint64) (*session.Session, error) {
 
 // Close session
 func (net *netService) closeSession(session *session.Session) {
-	// TODO: notify all backend server, current session has closed.
-	// session close callback
 	net.sessionCloseCbLock.RLock()
 	if len(net.sessionCloseCb) > 0 {
 		for _, cb := range net.sessionCloseCb {
@@ -198,22 +199,27 @@ func (net *netService) closeSession(session *session.Session) {
 		}
 	}
 	net.sessionCloseCbLock.RUnlock()
+
 	if appConfig.IsFrontend {
 		net.agentMapLock.Lock()
 		if agent, ok := net.agentMap[session.Entity.ID()]; ok && (agent != nil) {
 			delete(net.agentMap, session.Entity.ID())
 		}
 		net.agentMapLock.Unlock()
-		defaultNetService.dumpAgents()
-	} /* else {
+
+		// notify all backend server, current session has been closed.
+		cluster.SessionClosed(session)
+	} else {
 		net.acceptorMapLock.RLock()
-		if acceptor, ok := net.acceptorMap[session.entityID]; ok && (acceptor != nil) {
-			// TODO: FIXED IT
-			// backend session close should not cause acceptor remove from acceptor map
+		if acceptor, ok := net.acceptorMap[session.Entity.ID()]; ok && (acceptor != nil) {
+			delete(acceptor.sessionMap, session.Id)
+			if fid, ok := acceptor.b2fMap[session.Id]; ok {
+				delete(acceptor.b2fMap, session.Id)
+				delete(acceptor.f2bMap, fid)
+			}
 		}
 		net.acceptorMapLock.RUnlock()
-		defaultNetService.dumpAcceptor()
-	}*/
+	}
 }
 
 func (net *netService) removeAcceptor(a *acceptor) {
