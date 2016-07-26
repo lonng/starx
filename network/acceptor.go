@@ -81,7 +81,7 @@ func (a *acceptor) Send(data []byte) error {
 }
 
 func (a *acceptor) Push(session *session.Session, route string, v interface{}) error {
-	data, err := serializer.Serialize(v)
+	data, err := serializeOrRaw(v)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func (a *acceptor) Push(session *session.Session, route string, v interface{}) e
 
 // Response message to session
 func (a *acceptor) Response(session *session.Session, v interface{}) error {
-	data, err := serializer.Serialize(v)
+	data, err := serializeOrRaw(v)
 	if err != nil {
 		return err
 	}
@@ -131,24 +131,6 @@ func (a *acceptor) Response(session *session.Session, v interface{}) error {
 		Sid:  sid,
 	}
 	return rpc.WriteResponse(a.socket, resp)
-}
-
-func (a *acceptor) AsyncCall(session *session.Session, route string, args ...interface{}) error {
-	r, err := routelib.Decode(route)
-	if err != nil {
-		return err
-	}
-
-	if appConfig.Type == r.ServerType {
-		return ErrRPCLocal
-	}
-
-	encodeArgs, err := json.Marshal(args)
-	if err != nil {
-		return err
-	}
-	_, err = cluster.Call(rpc.User, r, session, encodeArgs)
-	return err
 }
 
 func (a *acceptor) Call(session *session.Session, route string, args ...interface{}) ([]byte, error) {

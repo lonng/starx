@@ -136,6 +136,7 @@ func Decode(data []byte) (*Message, error) {
 			}
 		}
 		m.ID = id
+		fallthrough
 	case Notify, Push:
 		if flag&msgRouteCompressMask == 1 {
 			m.compressed = true

@@ -68,40 +68,21 @@ func (a *agent) Send(data []byte) error {
 }
 
 func (a *agent) Push(session *session.Session, route string, v interface{}) error {
-	data, err := serializer.Serialize(v)
+	data, err := serializeOrRaw(v)
 	if err != nil {
 		return err
 	}
-
 	return defaultNetService.Push(session, route, data)
 }
 
 // Response message to session
 func (a *agent) Response(session *session.Session, v interface{}) error {
-	data, err := serializer.Serialize(v)
+	data, err := serializeOrRaw(v)
 	if err != nil {
 		return err
 	}
 
 	return defaultNetService.Response(session, data)
-}
-
-func (a *agent) AsyncCall(session *session.Session, route string, args ...interface{}) error {
-	r, err := routelib.Decode(route)
-	if err != nil {
-		return err
-	}
-
-	if appConfig.Type == r.ServerType {
-		return ErrRPCLocal
-	}
-
-	encodeArgs, err := json.Marshal(args)
-	if err != nil {
-		return err
-	}
-	_, err = cluster.Call(rpc.User, r, session, encodeArgs)
-	return err
 }
 
 func (a *agent) Call(session *session.Session, route string, args ...interface{}) ([]byte, error) {

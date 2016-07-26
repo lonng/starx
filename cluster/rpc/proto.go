@@ -4,11 +4,10 @@ package rpc
 type ResponseKind byte
 
 const (
-	_               ResponseKind = iota
-	HandlerResponse              // handler session response
-	HandlerPush                  // handler session push
-	RemoteResponse               // remote request normal response, represent whether rpc call successfully
-	RemotePush                   // using remote server push message to current server
+	HandlerResponse ResponseKind = 0x1 // handler session response
+	HandlerPush                  = 0x2 // handler session push
+	RemoteResponse               = 0x3 // remote request normal response, represent whether rpc call successfully
+	RemotePush                   = 0x4 // using remote server push message to current server
 )
 
 type RpcKind byte

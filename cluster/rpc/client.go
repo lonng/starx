@@ -138,7 +138,7 @@ func (client *Client) input() {
 			response = &Response{}
 			client.codec.buf, err = response.UnmarshalMsg(client.codec.buf)
 			if err != nil {
-				log.Error(err.Error())
+				//log.Error(err.Error())
 				break
 			}
 			if response.Kind == HandlerPush || response.Kind == HandlerResponse {
