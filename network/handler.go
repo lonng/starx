@@ -196,7 +196,7 @@ func (hs *handlerService) processMessage(session *session.Session, msg *message.
 		return
 	}
 
-	log.Debug("message(%s)", msg.String())
+	log.Debug(msg.String())
 	r, err := route.Decode(msg.Route)
 	if err != nil {
 		log.Error(err.Error())
@@ -253,7 +253,9 @@ func (hs *handlerService) localProcess(session *session.Session, route *route.Ro
 
 // current message handle in remote server
 func (hs *handlerService) remoteProcess(session *session.Session, route *route.Route, msg *message.Message) {
-	cluster.Call(rpc.Sys, route, session, msg.Data)
+	if _, err := cluster.Call(rpc.Sys, route, session, msg.Data); err != nil {
+		log.Error(err.Error())
+	}
 }
 
 func (hs *handlerService) dumpServiceMap() {

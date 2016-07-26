@@ -171,49 +171,59 @@ func ClientById(svrId string) (*rpc.Client, error) {
 	if client != nil {
 		return client, nil
 	}
-	if svr, ok := svrIdMaps[svrId]; ok && svr != nil {
-		if svr.Id == appConfig.Id {
-			return nil, errors.New(svr.Id + " is current server")
-		}
-		if svr.IsFrontend {
-			return nil, errors.New(svr.Id + " is frontend server, can handle rpc request")
-		}
-		client, err := rpc.Dial("tcp4", fmt.Sprintf("%s:%d", svr.Host, svr.Port))
-		if err != nil {
-			return nil, err
-		}
-		// on client shutdown
-		client.OnShutdown(func() {
-			RemoveServer(svr.Id)
-		})
-		clientLock.Lock()
-		clientIdMaps[svr.Id] = client
-		clientLock.Unlock()
-		// handle sys rpc push/response
-		go func() {
-			for resp := range client.ResponseChan {
-				sess, err := sessionManger.Session(resp.Sid)
-				if err != nil {
-					log.Error(err.Error())
-					continue
-				}
-				if resp.Kind == rpc.HandlerPush {
-					sess.Push(resp.Route, resp.Data)
-				} else if resp.Kind == rpc.HandlerResponse {
-					sess.Response(resp.Data)
-				} else if resp.Kind == rpc.RemotePush {
-					// TODO
-					// remote server push data
-				} else {
-					log.Error("invalid response kind")
-				}
-			}
-		}()
-		log.Info("%s establish rpc client successful.", svr.Id)
-		DumpClientIdMaps()
-		return client, nil
+
+	svr, ok := svrIdMaps[svrId]
+	if !ok || svr == nil {
+		return nil, errors.New(fmt.Sprintf("server id does not exists(Id: %s)", svrId))
+
 	}
-	return nil, errors.New(fmt.Sprintf("server id does not exists(Id: %s)", svrId))
+
+	// current server
+	if svr.Id == appConfig.Id {
+		return nil, errors.New(svr.Id + " is current server")
+	}
+
+	// frontend server
+	if svr.IsFrontend {
+		return nil, errors.New(svr.Id + " is frontend server, can handle rpc request")
+	}
+
+	client, err := rpc.Dial("tcp4", fmt.Sprintf("%s:%d", svr.Host, svr.Port))
+	if err != nil {
+		return nil, err
+	}
+	log.Info("%s establish rpc client successful.", svr.Id)
+
+	// on client shutdown
+	client.OnShutdown(func() {
+		RemoveServer(svr.Id)
+	})
+
+	clientLock.Lock()
+	clientIdMaps[svr.Id] = client
+	clientLock.Unlock()
+
+	// handle sys rpc push/response
+	go func() {
+		for resp := range client.ResponseChan {
+			sess, err := sessionManger.Session(resp.Sid)
+			if err != nil {
+				log.Error(err.Error())
+				continue
+			}
+
+			switch resp.Kind {
+			case rpc.HandlerPush:
+				sess.Push(resp.Route, resp.Data)
+			case rpc.HandlerResponse:
+				sess.Response(resp.Data)
+			default:
+				log.Error("invalid response kind")
+			}
+		}
+	}()
+
+	return client, nil
 }
 
 // Dump all clients that has established netword connection with remote server
