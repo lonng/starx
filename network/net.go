@@ -206,7 +206,6 @@ func (net *netService) closeSession(session *session.Session) {
 			delete(net.agentMap, session.Entity.ID())
 		}
 		net.agentMapLock.Unlock()
-
 		// notify all backend server, current session has been closed.
 		cluster.SessionClosed(session)
 	} else {
@@ -219,6 +218,7 @@ func (net *netService) closeSession(session *session.Session) {
 			}
 		}
 		net.acceptorMapLock.RUnlock()
+		defaultNetService.dumpAcceptor()
 	}
 }
 
