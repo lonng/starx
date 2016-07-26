@@ -3,7 +3,6 @@ package network
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"os"
 	"reflect"
@@ -156,7 +155,6 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 
 	switch rr.Kind {
 	case rpc.Sys:
-		fmt.Println(string(rr.Data))
 		session := ac.Session(rr.Sid)
 		m, ok := service.handlerMethod[route.Method]
 		if !ok || m == nil {
