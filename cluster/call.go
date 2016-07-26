@@ -13,10 +13,6 @@ var (
 	sessionClosedRoute = &route.Route{Service: "__Session", Method: "Closed"}
 )
 
-func AsyncCall(route *route.Route, session *session.Session, args ...interface{}) {
-
-}
-
 // Client send request
 // First argument is namespace, can be set `user` or `sys`
 func Call(rpcKind rpc.RpcKind, route *route.Route, session *session.Session, args []byte) ([]byte, error) {
