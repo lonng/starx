@@ -218,7 +218,6 @@ func (net *netService) closeSession(session *session.Session) {
 			}
 		}
 		net.acceptorMapLock.RUnlock()
-		defaultNetService.dumpAcceptor()
 	}
 }
 
