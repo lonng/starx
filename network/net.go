@@ -205,15 +205,18 @@ func (net *netService) closeSession(session *session.Session) {
 		}
 		net.agentMapLock.Unlock()
 		defaultNetService.dumpAgents()
-	} /* else {
+	} else {
 		net.acceptorMapLock.RLock()
-		if acceptor, ok := net.acceptorMap[session.entityID]; ok && (acceptor != nil) {
-			// TODO: FIXED IT
-			// backend session close should not cause acceptor remove from acceptor map
+		if acceptor, ok := net.acceptorMap[session.Entity.ID()]; ok && (acceptor != nil) {
+			delete(acceptor.sessionMap, session.Id)
+			if fid, ok := acceptor.b2fMap[session.Id]; ok {
+				delete(acceptor.b2fMap, session.Id)
+				delete(acceptor.f2bMap, fid)
+			}
 		}
 		net.acceptorMapLock.RUnlock()
 		defaultNetService.dumpAcceptor()
-	}*/
+	}
 }
 
 func (net *netService) removeAcceptor(a *acceptor) {

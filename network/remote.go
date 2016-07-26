@@ -105,7 +105,7 @@ func (rs *remoteService) Handle(conn net.Conn) {
 		n, err := conn.Read(buf)
 		if err != nil {
 			log.Info("session closed(" + err.Error() + ")")
-			defaultNetService.dumpAgents()
+			defaultNetService.dumpAcceptor()
 			acceptor.close()
 			endChan <- true
 			break
@@ -231,10 +231,10 @@ WRITE_RESPONSE:
 
 func (rs *remoteService) call(method reflect.Method, args []reflect.Value) (rets []reflect.Value, err error) {
 	defer func() {
-		if recov := recover(); recov != nil {
-			log.Fatal("RpcCall Error: %+v", recov)
+		if rec := recover(); rec != nil {
+			log.Error("rpc call error: %+v", rec)
 			os.Stderr.Write(debug.Stack())
-			if s, ok := recov.(string); ok {
+			if s, ok := rec.(string); ok {
 				err = errors.New(s)
 			} else {
 				err = errors.New("RpcCall internal error")
