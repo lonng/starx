@@ -96,7 +96,6 @@ func Encode(m *Message) ([]byte, error) {
 				break
 			}
 		}
-		fallthrough
 	case Notify, Push:
 		if compressed {
 			buf = append(buf, byte((code>>8)&0xFF))
