@@ -6,6 +6,7 @@ import (
 
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/service"
+	"reflect"
 )
 
 type NetworkEntity interface {
@@ -13,14 +14,15 @@ type NetworkEntity interface {
 	Send([]byte) error
 	Push(session *Session, route string, v interface{}) error
 	Response(session *Session, v interface{}) error
-	Call(session *Session, route string, args ...interface{}) (interface{}, error)
+	Call(session *Session, route string, reply interface{}, args ...interface{}) error
 	Sync(map[string]interface{}) error
 }
 
 var (
-	ErrIllegalUID     = errors.New("illegal uid")
-	ErrKeyNotFound    = errors.New("current session does not contain key")
-	ErrWrongValueType = errors.New("current key has different data type")
+	ErrIllegalUID       = errors.New("illegal uid")
+	ErrKeyNotFound      = errors.New("current session does not contain key")
+	ErrWrongValueType   = errors.New("current key has different data type")
+	ErrReplyShouldBePtr = errors.New("reply should be a pointer")
 )
 
 // This session type as argument pass to Handler method, is a proxy session
@@ -72,8 +74,11 @@ func (s *Session) Bind(uid uint64) error {
 	return nil
 }
 
-func (s *Session) Call(route string, args ...interface{}) (interface{}, error) {
-	return s.Entity.Call(s, route, args...)
+func (s *Session) Call(route string, reply interface{}, args ...interface{}) error {
+	if reflect.TypeOf(reply).Kind() != reflect.Ptr {
+		return ErrReplyShouldBePtr
+	}
+	return s.Entity.Call(s, route, reply, args...)
 }
 
 // Sync session setting to frontend server

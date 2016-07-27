@@ -28,11 +28,6 @@ func gobEncode(args ...interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func gobDecode(data []byte) (interface{}, error) {
-	var v interface{}
-	err := gob.NewDecoder(bytes.NewReader(data)).Decode(&v)
-	if err != nil {
-		return nil, err
-	}
-	return v, nil
+func gobDecode(reply interface{}, data []byte) error {
+	return gob.NewDecoder(bytes.NewReader(data)).Decode(reply)
 }

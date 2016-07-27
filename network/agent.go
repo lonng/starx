@@ -84,27 +84,27 @@ func (a *agent) Response(session *session.Session, v interface{}) error {
 	return defaultNetService.Response(session, data)
 }
 
-func (a *agent) Call(session *session.Session, route string, args ...interface{}) (interface{}, error) {
+func (a *agent) Call(session *session.Session, route string, reply interface{}, args ...interface{}) error {
 	r, err := routelib.Decode(route)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if appConfig.Type == r.ServerType {
-		return nil, ErrRPCLocal
+		return ErrRPCLocal
 	}
 
 	data, err := gobEncode(args...)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	ret, err := cluster.Call(rpc.User, r, session, data)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return gobDecode(ret)
+	return gobDecode(reply, ret)
 }
 
 // TODO: implement
