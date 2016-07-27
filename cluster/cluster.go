@@ -192,11 +192,10 @@ func ClientByType(svrType string, session *session.Session) (*rpc.Client, error)
 	return nil, errors.New("not found rpc client")
 }
 
-// Get rpc client by server id(`connector-server-1`), return correspond rpc
-// client if remote server connection has established already, or try to
-// connect remote server when remote server network connectoin has not made
-// by now, and return a nil value when server id not found or target machine
-// refuse it.
+// Get RPC client by server id(`connector-server-1`), and return the client if
+// remote server connection has established already, or try to connect the
+// remote server when remote server network connections have not made by now,
+// and return a nil value when server id not found or target machine refuse it.
 func Client(svrId string) (*rpc.Client, error) {
 	mutex.RLock()
 	client, ok := clientIdMaps[svrId]

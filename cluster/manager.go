@@ -13,13 +13,13 @@ type Manager struct {
 }
 
 // Component interface methods
-func (this *Manager) Init() {
-	this.Name = "ManagerComponenet"
+func (m *Manager) Init() {
+	m.Name = "ManagerComponenet"
 	log.Info("manager component initialized")
 }
-func (this *Manager) AfterInit()      {}
-func (this *Manager) BeforeShutdown() {}
-func (this *Manager) Shutdown()       {}
+func (*Manager) AfterInit()      {}
+func (*Manager) BeforeShutdown() {}
+func (*Manager) Shutdown()       {}
 
 // attachment methods
 func (m *Manager) UpdateServer(session *session.Session, data []byte) error {
