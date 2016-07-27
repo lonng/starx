@@ -177,18 +177,29 @@ func ClientByType(svrType string, session *session.Session) (*rpc.Client, error)
 	if svrType == appConfig.Type {
 		return nil, errors.New(fmt.Sprintf("current server has the same type(Type: %s)", svrType))
 	}
-	svrIds := svrTypeMaps[svrType]
-	if nums := len(svrIds); nums > 0 {
-		if fn := router[svrType]; fn != nil {
-			// try to get user-define route function
-			return Client(fn(session))
-		} else {
-			// if can not abtain user-define route function,
-			// select a random server establish rpc connection
-			random := rand.Intn(nums)
-			return Client(svrIds[random])
-		}
+
+	// fast mode
+	if id := session.ServerID(svrType); id != "" {
+		return Client(id)
 	}
+
+	// slow mode
+	svrIds := svrTypeMaps[svrType]
+	if n := len(svrIds); n > 0 {
+		var id string
+		if fn := router[svrType]; fn != nil {
+			// try to get user-define router function
+			id = fn(session)
+		} else {
+			// select a random server when could not found user-define router
+			r := rand.Intn(n)
+			id = svrIds[r]
+		}
+
+		session.SetServerID(svrType, id)
+		return Client(id)
+	}
+
 	return nil, errors.New("not found rpc client")
 }
 
@@ -239,7 +250,7 @@ func Client(svrId string) (*rpc.Client, error) {
 	// handle sys rpc push/response
 	go func() {
 		for resp := range client.ResponseChan {
-			sess, err := sessionManger.Session(resp.Sid)
+			s, err := sessionManger.Session(resp.Sid)
 			if err != nil {
 				log.Error(err.Error())
 				continue
@@ -247,9 +258,9 @@ func Client(svrId string) (*rpc.Client, error) {
 
 			switch resp.Kind {
 			case rpc.HandlerPush:
-				sess.Push(resp.Route, resp.Data)
+				s.Push(resp.Route, resp.Data)
 			case rpc.HandlerResponse:
-				sess.Response(resp.Data)
+				s.Response(resp.Data)
 			default:
 				log.Error("invalid response kind")
 			}

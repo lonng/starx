@@ -7,6 +7,7 @@ import (
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/service"
 	"reflect"
+	"strings"
 )
 
 type NetworkEntity interface {
@@ -32,22 +33,49 @@ var (
 //
 // This is user sessions, not contain raw sockets information
 type Session struct {
-	Id       uint64                 // session global uniqe id
-	Uid      uint64                 // binding user id
-	Entity   NetworkEntity          // raw session id, agent in frontend server, or acceptor in backend server
-	LastID   uint                   // last request id
-	data     map[string]interface{} // session data store
-	lastTime int64                  // last heartbeat time
+	Id        uint64                 // session global uniqe id
+	Uid       uint64                 // binding user id
+	Entity    NetworkEntity          // raw session id, agent in frontend server, or acceptor in backend server
+	LastID    uint                   // last request id
+	data      map[string]interface{} // session data store
+	lastTime  int64                  // last heartbeat time
+	serverIDs map[string]string      // map of server type -> server id
 }
 
 // Create new session instance
 func NewSession(entity NetworkEntity) *Session {
 	return &Session{
-		Id:       service.Connections.NewSessionUUID(),
-		Entity:   entity,
-		data:     make(map[string]interface{}),
-		lastTime: time.Now().Unix(),
+		Id:        service.Connections.NewSessionUUID(),
+		Entity:    entity,
+		data:      make(map[string]interface{}),
+		lastTime:  time.Now().Unix(),
+		serverIDs: make(map[string]string),
 	}
+}
+
+func (s *Session) ServerID(svrType string) string {
+	id, ok := s.serverIDs[svrType]
+	if !ok {
+		return ""
+	}
+	return id
+}
+
+// Set server id of the special type, delete type when id empty
+func (s *Session) SetServerID(svrType, svrID string) {
+	svrType = strings.TrimSpace(svrType)
+	svrID = strings.TrimSpace(svrID)
+
+	if svrType == "" {
+		log.Error("empty server type")
+		return
+	}
+
+	if svrID == "" {
+		delete(s.serverIDs, svrType)
+		return
+	}
+	s.serverIDs[svrType] = svrID
 }
 
 // Session send packet data

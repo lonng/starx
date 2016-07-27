@@ -25,6 +25,19 @@ func newApp() *starxApp {
 	return &starxApp{StartTime: time.Now()}
 }
 
+func loadSettings() {
+	log.Info("loading %s settings", App.Config.Type)
+	if setting, ok := settings[App.Config.Type]; ok && len(setting) > 0 {
+		for _, fn := range setting {
+			fn()
+		}
+	}
+}
+
+func welcomeMsg() {
+	fmt.Println(asciiLogo)
+}
+
 func (app *starxApp) start() {
 	network.Startup()
 

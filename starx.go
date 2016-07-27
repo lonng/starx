@@ -1,12 +1,12 @@
 package starx
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/chrislonng/starx/log"
+	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/network"
 	"github.com/chrislonng/starx/serialize"
+	"github.com/chrislonng/starx/session"
 )
 
 // Start application
@@ -36,15 +36,6 @@ func Serializer(seri serialize.Serializer) {
 	network.Serializer(seri)
 }
 
-func loadSettings() {
-	log.Info("loading %s settings", App.Config.Type)
-	if setting, ok := settings[App.Config.Type]; ok && len(setting) > 0 {
-		for _, fn := range setting {
-			fn()
-		}
-	}
-}
-
-func welcomeMsg() {
-	fmt.Println(asciiLogo)
+func Router(svrType string, fn func(*session.Session) string) {
+	cluster.Router(svrType, fn)
 }
