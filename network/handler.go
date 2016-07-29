@@ -142,20 +142,26 @@ func (hs *handlerService) processPacket(a *agent, p *packet.Packet) {
 	switch p.Type {
 	case packet.Handshake:
 		a.status = statusHandshake
-		data, err := json.Marshal(map[string]interface{}{"code": 200, "sys": map[string]float64{"heartbeat": heartbeatInternal.Seconds()}})
+		data, err := json.Marshal(map[string]interface{}{
+			"code": 200,
+			"sys":  map[string]float64{"heartbeat": heartbeatInternal.Seconds()},
+		})
 		if err != nil {
 			log.Info(err.Error())
 		}
+
 		rp := &packet.Packet{
 			Type:   packet.Handshake,
 			Length: len(data),
 			Data:   data,
 		}
+
 		resp, err := rp.Pack()
 		if err != nil {
 			log.Error(err.Error())
 			a.close()
 		}
+
 		if err := a.Send(resp); err != nil {
 			log.Error(err.Error())
 			a.close()

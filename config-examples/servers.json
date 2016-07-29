@@ -1,6 +1,6 @@
 {
   "gate": [
-    {"id": "gate-server-1","host": "0.0.0.0", "port": 3250, "isFrontend": true}
+    {"id": "gate-server-1","host": "0.0.0.0", "port": 3250, "isFrontend": true, "isWebsocket": false}
   ],
   "chat": [
     {"id": "chat-server-1","host": "127.0.0.1", "port": 3260, "isFrontend": false}
