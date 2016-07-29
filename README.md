@@ -13,6 +13,11 @@ Inspired by [Pomelo](https://github.com/NetEase/pomelo), rewrite with golang.
 \_______)   )_(   |/     \||/   \__/|/     \|
 ```
 
+## Client Library
+
+- Javascript
+  + [starx-client-websockt](https://github.com/chrislonng/starx-client-websockt)
+
 ## Demo
 
 Client: [starx-demo-unity](https://github.com/chrislonng/starx-demo-unity)
