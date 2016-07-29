@@ -11,6 +11,7 @@ import (
 
 var (
 	sessionClosedRoute = &route.Route{Service: "__Session", Method: "Closed"}
+	sessionSyncRoute   = &route.Route{Service: "__Session", Method: "Sync"}
 )
 
 // Client send request
@@ -35,6 +36,7 @@ func SessionClosed(session *session.Session) {
 		if err != nil {
 			continue
 		}
-		err = client.Call(rpc.Sys, sessionClosedRoute.Service, sessionClosedRoute.Method, session.Entity.ID(), nil, nil)
+
+		client.Call(rpc.Sys, sessionClosedRoute.Service, sessionClosedRoute.Method, session.Entity.ID(), nil, nil)
 	}
 }

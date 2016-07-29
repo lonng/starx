@@ -2,12 +2,12 @@ package session
 
 import (
 	"errors"
+	"reflect"
+	"strings"
 	"time"
 
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/service"
-	"reflect"
-	"strings"
 )
 
 type NetworkEntity interface {
@@ -16,7 +16,6 @@ type NetworkEntity interface {
 	Push(session *Session, route string, v interface{}) error
 	Response(session *Session, v interface{}) error
 	Call(session *Session, route string, reply interface{}, args ...interface{}) error
-	Sync(map[string]interface{}) error
 }
 
 var (
@@ -109,26 +108,6 @@ func (s *Session) Call(route string, reply interface{}, args ...interface{}) err
 	return s.Entity.Call(s, route, reply, args...)
 }
 
-// Sync session setting to frontend server
-func (s *Session) Sync(key string) error {
-	v, ok := s.data[key]
-	if !ok {
-		return ErrKeyNotFound
-	}
-	return s.Entity.Sync(map[string]interface{}{
-		key: v,
-	})
-}
-
-// Sync all settings to frontend server
-func (s *Session) SyncAll() error {
-	if len(s.data) < 1 {
-		log.Warn("current session did not contain any data")
-		return nil
-	}
-	return s.Entity.Sync(s.data)
-}
-
 func (s *Session) Set(key string, value interface{}) {
 	s.data[key] = value
 }
@@ -198,7 +177,7 @@ func (s *Session) Int64(key string) (int64, error) {
 	return value, nil
 }
 
-func (s *Session) Uint(key string) (uint, error) {
+func (s *Session) UInt(key string) (uint, error) {
 	v, ok := s.data[key]
 	if !ok {
 		return 0, ErrKeyNotFound
@@ -211,7 +190,7 @@ func (s *Session) Uint(key string) (uint, error) {
 	return value, nil
 }
 
-func (s *Session) Uint8(key string) (uint8, error) {
+func (s *Session) UInt8(key string) (uint8, error) {
 	v, ok := s.data[key]
 	if !ok {
 		return 0, ErrKeyNotFound
@@ -224,7 +203,7 @@ func (s *Session) Uint8(key string) (uint8, error) {
 	return value, nil
 }
 
-func (s *Session) Uint16(key string) (uint16, error) {
+func (s *Session) UInt16(key string) (uint16, error) {
 	v, ok := s.data[key]
 	if !ok {
 		return 0, ErrKeyNotFound
@@ -237,7 +216,7 @@ func (s *Session) Uint16(key string) (uint16, error) {
 	return value, nil
 }
 
-func (s *Session) Uint32(key string) (uint32, error) {
+func (s *Session) UInt32(key string) (uint32, error) {
 	v, ok := s.data[key]
 	if !ok {
 		return 0, ErrKeyNotFound
@@ -250,7 +229,7 @@ func (s *Session) Uint32(key string) (uint32, error) {
 	return value, nil
 }
 
-func (s *Session) Uint64(key string) (uint64, error) {
+func (s *Session) UInt64(key string) (uint64, error) {
 	v, ok := s.data[key]
 	if !ok {
 		return 0, ErrKeyNotFound

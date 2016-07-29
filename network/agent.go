@@ -106,8 +106,3 @@ func (a *agent) Call(session *session.Session, route string, reply interface{}, 
 
 	return gobDecode(reply, ret)
 }
-
-// TODO: implement
-func (a *acceptor) Sync(data map[string]interface{}) error {
-	return nil
-}
