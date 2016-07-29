@@ -3,10 +3,13 @@ package starx
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"golang.org/x/net/websocket"
 
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
@@ -41,7 +44,11 @@ func welcomeMsg() {
 func (app *starxApp) start() {
 	network.Startup()
 
-	app.listenAndServe()
+	if app.Config.IsWebsocket {
+		app.listenAndServeWS()
+	} else {
+		app.listenAndServe()
+	}
 
 	sg := make(chan os.Signal, 1)
 	signal.Notify(sg, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
@@ -82,5 +89,20 @@ func (app *starxApp) listenAndServe() {
 		} else {
 			go network.Remote.Handle(conn)
 		}
+	}
+}
+
+func (app *starxApp) listenAndServeWS() {
+	http.Handle("/", websocket.Handler(network.Handler.HandleWS))
+
+	log.Info("listen at %s:%d(%s)",
+		app.Config.Host,
+		app.Config.Port,
+		app.Config.String())
+
+	err := http.ListenAndServe(fmt.Sprintf("%s:%d", app.Config.Host, app.Config.Port), nil)
+
+	if err != nil {
+		panic("ListenAndServe: " + err.Error())
 	}
 }

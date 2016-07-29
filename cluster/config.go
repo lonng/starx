@@ -3,12 +3,13 @@ package cluster
 import "fmt"
 
 type ServerConfig struct {
-	Type       string
-	Id         string
-	Host       string
-	Port       int32
-	IsFrontend bool
-	IsMaster   bool
+	Type        string
+	Id          string
+	Host        string
+	Port        int32
+	IsFrontend  bool
+	IsMaster    bool
+	IsWebsocket bool
 }
 
 func (this *ServerConfig) String() string {

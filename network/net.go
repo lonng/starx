@@ -232,6 +232,7 @@ func (net *netService) heartbeat() {
 	if !appConfig.IsFrontend || net.agentMap == nil {
 		return
 	}
+	log.Debug("heartbeat")
 	for _, agent := range net.agentMap {
 		if agent.status == statusWorking {
 			if err := agent.Send(heartbeatPacket); err != nil {
