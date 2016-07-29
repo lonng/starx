@@ -12,12 +12,13 @@ type ServerConfig struct {
 	IsWebsocket bool
 }
 
-func (this *ServerConfig) String() string {
-	return fmt.Sprintf("Type: %s, Id: %s, Host: %s, Port: %d, IsFrontend: %t, IsMaster: %t",
-		this.Type,
-		this.Id,
-		this.Host,
-		this.Port,
-		this.IsFrontend,
-		this.IsMaster)
+func (c *ServerConfig) String() string {
+	return fmt.Sprintf("Type: %s, Id: %s, Host: %s, Port: %d, IsFrontend: %t, IsMaster: %t, IsWebsocket: %t",
+		c.Type,
+		c.Id,
+		c.Host,
+		c.Port,
+		c.IsFrontend,
+		c.IsMaster,
+		c.IsWebsocket)
 }
