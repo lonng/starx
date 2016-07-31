@@ -9,10 +9,11 @@ import (
 	"github.com/chrislonng/starx/session"
 )
 
-// Start application
-func Start() {
-	welcomeMsg()
+// Run server
+func Run(serverId string) {
+	//welcomeMsg()
 	parseConfig()
+	App.init(serverId)
 	loadSettings()
 	App.start()
 }
