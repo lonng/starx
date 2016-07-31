@@ -2,6 +2,7 @@ package starx
 
 import (
 	"encoding/json"
+	"flag"
 	"io"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/network"
+	"strings"
 )
 
 var VERSION = "0.0.1"
@@ -61,7 +63,7 @@ func init() {
 func parseConfig() {
 	// initialize app config
 	if !fileExist(appConfigPath) {
-		log.Info("%s not found", appConfigPath)
+		log.Fatal("%s not found", appConfigPath)
 		os.Exit(-1)
 	} else {
 		type appConfig struct {
@@ -87,7 +89,7 @@ func parseConfig() {
 
 	// initialize servers config
 	if !fileExist(serverConfigPath) {
-		log.Info("%s not found", serverConfigPath)
+		log.Fatal("%s not found", serverConfigPath)
 		os.Exit(-1)
 	} else {
 		f, _ := os.Open(serverConfigPath)
@@ -112,22 +114,28 @@ func parseConfig() {
 		cluster.DumpSvrTypeMaps()
 	}
 
+	var serverId string
+	flag.StringVar(&serverId, "server-id", "", "starx server id")
+	flag.Parse()
+
 	if App.Standalone {
-		if len(os.Args) < 2 {
-			log.Info("server running in standalone mode, but not found server id argument")
+		if strings.TrimSpace(serverId) == "" {
+			log.Fatal("server running in standalone mode, but not found server id argument")
 			os.Exit(-1)
 		}
-		serverId := os.Args[1]
-		App.Config, _ = cluster.Server(serverId)
-		if App.Config == nil {
-			log.Info("%s infomation not found in %s", serverId, serverConfigPath)
+
+		cfg, err := cluster.Server(serverId)
+		if err != nil {
+			log.Fatal(err.Error())
 			os.Exit(-1)
 		}
+
+		App.Config = cfg
 	} else {
 		// if server running in cluster mode, master server config require
 		// initialize master server config
 		if !fileExist(masterConfigPath) {
-			log.Info("%s not found", masterConfigPath)
+			log.Fatal("%s not found", masterConfigPath)
 			os.Exit(-1)
 		} else {
 			f, _ := os.Open(masterConfigPath)
@@ -149,20 +157,21 @@ func parseConfig() {
 			cluster.Register(master)
 		}
 		if App.Master == nil {
-			log.Info("wrong master server config file(%s)", masterConfigPath)
+			log.Fatal("wrong master server config file(%s)", masterConfigPath)
 			os.Exit(-1)
 		}
-		if len(os.Args) == 1 {
+
+		if strings.TrimSpace(serverId) == "" {
 			// not pass server id, running in master mode
 			App.Config = App.Master
 		} else {
-			// other server
-			serverId := os.Args[1]
-			App.Config, _ = cluster.Server(serverId)
-			if App.Config == nil {
-				log.Info("%s infomation not found in %s", serverId, serverConfigPath)
+			cfg, err := cluster.Server(serverId)
+			if err != nil {
+				log.Fatal(err.Error())
 				os.Exit(-1)
 			}
+
+			App.Config = cfg
 		}
 	}
 
