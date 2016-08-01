@@ -105,7 +105,7 @@ func (rs *remoteService) Handle(conn net.Conn) {
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
-			log.Info("session closed(" + err.Error() + ")")
+			log.Infof("session closed(" + err.Error() + ")")
 			defaultNetService.dumpAcceptor()
 			acceptor.close()
 			endChan <- true
@@ -153,7 +153,7 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 
 	route, err := route.Decode(rr.ServiceMethod)
 	if err != nil {
-		log.Error(err.Error())
+		log.Errorf(err.Error())
 		response.Error = err.Error()
 		goto WRITE_RESPONSE
 	}
@@ -161,7 +161,7 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 	service, ok = rs.serviceMap[route.Service]
 	if !ok || service == nil {
 		str := "remote: servive " + route.Service + " does not exists"
-		log.Error(str)
+		log.Errorf(str)
 		response.Error = str
 		goto WRITE_RESPONSE
 	}
@@ -171,7 +171,7 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 		m, ok := service.handlerMethod[route.Method]
 		if !ok || m == nil {
 			str := "remote: service " + route.Service + "does not contain method: " + route.Method
-			log.Error(str)
+			log.Errorf(str)
 			response.Error = str
 			goto WRITE_RESPONSE
 		}
@@ -183,7 +183,7 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 			err := serializer.Deserialize(rr.Data, data)
 			if err != nil {
 				str := "deserialize error: " + err.Error()
-				log.Error(str)
+				log.Errorf(str)
 				response.Error = str
 				goto WRITE_RESPONSE
 			}
@@ -194,12 +194,12 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 			reflect.ValueOf(session),
 			reflect.ValueOf(data)})
 		if err != nil {
-			log.Error(err.Error())
+			log.Errorf(err.Error())
 			response.Error = err.Error()
 		} else {
 			// handler method encounter error
 			if err := ret[0].Interface(); err != nil {
-				log.Error(err.(error).Error())
+				log.Errorf(err.(error).Error())
 				response.Error = err.(error).Error()
 			}
 		}
@@ -235,20 +235,20 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 			}
 		}
 	default:
-		log.Error("invalid rpc namespace")
+		log.Errorf("invalid rpc namespace")
 		return
 	}
 
 WRITE_RESPONSE:
 	if err := rpc.WriteResponse(ac.socket, response); err != nil {
-		log.Error(err.Error())
+		log.Errorf(err.Error())
 	}
 }
 
 func (rs *remoteService) call(method reflect.Method, args []reflect.Value) (rets []reflect.Value, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
-			log.Error("rpc call error: %+v", rec)
+			log.Errorf("rpc call error: %+v", rec)
 			os.Stderr.Write(debug.Stack())
 			if s, ok := rec.(string); ok {
 				err = errors.New(s)
@@ -264,11 +264,11 @@ func (rs *remoteService) call(method reflect.Method, args []reflect.Value) (rets
 func (rs *remoteService) dumpServiceMap() {
 	for sname, s := range rs.serviceMap {
 		for mname, _ := range s.handlerMethod {
-			log.Info("registered service: %s.%s", sname, mname)
+			log.Infof("registered service: %s.%s", sname, mname)
 		}
 
 		for mname, _ := range s.remoteMethod {
-			log.Info("registered service: %s.%s", sname, mname)
+			log.Infof("registered service: %s.%s", sname, mname)
 		}
 	}
 }

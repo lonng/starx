@@ -42,7 +42,7 @@ func (p *Packet) Pack() ([]byte, error) {
 // 1 byte packet type, 3 bytes packet data length(big end), and data segment
 func Pack(p *Packet) ([]byte, error) {
 	if p.Type < Handshake || p.Type > Kick {
-		log.Error("wrong packet type")
+		log.Errorf("wrong packet type")
 		return nil, ErrWrongPacketType
 	}
 
@@ -65,7 +65,7 @@ func (p *Packet) String() string {
 func Unpack(data []byte) (*Packet, []byte, error) {
 	t := PacketType(data[0])
 	if t < Handshake || t > Kick {
-		log.Error("wrong packet type")
+		log.Errorf("wrong packet type")
 		return nil, nil, ErrWrongPacketType
 	}
 

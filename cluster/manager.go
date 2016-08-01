@@ -15,7 +15,7 @@ type Manager struct {
 // Component interface methods
 func (m *Manager) Init() {
 	m.Name = "ManagerComponenet"
-	log.Info("manager component initialized")
+	log.Infof("manager component initialized")
 }
 func (*Manager) AfterInit()      {}
 func (*Manager) BeforeShutdown() {}
@@ -38,7 +38,7 @@ func (m *Manager) RegisterServer(session *session.Session, data []byte) error {
 	if err != nil {
 		return err
 	}
-	log.Info("new server connected in")
+	log.Infof("new server connected in")
 	Register(newServerInfo)
 	return nil
 }

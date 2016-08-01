@@ -32,7 +32,7 @@ func newApp() *starxApp {
 }
 
 func loadSettings() {
-	log.Info("loading %s settings", App.Config.Type)
+	log.Infof("loading %s settings", App.Config.Type)
 	if setting, ok := settings[App.Config.Type]; ok && len(setting) > 0 {
 		for _, fn := range setting {
 			fn()
@@ -47,13 +47,13 @@ func welcomeMsg() {
 func (app *starxApp) init(serverId string) {
 	if App.Standalone {
 		if strings.TrimSpace(serverId) == "" {
-			log.Fatal("server running in standalone mode, but not found server id argument")
+			log.Fatalf("server running in standalone mode, but not found server id argument")
 			os.Exit(-1)
 		}
 
 		cfg, err := cluster.Server(serverId)
 		if err != nil {
-			log.Fatal(err.Error())
+			log.Fatalf(err.Error())
 			os.Exit(-1)
 		}
 
@@ -62,7 +62,7 @@ func (app *starxApp) init(serverId string) {
 		// if server running in cluster mode, master server config require
 		// initialize master server config
 		if !fileExist(masterConfigPath) {
-			log.Fatal("%s not found", masterConfigPath)
+			log.Fatalf("%s not found", masterConfigPath)
 			os.Exit(-1)
 		} else {
 			f, _ := os.Open(masterConfigPath)
@@ -74,7 +74,7 @@ func (app *starxApp) init(serverId string) {
 				if err := reader.Decode(master); err == io.EOF {
 					break
 				} else if err != nil {
-					log.Error(err.Error())
+					log.Errorf(err.Error())
 				}
 			}
 
@@ -84,7 +84,7 @@ func (app *starxApp) init(serverId string) {
 			cluster.Register(master)
 		}
 		if App.Master == nil {
-			log.Fatal("wrong master server config file(%s)", masterConfigPath)
+			log.Fatalf("wrong master server config file(%s)", masterConfigPath)
 			os.Exit(-1)
 		}
 
@@ -94,7 +94,7 @@ func (app *starxApp) init(serverId string) {
 		} else {
 			cfg, err := cluster.Server(serverId)
 			if err != nil {
-				log.Fatal(err.Error())
+				log.Fatalf(err.Error())
 				os.Exit(-1)
 			}
 
@@ -122,11 +122,11 @@ func (app *starxApp) start() {
 	// stop server
 	select {
 	case <-endRunning:
-		log.Info("The app will shutdown in a few seconds")
+		log.Infof("The app will shutdown in a few seconds")
 	case s := <-sg:
-		log.Info("Got signal: %v", s)
+		log.Infof("Got signal: %v", s)
 	}
-	log.Info("server: " + app.Config.Id + " is stopping...")
+	log.Infof("server: " + app.Config.Id + " is stopping...")
 	network.Shutdown()
 	close(endRunning)
 }
@@ -135,10 +135,10 @@ func (app *starxApp) start() {
 func (app *starxApp) listenAndServe() {
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", app.Config.Host, app.Config.Port))
 	if err != nil {
-		log.Error(err.Error())
+		log.Errorf(err.Error())
 		os.Exit(-1)
 	}
-	log.Info("listen at %s:%d(%s)",
+	log.Infof("listen at %s:%d(%s)",
 		app.Config.Host,
 		app.Config.Port,
 		app.Config.String())
@@ -147,7 +147,7 @@ func (app *starxApp) listenAndServe() {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Error(err.Error())
+			log.Errorf(err.Error())
 			continue
 		}
 		if app.Config.IsFrontend {
@@ -161,7 +161,7 @@ func (app *starxApp) listenAndServe() {
 func (app *starxApp) listenAndServeWS() {
 	http.Handle("/", websocket.Handler(network.Handler.HandleWS))
 
-	log.Info("listen at %s:%d(%s)",
+	log.Infof("listen at %s:%d(%s)",
 		app.Config.Host,
 		app.Config.Port,
 		app.Config.String())

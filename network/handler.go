@@ -113,13 +113,13 @@ func (hs *handlerService) Handle(conn net.Conn) {
 
 	// register new session when new connection connected in
 	agent := defaultNetService.createAgent(conn)
-	log.Debug("new agent(%s)", agent.String())
+	log.Debugf("new agent(%s)", agent.String())
 	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
-			log.Debug("session closed, id: %d, ip: %s", agent.session.Id, agent.socket.RemoteAddr())
+			log.Debugf("session closed, id: %d, ip: %s", agent.session.Id, agent.socket.RemoteAddr())
 			close(packetChan)
 			endChan <- true
 			agent.close()
@@ -147,7 +147,7 @@ func (hs *handlerService) processPacket(a *agent, p *packet.Packet) {
 			"sys":  map[string]float64{"heartbeat": heartbeatInternal.Seconds()},
 		})
 		if err != nil {
-			log.Info(err.Error())
+			log.Infof(err.Error())
 		}
 
 		rp := &packet.Packet{
@@ -158,12 +158,12 @@ func (hs *handlerService) processPacket(a *agent, p *packet.Packet) {
 
 		resp, err := rp.Pack()
 		if err != nil {
-			log.Error(err.Error())
+			log.Errorf(err.Error())
 			a.close()
 		}
 
 		if err := a.Send(resp); err != nil {
-			log.Error(err.Error())
+			log.Errorf(err.Error())
 			a.close()
 		}
 	case packet.HandshakeAck:
@@ -171,7 +171,7 @@ func (hs *handlerService) processPacket(a *agent, p *packet.Packet) {
 	case packet.Data:
 		m, err := message.Decode(p.Data)
 		if err != nil {
-			log.Error(err.Error())
+			log.Errorf(err.Error())
 			return
 		}
 		hs.processMessage(a.session, m)
@@ -179,7 +179,7 @@ func (hs *handlerService) processPacket(a *agent, p *packet.Packet) {
 	case packet.Heartbeat:
 		go a.heartbeat()
 	default:
-		log.Info("invalid packet type")
+		log.Infof("invalid packet type")
 		a.close()
 	}
 }
@@ -188,7 +188,7 @@ func (hs *handlerService) processMessage(session *session.Session, msg *message.
 	defer func() {
 		if err := recover(); err != nil {
 			runtime.Caller(2)
-			log.Fatal("processMessage Error: %+v", err)
+			log.Fatalf("processMessage Error: %+v", err)
 		}
 	}()
 
@@ -198,14 +198,14 @@ func (hs *handlerService) processMessage(session *session.Session, msg *message.
 	case message.Notify:
 		session.LastID = 0
 	default:
-		log.Error("invalid message type")
+		log.Errorf("invalid message type")
 		return
 	}
 
-	log.Debug(msg.String())
+	log.Debugf(msg.String())
 	r, err := route.Decode(msg.Route)
 	if err != nil {
-		log.Error(err.Error())
+		log.Errorf(err.Error())
 		return
 	}
 
@@ -226,13 +226,13 @@ func (hs *handlerService) processMessage(session *session.Session, msg *message.
 func (hs *handlerService) localProcess(session *session.Session, route *route.Route, msg *message.Message) {
 	s, ok := hs.serviceMap[route.Service]
 	if !ok || s == nil {
-		log.Info("handler: service: " + route.Service + " not found")
+		log.Infof("handler: service: " + route.Service + " not found")
 		return
 	}
 
 	m, ok := s.handlerMethod[route.Method]
 	if !ok || m == nil {
-		log.Info("handler: " + route.Service + " does not contain method: " + route.Method)
+		log.Infof("handler: " + route.Service + " does not contain method: " + route.Method)
 		return
 	}
 
@@ -243,7 +243,7 @@ func (hs *handlerService) localProcess(session *session.Session, route *route.Ro
 		data = reflect.New(m.dataType.Elem()).Interface()
 		err := serializer.Deserialize(msg.Data, data)
 		if err != nil {
-			log.Error("deserialize error: %s", err.Error())
+			log.Errorf("deserialize error: %s", err.Error())
 			return
 		}
 	}
@@ -252,7 +252,7 @@ func (hs *handlerService) localProcess(session *session.Session, route *route.Ro
 	if len(ret) > 0 {
 		err := ret[0].Interface()
 		if err != nil {
-			log.Error(err.(error).Error())
+			log.Errorf(err.(error).Error())
 		}
 	}
 }
@@ -260,14 +260,14 @@ func (hs *handlerService) localProcess(session *session.Session, route *route.Ro
 // current message handle in remote server
 func (hs *handlerService) remoteProcess(session *session.Session, route *route.Route, msg *message.Message) {
 	if _, err := cluster.Call(rpc.Sys, route, session, msg.Data); err != nil {
-		log.Error(err.Error())
+		log.Errorf(err.Error())
 	}
 }
 
 func (hs *handlerService) dumpServiceMap() {
 	for sname, s := range hs.serviceMap {
 		for mname, _ := range s.handlerMethod {
-			log.Info("registered service: %s.%s", sname, mname)
+			log.Infof("registered service: %s.%s", sname, mname)
 		}
 	}
 }

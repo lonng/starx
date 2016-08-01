@@ -19,7 +19,7 @@ var (
 func Call(rpcKind rpc.RpcKind, route *route.Route, session *session.Session, args []byte) ([]byte, error) {
 	client, err := ClientByType(route.ServerType, session)
 	if err != nil {
-		log.Info(err.Error())
+		log.Infof(err.Error())
 		return nil, err
 	}
 	reply := new([]byte)

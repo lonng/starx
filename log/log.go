@@ -42,7 +42,17 @@ var (
 	log      *stdlog.Logger = stdlog.New(os.Stdout, "", stdlog.LstdFlags) // logger
 )
 
-func writeLog(level, format string, v ...interface{}) {
+func writeLog(level string, v ...interface{}) {
+	_, file, line, ok := runtime.Caller(2)
+	if !ok {
+		file = "???"
+		line = 0
+	}
+	c := string(file + ":" + strconv.FormatInt(int64(line), 10))
+	log.Printf(fmt.Sprintf("[%s] [%s] %s", level, c, fmt.Sprint(v...)))
+}
+
+func writeLogf(level, format string, v ...interface{}) {
 	_, file, line, ok := runtime.Caller(2)
 	if !ok {
 		file = "???"
@@ -52,39 +62,74 @@ func writeLog(level, format string, v ...interface{}) {
 	log.Printf(fmt.Sprintf("[%s] [%s] %s", level, c, format), v...)
 }
 
-func Info(f string, v ...interface{}) {
+func Infof(f string, v ...interface{}) {
 	if logLevel > LevelInfo {
 		return
 	}
-	writeLog("Info", f, v...)
+	writeLogf("Info", f, v...)
 }
 
-func Debug(f string, v ...interface{}) {
+func Debugf(f string, v ...interface{}) {
 	if logLevel > LevelDebug {
 		return
 	}
-	writeLog("Debug", f, v...)
+	writeLogf("Debug", f, v...)
+}
+
+func Warnf(f string, v ...interface{}) {
+	if logLevel > LevelWarn {
+		return
+	}
+	writeLogf("Warn", f, v...)
+}
+
+func Errorf(f string, v ...interface{}) {
+	if logLevel > LevelError {
+		return
+	}
+	writeLogf("Error", f, v...)
+}
+
+func Fatalf(f string, v ...interface{}) {
+	if logLevel > LevelFatal {
+		return
+	}
+	writeLogf("Fatal", f, v...)
+}
+
+func Info(v ...interface{}) {
+	if logLevel > LevelInfo {
+		return
+	}
+	writeLog("Info", v...)
+}
+
+func Debug(v ...interface{}) {
+	if logLevel > LevelDebug {
+		return
+	}
+	writeLog("Debug", v...)
 }
 
 func Warn(f string, v ...interface{}) {
 	if logLevel > LevelWarn {
 		return
 	}
-	writeLog("Warn", f, v...)
+	writeLog("Warn", v...)
 }
 
-func Error(f string, v ...interface{}) {
+func Error(v ...interface{}) {
 	if logLevel > LevelError {
 		return
 	}
-	writeLog("Error", f, v...)
+	writeLog("Error", v...)
 }
 
-func Fatal(f string, v ...interface{}) {
+func Fatal(v ...interface{}) {
 	if logLevel > LevelFatal {
 		return
 	}
-	writeLog("Fatal", f, v...)
+	writeLog("Fatal", v...)
 }
 
 func SetLevel(l LogLevel) error {

@@ -64,7 +64,7 @@ func (k RpcKind) String() string {
 func WriteResponse(w io.Writer, resp *Response) error {
 	data, err := resp.MarshalMsg(emptyBytes)
 	if err != nil {
-		log.Error(err.Error())
+		log.Errorf(err.Error())
 		return err
 	}
 	// TODO: n

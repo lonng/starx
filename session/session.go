@@ -66,7 +66,7 @@ func (s *Session) SetServerID(svrType, svrID string) {
 	svrID = strings.TrimSpace(svrID)
 
 	if svrType == "" {
-		log.Error("empty server type")
+		log.Errorf("empty server type")
 		return
 	}
 
@@ -94,7 +94,7 @@ func (s *Session) Response(v interface{}) error {
 
 func (s *Session) Bind(uid uint64) error {
 	if uid < 1 {
-		log.Error("uid invalid: %d", uid)
+		log.Errorf("uid invalid: %d", uid)
 		return ErrIllegalUID
 	}
 	s.Uid = uid
@@ -177,7 +177,7 @@ func (s *Session) Int64(key string) (int64, error) {
 	return value, nil
 }
 
-func (s *Session) UInt(key string) (uint, error) {
+func (s *Session) Uint(key string) (uint, error) {
 	v, ok := s.data[key]
 	if !ok {
 		return 0, ErrKeyNotFound
@@ -190,7 +190,7 @@ func (s *Session) UInt(key string) (uint, error) {
 	return value, nil
 }
 
-func (s *Session) UInt8(key string) (uint8, error) {
+func (s *Session) Uint8(key string) (uint8, error) {
 	v, ok := s.data[key]
 	if !ok {
 		return 0, ErrKeyNotFound
@@ -203,7 +203,7 @@ func (s *Session) UInt8(key string) (uint8, error) {
 	return value, nil
 }
 
-func (s *Session) UInt16(key string) (uint16, error) {
+func (s *Session) Uint16(key string) (uint16, error) {
 	v, ok := s.data[key]
 	if !ok {
 		return 0, ErrKeyNotFound
@@ -216,7 +216,7 @@ func (s *Session) UInt16(key string) (uint16, error) {
 	return value, nil
 }
 
-func (s *Session) UInt32(key string) (uint32, error) {
+func (s *Session) Uint32(key string) (uint32, error) {
 	v, ok := s.data[key]
 	if !ok {
 		return 0, ErrKeyNotFound
@@ -229,7 +229,7 @@ func (s *Session) UInt32(key string) (uint32, error) {
 	return value, nil
 }
 
-func (s *Session) UInt64(key string) (uint64, error) {
+func (s *Session) Uint64(key string) (uint64, error) {
 	v, ok := s.data[key]
 	if !ok {
 		return 0, ErrKeyNotFound

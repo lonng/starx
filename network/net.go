@@ -107,7 +107,7 @@ func (net *netService) send(session *session.Session, data []byte) {
 func (net *netService) Push(session *session.Session, route string, data []byte) error {
 	m, err := message.Encode(&message.Message{Type: message.MessageType(message.Push), Route: route, Data: data})
 	if err != nil {
-		log.Error(err.Error())
+		log.Errorf(err.Error())
 		return err
 	}
 	p := packet.Packet{
@@ -117,7 +117,7 @@ func (net *netService) Push(session *session.Session, route string, data []byte)
 	}
 	ep, err := p.Pack()
 	if err != nil {
-		log.Error(err.Error())
+		log.Errorf(err.Error())
 		return err
 	}
 	net.send(session, ep)
@@ -137,7 +137,7 @@ func (net *netService) Response(session *session.Session, data []byte) error {
 		Data: data,
 	})
 	if err != nil {
-		log.Error(err.Error())
+		log.Errorf(err.Error())
 		return err
 	}
 	p := packet.Packet{
@@ -147,7 +147,7 @@ func (net *netService) Response(session *session.Session, data []byte) error {
 	}
 	ep, err := p.Pack()
 	if err != nil {
-		log.Error(err.Error())
+		log.Errorf(err.Error())
 		return err
 	}
 	net.send(session, ep)
@@ -232,7 +232,7 @@ func (net *netService) heartbeat() {
 	if !appConfig.IsFrontend || net.agentMap == nil {
 		return
 	}
-	log.Debug("heartbeat")
+	log.Debugf("heartbeat")
 	for _, agent := range net.agentMap {
 		if agent.status == statusWorking {
 			if err := agent.Send(heartbeatPacket); err != nil {
@@ -248,9 +248,9 @@ func (net *netService) heartbeat() {
 func (net *netService) dumpAgents() {
 	net.agentMapLock.RLock()
 	defer net.agentMapLock.RUnlock()
-	log.Info("current agent count: %d", len(net.agentMap))
+	log.Infof("current agent count: %d", len(net.agentMap))
 	for _, ses := range net.agentMap {
-		log.Info("session: " + ses.String())
+		log.Infof("session: " + ses.String())
 	}
 }
 
@@ -258,9 +258,9 @@ func (net *netService) dumpAgents() {
 func (net *netService) dumpAcceptor() {
 	net.acceptorMapLock.RLock()
 	defer net.acceptorMapLock.RUnlock()
-	log.Info("current acceptor count: %d", len(net.acceptorMap))
+	log.Infof("current acceptor count: %d", len(net.acceptorMap))
 	for _, ses := range net.acceptorMap {
-		log.Info("session: " + ses.String())
+		log.Infof("session: " + ses.String())
 	}
 }
 

@@ -43,7 +43,7 @@ func DumpSvrIdMaps() {
 	defer svrLock.RUnlock()
 
 	for _, v := range svrIdMaps {
-		log.Info("id: %s(%s)", v.Id, v.String())
+		log.Infof("id: %s(%s)", v.Id, v.String())
 	}
 }
 
@@ -57,7 +57,7 @@ func DumpSvrTypeMaps() {
 			continue
 		}
 		for _, svrId := range svrs {
-			log.Info("server type: %s, id: %s", t, svrId)
+			log.Infof("server type: %s, id: %s", t, svrId)
 		}
 	}
 }
@@ -68,7 +68,7 @@ func Register(server *ServerConfig) {
 
 	// server exists
 	if _, ok := svrIdMaps[server.Id]; ok {
-		log.Info("serverId: %s already existed(%s)", server.Id, server.String())
+		log.Infof("serverId: %s already existed(%s)", server.Id, server.String())
 		return
 	}
 
@@ -99,7 +99,7 @@ func RemoveServer(svrId string) {
 
 	svr, ok := svrIdMaps[svrId]
 	if !ok || svr == nil {
-		log.Info("serverId: %s not found", svrId)
+		log.Infof("serverId: %s not found", svrId)
 		return
 	}
 
@@ -108,7 +108,7 @@ func RemoveServer(svrId string) {
 	svrs, ok := svrTypeMaps[typ]
 
 	if !ok || len(svrs) == 0 {
-		log.Info("server type: %s has not instance", typ)
+		log.Infof("server type: %s has not instance", typ)
 		return
 	}
 
@@ -149,7 +149,7 @@ func UpdateServer(newSvr *ServerConfig) {
 
 	svr, ok := svrIdMaps[newSvr.Id]
 	if !ok || svr == nil {
-		log.Error(newSvr.Id + " not exists")
+		log.Errorf(newSvr.Id + " not exists")
 		return
 	}
 
@@ -162,14 +162,14 @@ func CloseClient(svrId string) {
 
 	client, ok := clientIdMaps[svrId]
 	if !ok {
-		log.Info("%s not found in rpc client list", svrId)
+		log.Infof("%s not found in rpc client list", svrId)
 		return
 	}
 
 	delete(clientIdMaps, svrId)
 	client.Close()
 
-	log.Info("%s rpc client has been removed.", svrId)
+	log.Infof("%s rpc client has been removed.", svrId)
 	DumpClientIdMaps()
 }
 
@@ -236,7 +236,7 @@ func Client(svrId string) (*rpc.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Info("%s establish rpc client successful.", svr.Id)
+	log.Infof("%s establish rpc client successful.", svr.Id)
 
 	// on client shutdown
 	client.OnShutdown(func() {
@@ -252,7 +252,7 @@ func Client(svrId string) (*rpc.Client, error) {
 		for resp := range client.ResponseChan {
 			s, err := sessionManger.Session(resp.Sid)
 			if err != nil {
-				log.Error(err.Error())
+				log.Errorf(err.Error())
 				continue
 			}
 
@@ -262,7 +262,7 @@ func Client(svrId string) (*rpc.Client, error) {
 			case rpc.HandlerResponse:
 				s.Response(resp.Data)
 			default:
-				log.Error("invalid response kind")
+				log.Errorf("invalid response kind")
 			}
 		}
 	}()
@@ -276,7 +276,7 @@ func DumpClientIdMaps() {
 	defer mutex.RUnlock()
 
 	for id, _ := range clientIdMaps {
-		log.Info("[%s] is contained in rpc client list", id)
+		log.Infof("[%s] is contained in rpc client list", id)
 	}
 }
 
@@ -285,7 +285,7 @@ func Close() {
 	mutex.Unlock()
 
 	// close all RPC clients
-	log.Info("close all of socket connections")
+	log.Infof("close all of socket connections")
 	for id, client := range clientIdMaps {
 		delete(clientIdMaps, id)
 		client.Close()

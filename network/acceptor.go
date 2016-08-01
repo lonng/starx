@@ -87,13 +87,13 @@ func (a *acceptor) Push(session *session.Session, route string, v interface{}) e
 
 	rs, err := defaultNetService.acceptor(session.Entity.ID())
 	if err != nil {
-		log.Error(err.Error())
+		log.Errorf(err.Error())
 		return err
 	}
 
 	sid, ok := rs.b2fMap[session.Id]
 	if !ok {
-		log.Error("sid not exists")
+		log.Errorf("sid not exists")
 		return ErrSidNotExists
 	}
 
@@ -115,13 +115,13 @@ func (a *acceptor) Response(session *session.Session, v interface{}) error {
 
 	rs, err := defaultNetService.acceptor(session.Entity.ID())
 	if err != nil {
-		log.Error(err.Error())
+		log.Errorf(err.Error())
 		return err
 	}
 
 	sid, ok := rs.b2fMap[session.Id]
 	if !ok {
-		log.Error("sid not exists")
+		log.Errorf("sid not exists")
 		return ErrSidNotExists
 	}
 	resp := &rpc.Response{

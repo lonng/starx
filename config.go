@@ -60,7 +60,7 @@ func init() {
 func parseConfig() {
 	// initialize app config
 	if !fileExist(appConfigPath) {
-		log.Fatal("%s not found", appConfigPath)
+		log.Fatalf("%s not found", appConfigPath)
 		os.Exit(-1)
 	} else {
 		type appConfig struct {
@@ -76,7 +76,7 @@ func parseConfig() {
 			if err := reader.Decode(&cfg); err == io.EOF {
 				break
 			} else if err != nil {
-				log.Error(err.Error())
+				log.Errorf(err.Error())
 			}
 		}
 		App.AppName = cfg.AppName
@@ -86,7 +86,7 @@ func parseConfig() {
 
 	// initialize servers config
 	if !fileExist(serverConfigPath) {
-		log.Fatal("%s not found", serverConfigPath)
+		log.Fatalf("%s not found", serverConfigPath)
 		os.Exit(-1)
 	} else {
 		f, _ := os.Open(serverConfigPath)
@@ -98,7 +98,7 @@ func parseConfig() {
 			if err := reader.Decode(&servers); err == io.EOF {
 				break
 			} else if err != nil {
-				log.Error(err.Error())
+				log.Errorf(err.Error())
 			}
 		}
 

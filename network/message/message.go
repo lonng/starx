@@ -105,7 +105,7 @@ func Encode(m *Message) ([]byte, error) {
 			buf = append(buf, []byte(m.Route)...)
 		}
 	default:
-		log.Error("wrong message type")
+		log.Errorf("wrong message type")
 		return nil, ErrWrongMessageType
 	}
 	buf = append(buf, m.Data...)
@@ -114,7 +114,7 @@ func Encode(m *Message) ([]byte, error) {
 
 func Decode(data []byte) (*Message, error) {
 	if len(data) <= msgHeadLength {
-		log.Info("invalid message")
+		log.Infof("invalid message")
 		return nil, ErrInvalidMessage
 	}
 	m := NewMessage()
@@ -143,7 +143,7 @@ func Decode(data []byte) (*Message, error) {
 			code := binary.BigEndian.Uint16(data[offset:(offset + 2)])
 			route, ok := codeDict[code]
 			if !ok {
-				log.Error("message compressed, but can not find route infomation in dictionary")
+				log.Errorf("message compressed, but can not find route infomation in dictionary")
 				return nil, ErrRouteInfoNotFound
 			}
 			m.Route = route
@@ -156,7 +156,7 @@ func Decode(data []byte) (*Message, error) {
 			offset += int(rl)
 		}
 	default:
-		log.Error("wrong message type")
+		log.Errorf("wrong message type")
 		return nil, ErrWrongMessageType
 	}
 	m.Data = data[offset:]
@@ -171,11 +171,11 @@ func SetDict(dict map[string]uint16) {
 
 		// duplication check
 		if _, ok := routeDict[r]; ok {
-			log.Warn("duplicated route(route: %s, code: %d)", r, code)
+			log.Warnf("duplicated route(route: %s, code: %d)", r, code)
 		}
 
 		if _, ok := codeDict[code]; ok {
-			log.Warn("duplicated route(route: %s, code: %d)", r, code)
+			log.Warnf("duplicated route(route: %s, code: %d)", r, code)
 		}
 
 		// update map, using last value when key duplicated
