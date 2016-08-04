@@ -14,6 +14,8 @@ import (
 
 	"golang.org/x/net/websocket"
 
+	"bytes"
+	"flag"
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/network"
@@ -44,7 +46,15 @@ func welcomeMsg() {
 	fmt.Println(asciiLogo)
 }
 
-func (app *starxApp) init(serverId string) {
+func (app *starxApp) init() {
+	// get server id from command line
+	var serverId string
+	cl := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	cl.StringVar(&serverId, "server-id", "", "server id")
+	cl.SetOutput(bytes.NewBuffer(nil))
+	cl.Parse(os.Args[1:])
+
+	// init
 	if App.Standalone {
 		if strings.TrimSpace(serverId) == "" {
 			log.Fatalf("server running in standalone mode, but not found server id argument")

@@ -10,10 +10,10 @@ import (
 )
 
 // Run server
-func Run(serverId string) {
+func Run() {
 	//welcomeMsg()
 	parseConfig()
-	App.init(serverId)
+	App.init()
 	loadSettings()
 	App.start()
 }
