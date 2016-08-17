@@ -14,11 +14,12 @@ var VERSION = "0.0.1"
 
 var (
 	App              *starxApp // starx application
-	AppPath          string
+	appPath          string
 	workPath         string
-	appConfigPath    string
-	serverConfigPath string
-	masterConfigPath string
+	AppConfigPath    string
+	ServerConfigPath string
+	MasterConfigPath string
+	ServerID         string              // current process server id
 	settings         map[string][]func() // all settings
 	endRunning       chan bool           // wait for end application
 )
@@ -31,36 +32,36 @@ func init() {
 	workPath, _ = os.Getwd()
 	workPath, _ = filepath.Abs(workPath)
 	// initialize default configurations
-	AppPath, _ = filepath.Abs(filepath.Dir(os.Args[0]))
+	appPath, _ = filepath.Abs(filepath.Dir(os.Args[0]))
 
-	appConfigPath = filepath.Join(AppPath, "configs", "app.json")
-	serverConfigPath = filepath.Join(AppPath, "configs", "servers.json")
-	masterConfigPath = filepath.Join(AppPath, "configs", "master.json")
-	if workPath != AppPath {
-		if fileExist(appConfigPath) {
-			os.Chdir(AppPath)
+	AppConfigPath = filepath.Join(appPath, "configs", "app.json")
+	ServerConfigPath = filepath.Join(appPath, "configs", "servers.json")
+	MasterConfigPath = filepath.Join(appPath, "configs", "master.json")
+	if workPath != appPath {
+		if fileExist(AppConfigPath) {
+			os.Chdir(appPath)
 		} else {
-			appConfigPath = filepath.Join(workPath, "configs", "app.json")
+			AppConfigPath = filepath.Join(workPath, "configs", "app.json")
 		}
 
-		if fileExist(serverConfigPath) {
-			os.Chdir(AppPath)
+		if fileExist(ServerConfigPath) {
+			os.Chdir(appPath)
 		} else {
-			serverConfigPath = filepath.Join(workPath, "configs", "servers.json")
+			ServerConfigPath = filepath.Join(workPath, "configs", "servers.json")
 		}
 
-		if fileExist(masterConfigPath) {
-			os.Chdir(AppPath)
+		if fileExist(MasterConfigPath) {
+			os.Chdir(appPath)
 		} else {
-			masterConfigPath = filepath.Join(workPath, "configs", "master.json")
+			MasterConfigPath = filepath.Join(workPath, "configs", "master.json")
 		}
 	}
 }
 
 func parseConfig() {
 	// initialize app config
-	if !fileExist(appConfigPath) {
-		log.Fatalf("%s not found", appConfigPath)
+	if !fileExist(AppConfigPath) {
+		log.Fatalf("%s not found", AppConfigPath)
 		os.Exit(-1)
 	} else {
 		type appConfig struct {
@@ -68,7 +69,7 @@ func parseConfig() {
 			Standalone bool   `json:"Standalone"`
 			LogLevel   string `json:"LogLevel"`
 		}
-		f, _ := os.Open(appConfigPath)
+		f, _ := os.Open(AppConfigPath)
 		defer f.Close()
 		reader := json.NewDecoder(f)
 		var cfg appConfig
@@ -85,11 +86,11 @@ func parseConfig() {
 	}
 
 	// initialize servers config
-	if !fileExist(serverConfigPath) {
-		log.Fatalf("%s not found", serverConfigPath)
+	if !fileExist(ServerConfigPath) {
+		log.Fatalf("%s not found", ServerConfigPath)
 		os.Exit(-1)
 	} else {
-		f, _ := os.Open(serverConfigPath)
+		f, _ := os.Open(ServerConfigPath)
 		defer f.Close()
 
 		reader := json.NewDecoder(f)

@@ -2,10 +2,8 @@ package starx
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -47,20 +45,15 @@ func welcomeMsg() {
 
 func (app *starxApp) init() {
 	// get server id from command line
-	var serverId string
-	cl := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-	cl.StringVar(&serverId, "server-id", "", "server id")
-	cl.SetOutput(ioutil.Discard)
-	cl.Parse(os.Args[1:])
 
 	// init
 	if App.Standalone {
-		if strings.TrimSpace(serverId) == "" {
+		if strings.TrimSpace(ServerID) == "" {
 			log.Fatalf("server running in standalone mode, but not found server id argument")
 			os.Exit(-1)
 		}
 
-		cfg, err := cluster.Server(serverId)
+		cfg, err := cluster.Server(ServerID)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(-1)
@@ -70,11 +63,11 @@ func (app *starxApp) init() {
 	} else {
 		// if server running in cluster mode, master server config require
 		// initialize master server config
-		if !fileExist(masterConfigPath) {
-			log.Fatalf("%s not found", masterConfigPath)
+		if !fileExist(MasterConfigPath) {
+			log.Fatalf("%s not found", MasterConfigPath)
 			os.Exit(-1)
 		} else {
-			f, _ := os.Open(masterConfigPath)
+			f, _ := os.Open(MasterConfigPath)
 			defer f.Close()
 
 			reader := json.NewDecoder(f)
@@ -93,15 +86,15 @@ func (app *starxApp) init() {
 			cluster.Register(master)
 		}
 		if App.Master == nil {
-			log.Fatalf("wrong master server config file(%s)", masterConfigPath)
+			log.Fatalf("wrong master server config file(%s)", MasterConfigPath)
 			os.Exit(-1)
 		}
 
-		if strings.TrimSpace(serverId) == "" {
+		if strings.TrimSpace(ServerID) == "" {
 			// not pass server id, running in master mode
 			App.Config = App.Master
 		} else {
-			cfg, err := cluster.Server(serverId)
+			cfg, err := cluster.Server(ServerID)
 			if err != nil {
 				log.Fatalf(err.Error())
 				os.Exit(-1)
