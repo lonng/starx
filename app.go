@@ -2,8 +2,10 @@ package starx
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -12,13 +14,10 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/net/websocket"
-
-	"bytes"
-	"flag"
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/network"
+	"golang.org/x/net/websocket"
 )
 
 type starxApp struct {
@@ -51,7 +50,7 @@ func (app *starxApp) init() {
 	var serverId string
 	cl := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	cl.StringVar(&serverId, "server-id", "", "server id")
-	cl.SetOutput(bytes.NewBuffer(nil))
+	cl.SetOutput(ioutil.Discard)
 	cl.Parse(os.Args[1:])
 
 	// init
