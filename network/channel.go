@@ -1,8 +1,12 @@
 package network
 
-import "github.com/chrislonng/starx/session"
+import (
+	"github.com/chrislonng/starx/session"
+	"sync"
+)
 
 type Channel struct {
+	sync.RWMutex
 	name           string                      // channel name
 	uidMap         map[uint64]*session.Session // uid map to session pointer
 	uids           []uint64                    // all user ids
@@ -18,24 +22,36 @@ func newChannel(n string, cs *channelService) *Channel {
 }
 
 func (c *Channel) Members() []uint64 {
+	c.RLock()
+	defer c.RUnlock()
+
 	return c.uids
 }
 
 func (c *Channel) PushMessageByUids(uids []uint64, route string, data []byte) {
+	c.RLock()
+	defer c.RUnlock()
+
 	for _, uid := range uids {
-		if session, ok := c.uidMap[uid]; ok && session != nil {
-			defaultNetService.Push(session, route, data)
+		if s, ok := c.uidMap[uid]; ok && s != nil {
+			defaultNetService.Push(s, route, data)
 		}
 	}
 }
 
 func (c *Channel) Broadcast(route string, data []byte) {
-	for _, session := range c.uidMap {
-		defaultNetService.Push(session, route, data)
+	c.RLock()
+	defer c.RUnlock()
+
+	for _, s := range c.uidMap {
+		defaultNetService.Push(s, route, data)
 	}
 }
 
 func (c *Channel) IsContain(uid uint64) bool {
+	c.RLock()
+	defer c.RUnlock()
+
 	for _, u := range c.uids {
 		if u == uid {
 			return true
@@ -45,12 +61,18 @@ func (c *Channel) IsContain(uid uint64) bool {
 }
 
 func (c *Channel) Add(session *session.Session) {
+	c.Lock()
+	defer c.Unlock()
+
 	c.uidMap[session.Uid] = session
 	c.uids = append(c.uids, session.Uid)
 	c.count++
 }
 
 func (c *Channel) Leave(uid uint64) {
+	c.Lock()
+	defer c.Unlock()
+
 	var temp []uint64
 	for i, u := range c.uids {
 		if u == uid {
@@ -63,14 +85,23 @@ func (c *Channel) Leave(uid uint64) {
 }
 
 func (c *Channel) LeaveAll() {
+	c.Lock()
+	defer c.Unlock()
+
 	c.uids = make([]uint64, 0)
 	c.count = 0
 }
 
 func (c *Channel) Count() int {
+	c.RLock()
+	defer c.RUnlock()
+
 	return c.count
 }
 
 func (c *Channel) Destroy() {
+	c.channelServive.Lock()
+	defer c.channelServive.Unlock()
+
 	delete(c.channelServive.channels, c.name)
 }
