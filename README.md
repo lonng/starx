@@ -18,6 +18,9 @@ Inspired by [Pomelo](https://github.com/NetEase/pomelo), rewrite with golang.
 - Javascript
   + [starx-client-websockt](https://github.com/chrislonng/starx-client-websockt)
 
+- C#
+  + [starx-client-dotnet](https://github.com/chrislonng/starx-client-dotnet)
+
 ## Demo
 
 Client: [starx-demo-unity](https://github.com/chrislonng/starx-demo-unity)
