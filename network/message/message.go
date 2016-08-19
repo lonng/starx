@@ -61,6 +61,14 @@ func (m *Message) Encode() ([]byte, error) {
 	return Encode(m)
 }
 
+func msgRoute(t MessageType) bool {
+	return t == Request || t == Notify || t == Push
+}
+
+func invalidType(t MessageType) bool {
+	return t < Request || t > Push
+}
+
 // Encode message. Different message types is corresponding to different message header,
 // message types is identified by 2-4 bit of flag field. The relationship between message
 // types and message header is presented as follows:
@@ -69,10 +77,15 @@ func (m *Message) Encode() ([]byte, error) {
 //   ----      ----      -----
 // request  |----000-|<message id>|<route>
 // notify   |----001-|<route>
-// response |----010-|<message id>|<route>
+// response |----010-|<message id>
 // push     |----011-|<route>
 // The figure above indicates that the bit does not affect the type of message.
 func Encode(m *Message) ([]byte, error) {
+	if invalidType(m.Type) {
+		log.Errorf("wrong message type")
+		return nil, ErrWrongMessageType
+	}
+
 	buf := make([]byte, 0)
 	flag := byte(m.Type) << 1
 
@@ -82,8 +95,7 @@ func Encode(m *Message) ([]byte, error) {
 	}
 	buf = append(buf, flag)
 
-	switch m.Type {
-	case Request, Response:
+	if m.Type == Request || m.Type == Response {
 		n := m.ID
 		// variant length encode
 		for {
@@ -96,7 +108,9 @@ func Encode(m *Message) ([]byte, error) {
 				break
 			}
 		}
-	case Notify, Push:
+	}
+
+	if msgRoute(m.Type) {
 		if compressed {
 			buf = append(buf, byte((code>>8)&0xFF))
 			buf = append(buf, byte(code&0xFF))
@@ -104,10 +118,8 @@ func Encode(m *Message) ([]byte, error) {
 			buf = append(buf, byte(len(m.Route)))
 			buf = append(buf, []byte(m.Route)...)
 		}
-	default:
-		log.Errorf("wrong message type")
-		return nil, ErrWrongMessageType
 	}
+
 	buf = append(buf, m.Data...)
 	return buf, nil
 }
@@ -121,8 +133,13 @@ func Decode(data []byte) (*Message, error) {
 	flag := data[0]
 	offset := 1
 	m.Type = MessageType((flag >> 1) & msgTypeMask)
-	switch m.Type {
-	case Request, Response:
+
+	if invalidType(m.Type) {
+		log.Errorf("wrong message type")
+		return nil, ErrWrongMessageType
+	}
+
+	if m.Type == Request || m.Type == Response {
 		id := uint(0)
 		// little end byte order
 		// WARNING: must can be stored in 64 bits integer
@@ -136,8 +153,9 @@ func Decode(data []byte) (*Message, error) {
 			}
 		}
 		m.ID = id
-		fallthrough
-	case Notify, Push:
+	}
+
+	if msgRoute(m.Type) {
 		if flag&msgRouteCompressMask == 1 {
 			m.compressed = true
 			code := binary.BigEndian.Uint16(data[offset:(offset + 2)])
@@ -155,10 +173,8 @@ func Decode(data []byte) (*Message, error) {
 			m.Route = string(data[offset:(offset + int(rl))])
 			offset += int(rl)
 		}
-	default:
-		log.Errorf("wrong message type")
-		return nil, ErrWrongMessageType
 	}
+
 	m.Data = data[offset:]
 	return m, nil
 }
