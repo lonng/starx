@@ -5,6 +5,7 @@ import (
 )
 
 func (hs *handlerService) HandleWS(conn *websocket.Conn) {
+	conn.PayloadType = websocket.BinaryFrame
 	hs.Handle(conn)
 	/*
 		defer conn.Close()
