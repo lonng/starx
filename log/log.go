@@ -14,8 +14,8 @@ type LogLevel byte
 
 const (
 	_ LogLevel = iota
-	LevelInfo
 	LevelDebug
+	LevelInfo
 	LevelWarn
 	LevelError
 	LevelFatal
@@ -26,8 +26,8 @@ var (
 )
 
 var names = []string{
-	LevelInfo:  "INFO",
 	LevelDebug: "DEBUG",
+	LevelInfo:  "INFO",
 	LevelWarn:  "WARN",
 	LevelError: "ERROR",
 	LevelFatal: "FATAL",
@@ -39,34 +39,37 @@ func (l LogLevel) String() string {
 
 var (
 	logLevel LogLevel                                                     // log level
-	log      *stdlog.Logger = stdlog.New(os.Stdout, "", stdlog.LstdFlags) // logger
+	logger   *stdlog.Logger = stdlog.New(os.Stdout, "", stdlog.LstdFlags) // logger
 )
 
-func writeLog(level string, v ...interface{}) {
-	_, file, line, ok := runtime.Caller(2)
+func logSite() string {
+	_, file, line, ok := runtime.Caller(3)
 	if !ok {
 		file = "???"
 		line = 0
 	}
 	c := string(file + ":" + strconv.FormatInt(int64(line), 10))
-	log.Printf(fmt.Sprintf("[%s] [%s] %s", level, c, fmt.Sprint(v...)))
+	return c
+}
+
+func writeLog(level string, v ...interface{}) {
+	logger.Printf(fmt.Sprintf("[%s] [%s] %s", level, logSite(), fmt.Sprint(v...)))
 }
 
 func writeLogf(level, format string, v ...interface{}) {
-	_, file, line, ok := runtime.Caller(2)
-	if !ok {
-		file = "???"
-		line = 0
-	}
-	c := string(file + ":" + strconv.FormatInt(int64(line), 10))
-	log.Printf(fmt.Sprintf("[%s] [%s] %s", level, c, format), v...)
+	logger.Printf(fmt.Sprintf("[%s] [%s] %s", level, logSite(), format), v...)
 }
 
-func Infof(f string, v ...interface{}) {
-	if logLevel > LevelInfo {
+
+func Tracef(f string, v ...interface{}) {
+	if logLevel > LevelFatal {
 		return
 	}
-	writeLogf("Info", f, v...)
+	buf := make([]byte, 10000)
+	n := runtime.Stack(buf, false)
+	buf = buf[:n]
+	v = append(v, string(buf))
+	writeLogf("Trace", f+"\n%s", v...)
 }
 
 func Debugf(f string, v ...interface{}) {
@@ -74,6 +77,13 @@ func Debugf(f string, v ...interface{}) {
 		return
 	}
 	writeLogf("Debug", f, v...)
+}
+
+func Infof(f string, v ...interface{}) {
+	if logLevel > LevelInfo {
+		return
+	}
+	writeLogf("Info", f, v...)
 }
 
 func Warnf(f string, v ...interface{}) {
@@ -95,13 +105,18 @@ func Fatalf(f string, v ...interface{}) {
 		return
 	}
 	writeLogf("Fatal", f, v...)
+	os.Exit(-1)
 }
 
-func Info(v ...interface{}) {
-	if logLevel > LevelInfo {
+func Trace(v ...interface{}) {
+	if logLevel > LevelFatal {
 		return
 	}
-	writeLog("Info", v...)
+	buf := make([]byte, 10000)
+	n := runtime.Stack(buf, false)
+	buf = buf[:n]
+	v = append(v, string(buf))
+	writeLogf("Trace", "%s\n%s", v...)
 }
 
 func Debug(v ...interface{}) {
@@ -109,6 +124,13 @@ func Debug(v ...interface{}) {
 		return
 	}
 	writeLog("Debug", v...)
+}
+
+func Info(v ...interface{}) {
+	if logLevel > LevelInfo {
+		return
+	}
+	writeLog("Info", v...)
 }
 
 func Warn(f string, v ...interface{}) {
@@ -130,6 +152,7 @@ func Fatal(v ...interface{}) {
 		return
 	}
 	writeLog("Fatal", v...)
+	os.Exit(-1)
 }
 
 func SetLevel(l LogLevel) error {

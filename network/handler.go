@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net"
 	"reflect"
-	"runtime"
 
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/cluster/rpc"
@@ -187,8 +186,7 @@ func (hs *handlerService) processPacket(a *agent, p *packet.Packet) {
 func (hs *handlerService) processMessage(session *session.Session, msg *message.Message) {
 	defer func() {
 		if err := recover(); err != nil {
-			runtime.Caller(2)
-			log.Fatalf("processMessage Error: %+v", err)
+			log.Errorf("processMessage Error: %+v", err)
 		}
 	}()
 

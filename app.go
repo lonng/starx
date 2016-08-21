@@ -49,14 +49,12 @@ func (app *starxApp) init() {
 	// init
 	if App.Standalone {
 		if strings.TrimSpace(ServerID) == "" {
-			log.Fatalf("server running in standalone mode, but not found server id argument")
-			os.Exit(-1)
+			log.Fatal("server running in standalone mode, but not found server id argument")
 		}
 
 		cfg, err := cluster.Server(ServerID)
 		if err != nil {
-			log.Fatalf(err.Error())
-			os.Exit(-1)
+			log.Fatal(err.Error())
 		}
 
 		App.Config = cfg
@@ -65,7 +63,6 @@ func (app *starxApp) init() {
 		// initialize master server config
 		if !fileExist(MasterConfigPath) {
 			log.Fatalf("%s not found", MasterConfigPath)
-			os.Exit(-1)
 		} else {
 			f, _ := os.Open(MasterConfigPath)
 			defer f.Close()
@@ -87,7 +84,6 @@ func (app *starxApp) init() {
 		}
 		if App.Master == nil {
 			log.Fatalf("wrong master server config file(%s)", MasterConfigPath)
-			os.Exit(-1)
 		}
 
 		if strings.TrimSpace(ServerID) == "" {
@@ -96,8 +92,7 @@ func (app *starxApp) init() {
 		} else {
 			cfg, err := cluster.Server(ServerID)
 			if err != nil {
-				log.Fatalf(err.Error())
-				os.Exit(-1)
+				log.Fatal(err.Error())
 			}
 
 			App.Config = cfg
@@ -137,8 +132,7 @@ func (app *starxApp) start() {
 func (app *starxApp) listenAndServe() {
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", app.Config.Host, app.Config.Port))
 	if err != nil {
-		log.Errorf(err.Error())
-		os.Exit(-1)
+		log.Fatal(err.Error())
 	}
 	log.Infof("listen at %s:%d(%s)",
 		app.Config.Host,
@@ -171,6 +165,6 @@ func (app *starxApp) listenAndServeWS() {
 	err := http.ListenAndServe(fmt.Sprintf("%s:%d", app.Config.Host, app.Config.Port), nil)
 
 	if err != nil {
-		panic("ListenAndServe: " + err.Error())
+		log.Fatal(err.Error())
 	}
 }

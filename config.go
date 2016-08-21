@@ -62,7 +62,6 @@ func parseConfig() {
 	// initialize app config
 	if !fileExist(AppConfigPath) {
 		log.Fatalf("%s not found", AppConfigPath)
-		os.Exit(-1)
 	} else {
 		type appConfig struct {
 			AppName    string `json:"AppName"`
@@ -82,13 +81,12 @@ func parseConfig() {
 		}
 		App.AppName = cfg.AppName
 		App.Standalone = cfg.Standalone
-		log.SetLevelByName(cfg.LogLevel)
+		//log.SetLevelByName(cfg.LogLevel)
 	}
 
 	// initialize servers config
 	if !fileExist(ServerConfigPath) {
 		log.Fatalf("%s not found", ServerConfigPath)
-		os.Exit(-1)
 	} else {
 		f, _ := os.Open(ServerConfigPath)
 		defer f.Close()

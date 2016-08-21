@@ -276,7 +276,7 @@ func (client *Client) Go(rpcKind RpcKind, service string, method string, sid uin
 		// RPCs that will be using that channel.  If the channel
 		// is totally unbuffered, it's best not to run at all.
 		if cap(done) == 0 {
-			log.Fatalf("rpc: done channel is unbuffered")
+			log.Errorf("rpc: done channel is unbuffered")
 		}
 	}
 	call.Done = done
