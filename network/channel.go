@@ -3,6 +3,7 @@ package network
 import (
 	"github.com/chrislonng/starx/session"
 	"sync"
+	"github.com/chrislonng/starx/log"
 )
 
 type Channel struct {
@@ -39,13 +40,23 @@ func (c *Channel) PushMessageByUids(uids []uint64, route string, data []byte) {
 	}
 }
 
-func (c *Channel) Broadcast(route string, data []byte) {
+func (c *Channel) Broadcast(route string, v interface{}) error {
+	data, err := serializeOrRaw(v)
+	if err != nil {
+		return err
+	}
+
 	c.RLock()
 	defer c.RUnlock()
 
 	for _, s := range c.uidMap {
-		defaultNetService.Push(s, route, data)
+		err = defaultNetService.Push(s, route, data)
+		if err != nil {
+			log.Error(err.Error())
+		}
 	}
+
+	return err
 }
 
 func (c *Channel) IsContain(uid uint64) bool {
