@@ -60,7 +60,6 @@ func writeLogf(level, format string, v ...interface{}) {
 	logger.Printf(fmt.Sprintf("[%s] [%s] %s", level, logSite(), format), v...)
 }
 
-
 func Tracef(f string, v ...interface{}) {
 	if logLevel > LevelFatal {
 		return
@@ -156,7 +155,7 @@ func Fatal(v ...interface{}) {
 }
 
 func SetLevel(l LogLevel) error {
-	if l < LevelInfo || l > LevelFatal {
+	if l < LevelDebug || l > LevelFatal {
 		return ErrWrongLogLevel
 	}
 	logLevel = l

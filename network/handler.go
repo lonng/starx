@@ -132,6 +132,10 @@ func (hs *handlerService) Handle(conn net.Conn) {
 				agent.close()
 				break
 			}
+
+			if p == nil {
+				break
+			}
 			packetChan <- &unhandledPacket{agent: agent, packet: p}
 		}
 	}
