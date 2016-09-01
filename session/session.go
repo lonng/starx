@@ -44,7 +44,7 @@ type Session struct {
 // Create new session instance
 func NewSession(entity NetworkEntity) *Session {
 	return &Session{
-		ID:        service.Connections.NewSessionUUID(),
+		ID:        service.Connections.SessionID(),
 		Entity:    entity,
 		data:      make(map[string]interface{}),
 		lastTime:  time.Now().Unix(),

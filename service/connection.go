@@ -1,49 +1,37 @@
 package service
 
 import (
-	"sync"
+	"sync/atomic"
 )
 
-var Connections = NewConnectionService()
+var Connections = newConnectionService()
 
 type connectionService struct {
-	countLock sync.RWMutex // protect connCount
-	connCount int
-	uidLock   sync.RWMutex // protect sessionID
-	sessionID int64
+	count int64
+	sid   int64
 }
 
-func NewConnectionService() *connectionService {
-	return &connectionService{sessionID: 0}
+func newConnectionService() *connectionService {
+	return &connectionService{sid: 0}
 }
 
 func (c *connectionService) Increment() {
-	c.countLock.Lock()
-	defer c.countLock.Unlock()
-	c.connCount++
+	atomic.AddInt64(&c.count, 1)
 }
 
 func (c *connectionService) Decrement() {
-	c.countLock.Lock()
-	defer c.countLock.Unlock()
-	c.connCount--
+	atomic.AddInt64(&c.count, -1)
 }
 
-func (c *connectionService) Count() int {
-	c.countLock.RLock()
-	defer c.countLock.RUnlock()
-	return c.connCount
+func (c *connectionService) Count() int64 {
+	return atomic.LoadInt64(&c.count)
 }
 
-func (c *connectionService) NewSessionUUID() int64 {
-	c.uidLock.Lock()
-	defer c.uidLock.Unlock()
-	c.sessionID++
-	return c.sessionID
+func (c *connectionService) Reset() {
+	atomic.StoreInt64(&c.count, 0)
+	atomic.StoreInt64(&c.sid, 0)
 }
 
-func (c *connectionService) SessionUUID() int64 {
-	c.uidLock.RLock()
-	defer c.uidLock.RUnlock()
-	return c.sessionID
+func (c *connectionService) SessionID() int64 {
+	return atomic.AddInt64(&c.sid, 1)
 }
