@@ -11,7 +11,7 @@ import (
 )
 
 type NetworkEntity interface {
-	ID() uint64
+	ID() int64
 	Send([]byte) error
 	Push(session *Session, route string, v interface{}) error
 	Response(session *Session, v interface{}) error
@@ -32,8 +32,8 @@ var (
 //
 // This is user sessions, not contain raw sockets information
 type Session struct {
-	Id        uint64                 // session global uniqe id
-	Uid       uint64                 // binding user id
+	ID        int64                  // session global unique id
+	Uid       int64                  // binding user id
 	Entity    NetworkEntity          // raw session id, agent in frontend server, or acceptor in backend server
 	LastID    uint                   // last request id
 	data      map[string]interface{} // session data store
@@ -44,7 +44,7 @@ type Session struct {
 // Create new session instance
 func NewSession(entity NetworkEntity) *Session {
 	return &Session{
-		Id:        service.Connections.NewSessionUUID(),
+		ID:        service.Connections.NewSessionUUID(),
 		Entity:    entity,
 		data:      make(map[string]interface{}),
 		lastTime:  time.Now().Unix(),
@@ -92,7 +92,7 @@ func (s *Session) Response(v interface{}) error {
 	return s.Entity.Response(s, v)
 }
 
-func (s *Session) Bind(uid uint64) error {
+func (s *Session) Bind(uid int64) error {
 	if uid < 1 {
 		log.Errorf("uid invalid: %d", uid)
 		return ErrIllegalUID

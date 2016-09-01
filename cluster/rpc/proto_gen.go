@@ -35,11 +35,11 @@ func (z *Request) DecodeMsg(dc *msgp.Reader) (err error) {
 				return
 			}
 		case "Sid":
-			z.Sid, err = dc.ReadUint64()
+			z.Sid, err = dc.ReadInt64()
 			if err != nil {
 				return
 			}
-		case "Args":
+		case "Data":
 			z.Data, err = dc.ReadBytes(z.Data)
 			if err != nil {
 				return
@@ -89,12 +89,12 @@ func (z *Request) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return err
 	}
-	err = en.WriteUint64(z.Sid)
+	err = en.WriteInt64(z.Sid)
 	if err != nil {
 		return
 	}
-	// write "Args"
-	err = en.Append(0xa4, 0x41, 0x72, 0x67, 0x73)
+	// write "Data"
+	err = en.Append(0xa4, 0x44, 0x61, 0x74, 0x61)
 	if err != nil {
 		return err
 	}
@@ -126,9 +126,9 @@ func (z *Request) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.AppendUint64(o, z.Seq)
 	// string "Sid"
 	o = append(o, 0xa3, 0x53, 0x69, 0x64)
-	o = msgp.AppendUint64(o, z.Sid)
-	// string "Args"
-	o = append(o, 0xa4, 0x41, 0x72, 0x67, 0x73)
+	o = msgp.AppendInt64(o, z.Sid)
+	// string "Data"
+	o = append(o, 0xa4, 0x44, 0x61, 0x74, 0x61)
 	o = msgp.AppendBytes(o, z.Data)
 	// string "Kind"
 	o = append(o, 0xa4, 0x4b, 0x69, 0x6e, 0x64)
@@ -163,11 +163,11 @@ func (z *Request) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "Sid":
-			z.Sid, bts, err = msgp.ReadUint64Bytes(bts)
+			z.Sid, bts, err = msgp.ReadInt64Bytes(bts)
 			if err != nil {
 				return
 			}
-		case "Args":
+		case "Data":
 			z.Data, bts, err = msgp.ReadBytesBytes(bts, z.Data)
 			if err != nil {
 				return
@@ -193,7 +193,7 @@ func (z *Request) UnmarshalMsg(bts []byte) (o []byte, err error) {
 }
 
 func (z *Request) Msgsize() (s int) {
-	s = 1 + 14 + msgp.StringPrefixSize + len(z.ServiceMethod) + 4 + msgp.Uint64Size + 4 + msgp.Uint64Size + 5 + msgp.BytesPrefixSize + len(z.Data) + 5 + msgp.ByteSize
+	s = 1 + 14 + msgp.StringPrefixSize + len(z.ServiceMethod) + 4 + msgp.Uint64Size + 4 + msgp.Int64Size + 5 + msgp.BytesPrefixSize + len(z.Data) + 5 + msgp.ByteSize
 	return
 }
 
@@ -233,7 +233,7 @@ func (z *Response) DecodeMsg(dc *msgp.Reader) (err error) {
 				return
 			}
 		case "Sid":
-			z.Sid, err = dc.ReadUint64()
+			z.Sid, err = dc.ReadInt64()
 			if err != nil {
 				return
 			}
@@ -297,7 +297,7 @@ func (z *Response) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return err
 	}
-	err = en.WriteUint64(z.Sid)
+	err = en.WriteInt64(z.Sid)
 	if err != nil {
 		return
 	}
@@ -346,7 +346,7 @@ func (z *Response) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.AppendUint64(o, z.Seq)
 	// string "Sid"
 	o = append(o, 0xa3, 0x53, 0x69, 0x64)
-	o = msgp.AppendUint64(o, z.Sid)
+	o = msgp.AppendInt64(o, z.Sid)
 	// string "Data"
 	o = append(o, 0xa4, 0x44, 0x61, 0x74, 0x61)
 	o = msgp.AppendBytes(o, z.Data)
@@ -395,7 +395,7 @@ func (z *Response) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "Sid":
-			z.Sid, bts, err = msgp.ReadUint64Bytes(bts)
+			z.Sid, bts, err = msgp.ReadInt64Bytes(bts)
 			if err != nil {
 				return
 			}
@@ -426,7 +426,7 @@ func (z *Response) UnmarshalMsg(bts []byte) (o []byte, err error) {
 }
 
 func (z *Response) Msgsize() (s int) {
-	s = 1 + 5 + msgp.ByteSize + 14 + msgp.StringPrefixSize + len(z.ServiceMethod) + 4 + msgp.Uint64Size + 4 + msgp.Uint64Size + 5 + msgp.BytesPrefixSize + len(z.Data) + 6 + msgp.StringPrefixSize + len(z.Error) + 6 + msgp.StringPrefixSize + len(z.Route)
+	s = 1 + 5 + msgp.ByteSize + 14 + msgp.StringPrefixSize + len(z.ServiceMethod) + 4 + msgp.Uint64Size + 4 + msgp.Int64Size + 5 + msgp.BytesPrefixSize + len(z.Data) + 6 + msgp.StringPrefixSize + len(z.Error) + 6 + msgp.StringPrefixSize + len(z.Route)
 	return
 }
 

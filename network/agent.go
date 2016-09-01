@@ -20,7 +20,7 @@ var (
 // Agent corresponding a user, used for store raw socket information
 // only used in package internal, can not accessible by other package
 type agent struct {
-	id       uint64
+	id       int64
 	socket   net.Conn
 	status   networkStatus
 	session  *session.Session
@@ -33,9 +33,9 @@ func newAgent(conn net.Conn) *agent {
 		socket:   conn,
 		status:   statusStart,
 		lastTime: time.Now().Unix()}
-	session := session.NewSession(a)
-	a.session = session
-	a.id = session.Id
+	s := session.NewSession(a)
+	a.session = s
+	a.id = s.ID
 	return a
 }
 
@@ -57,7 +57,7 @@ func (a *agent) close() {
 	a.socket.Close()
 }
 
-func (a *agent) ID() uint64 {
+func (a *agent) ID() int64 {
 	return a.id
 }
 

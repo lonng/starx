@@ -32,7 +32,7 @@ var emptyBytes = make([]byte, 0)
 type Call struct {
 	ServiceMethod string     // The name of the service and method to call.
 	Args          []byte     // The argument to the function.
-	Sid           uint64     // Frontend server session id
+	Sid           int64      // Frontend server session id
 	Reply         *[]byte    // The reply from the function.
 	Error         error      // After completion, the error status.
 	Done          chan *Call // Strobes when call is complete.
@@ -262,7 +262,7 @@ func (client *Client) Close() error {
 // the invocation.  The done channel will signal when the call is complete by returning
 // the same Call object.  If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
-func (client *Client) Go(rpcKind RpcKind, service string, method string, sid uint64, reply *[]byte, done chan *Call, args []byte) *Call {
+func (client *Client) Go(rpcKind RpcKind, service string, method string, sid int64, reply *[]byte, done chan *Call, args []byte) *Call {
 	call := new(Call)
 	call.ServiceMethod = service + "." + method
 	call.Args = args
@@ -285,7 +285,7 @@ func (client *Client) Go(rpcKind RpcKind, service string, method string, sid uin
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
-func (client *Client) Call(rpcKind RpcKind, service string, method string, sid uint64, reply *[]byte, args []byte) error {
+func (client *Client) Call(rpcKind RpcKind, service string, method string, sid int64, reply *[]byte, args []byte) error {
 	call := <-client.Go(rpcKind, service, method, sid, reply, make(chan *Call, 1), args).Done
 	return call.Error
 }

@@ -31,19 +31,19 @@ func (c *channelService) Channel(name string) (*Channel, bool) {
 	c.RLock()
 	defer c.RUnlock()
 
-	channel, ok :=  c.channels[name]
+	channel, ok := c.channels[name]
 	return channel, ok
 }
 
 // Get all members in channel by channel name
-func (c *channelService) Members(name string) []uint64 {
+func (c *channelService) Members(name string) []int64 {
 	c.RLock()
 	defer c.RUnlock()
 
 	if channel, ok := c.channels[name]; ok {
 		return channel.Members()
 	}
-	return make([]uint64, 0)
+	return make([]int64, 0)
 }
 
 // Destroy channel by channel name

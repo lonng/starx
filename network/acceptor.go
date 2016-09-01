@@ -16,24 +16,24 @@ import (
 // information.
 // only used in package internal, can not accessible by other package
 type acceptor struct {
-	id         uint64
+	id         int64
 	socket     net.Conn
 	status     networkStatus
-	sessionMap map[uint64]*session.Session // backend sessions
-	f2bMap     map[uint64]uint64           // frontend session id -> backend session id map
-	b2fMap     map[uint64]uint64           // backend session id -> frontend session id map
-	lastTime   int64                       // last heartbeat unix time stamp
+	sessionMap map[int64]*session.Session // backend sessions
+	f2bMap     map[int64]int64            // frontend session id -> backend session id map
+	b2fMap     map[int64]int64            // backend session id -> frontend session id map
+	lastTime   int64                      // last heartbeat unix time stamp
 }
 
 // Create new backend session instance
-func newAcceptor(id uint64, conn net.Conn) *acceptor {
+func newAcceptor(id int64, conn net.Conn) *acceptor {
 	return &acceptor{
 		id:         id,
 		socket:     conn,
 		status:     statusStart,
-		sessionMap: make(map[uint64]*session.Session),
-		f2bMap:     make(map[uint64]uint64),
-		b2fMap:     make(map[uint64]uint64),
+		sessionMap: make(map[int64]*session.Session),
+		f2bMap:     make(map[int64]int64),
+		b2fMap:     make(map[int64]int64),
 		lastTime:   time.Now().Unix(),
 	}
 }
@@ -50,27 +50,27 @@ func (a *acceptor) heartbeat() {
 	a.lastTime = time.Now().Unix()
 }
 
-func (a *acceptor) Session(sid uint64) *session.Session {
+func (a *acceptor) Session(sid int64) *session.Session {
 	if bsid, ok := a.f2bMap[sid]; ok && bsid > 0 {
 		return a.sessionMap[bsid]
 	}
 	s := session.NewSession(a)
-	a.sessionMap[s.Id] = s
-	a.f2bMap[sid] = s.Id
-	a.b2fMap[s.Id] = sid
+	a.sessionMap[s.ID] = s
+	a.f2bMap[sid] = s.ID
+	a.b2fMap[s.ID] = sid
 	return s
 }
 
 func (a *acceptor) close() {
 	a.status = statusClosed
-	for _, session := range a.sessionMap {
-		defaultNetService.closeSession(session)
+	for _, s := range a.sessionMap {
+		defaultNetService.closeSession(s)
 	}
 	defaultNetService.removeAcceptor(a)
 	a.socket.Close()
 }
 
-func (a *acceptor) ID() uint64 {
+func (a *acceptor) ID() int64 {
 	return a.id
 }
 
@@ -91,7 +91,7 @@ func (a *acceptor) Push(session *session.Session, route string, v interface{}) e
 		return err
 	}
 
-	sid, ok := rs.b2fMap[session.Id]
+	sid, ok := rs.b2fMap[session.ID]
 	if !ok {
 		log.Errorf("sid not exists")
 		return ErrSidNotExists
@@ -119,7 +119,7 @@ func (a *acceptor) Response(session *session.Session, v interface{}) error {
 		return err
 	}
 
-	sid, ok := rs.b2fMap[session.Id]
+	sid, ok := rs.b2fMap[session.ID]
 	if !ok {
 		log.Errorf("sid not exists")
 		return ErrSidNotExists

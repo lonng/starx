@@ -118,7 +118,7 @@ func (hs *handlerService) Handle(conn net.Conn) {
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
-			log.Debugf("session closed, id: %d, ip: %s", agent.session.Id, agent.socket.RemoteAddr())
+			log.Debugf("session closed, id: %d, ip: %s", agent.session.ID, agent.socket.RemoteAddr())
 			close(packetChan)
 			endChan <- true
 			agent.close()

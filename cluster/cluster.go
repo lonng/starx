@@ -21,7 +21,7 @@ var (
 	clientIdMaps map[string]*rpc.Client // all rpc clients
 	appConfig    *ServerConfig          // current app config
 
-	sessionManger SessionManager //get session instance
+	sessionManager SessionManager //get session instance
 )
 
 var (
@@ -29,7 +29,7 @@ var (
 )
 
 type SessionManager interface {
-	Session(sid uint64) (*session.Session, error)
+	Session(sid int64) (*session.Session, error)
 }
 
 func init() {
@@ -250,7 +250,7 @@ func Client(svrId string) (*rpc.Client, error) {
 	// handle sys rpc push/response
 	go func() {
 		for resp := range client.ResponseChan {
-			s, err := sessionManger.Session(resp.Sid)
+			s, err := sessionManager.Session(resp.Sid)
 			if err != nil {
 				log.Errorf(err.Error())
 				continue
@@ -300,5 +300,5 @@ func SetSessionManager(s SessionManager) {
 	if s == nil {
 		panic("nil session manager")
 	}
-	sessionManger = s
+	sessionManager = s
 }

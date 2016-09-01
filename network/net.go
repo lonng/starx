@@ -25,13 +25,13 @@ var (
 )
 
 type netService struct {
-	agentMapLock sync.RWMutex      // protect agentMap
-	agentMap     map[uint64]*agent // agents map
+	agentMapLock sync.RWMutex     // protect agentMap
+	agentMap     map[int64]*agent // agents map
 
-	acceptorUidLock sync.RWMutex         // protect acceptorUid
-	acceptorUid     uint64               // acceptor unique id
-	acceptorMapLock sync.RWMutex         // protect acceptorMap
-	acceptorMap     map[uint64]*acceptor // acceptor map
+	acceptorUidLock sync.RWMutex        // protect acceptorUid
+	acceptorUid     int64               // acceptor unique id
+	acceptorMapLock sync.RWMutex        // protect acceptorMap
+	acceptorMap     map[int64]*acceptor // acceptor map
 
 	sessionCloseCbLock sync.RWMutex             // protect sessionCloseCb
 	sessionCloseCb     []func(*session.Session) // callback on session closed
@@ -40,9 +40,9 @@ type netService struct {
 // Create new netservive
 func NewNetService() *netService {
 	return &netService{
-		agentMap:    make(map[uint64]*agent),
+		agentMap:    make(map[int64]*agent),
 		acceptorUid: 1,
-		acceptorMap: make(map[uint64]*acceptor),
+		acceptorMap: make(map[int64]*acceptor),
 	}
 }
 
@@ -57,7 +57,7 @@ func (net *netService) createAgent(conn net.Conn) *agent {
 }
 
 // get agent by session id
-func (net *netService) agent(id uint64) (*agent, error) {
+func (net *netService) agent(id int64) (*agent, error) {
 	net.agentMapLock.RLock()
 	defer net.agentMapLock.RUnlock()
 
@@ -83,7 +83,7 @@ func (net *netService) createAcceptor(conn net.Conn) *acceptor {
 	return a
 }
 
-func (net *netService) acceptor(id uint64) (*acceptor, error) {
+func (net *netService) acceptor(id int64) (*acceptor, error) {
 	net.acceptorMapLock.RLock()
 	defer net.acceptorMapLock.RUnlock()
 
@@ -166,7 +166,7 @@ func (net *netService) Broadcast(route string, data []byte) {
 }
 
 // Multicast message to special agent ids
-func (net *netService) Multicast(aids []uint64, route string, data []byte) {
+func (net *netService) Multicast(aids []int64, route string, data []byte) {
 	net.agentMapLock.RLock()
 	defer net.agentMapLock.RUnlock()
 
@@ -177,7 +177,7 @@ func (net *netService) Multicast(aids []uint64, route string, data []byte) {
 	}
 }
 
-func (net *netService) Session(sid uint64) (*session.Session, error) {
+func (net *netService) Session(sid int64) (*session.Session, error) {
 	net.agentMapLock.RLock()
 	defer net.agentMapLock.RUnlock()
 
@@ -211,9 +211,9 @@ func (net *netService) closeSession(session *session.Session) {
 	} else {
 		net.acceptorMapLock.RLock()
 		if acceptor, ok := net.acceptorMap[session.Entity.ID()]; ok && (acceptor != nil) {
-			delete(acceptor.sessionMap, session.Id)
-			if fid, ok := acceptor.b2fMap[session.Id]; ok {
-				delete(acceptor.b2fMap, session.Id)
+			delete(acceptor.sessionMap, session.ID)
+			if fid, ok := acceptor.b2fMap[session.ID]; ok {
+				delete(acceptor.b2fMap, session.ID)
 				delete(acceptor.f2bMap, fid)
 			}
 		}

@@ -24,7 +24,7 @@ const (
 type Request struct {
 	ServiceMethod string  // format: "Service.Method"
 	Seq           uint64  // sequence number chosen by client
-	Sid           uint64  // frontend session id
+	Sid           int64   // frontend session id
 	Data          []byte  // for args
 	Kind          RpcKind // namespace
 }
@@ -36,7 +36,7 @@ type Response struct {
 	Kind          ResponseKind // rpc response type
 	ServiceMethod string       // echoes that of the Request
 	Seq           uint64       // echoes that of the request
-	Sid           uint64       // frontend session id
+	Sid           int64        // frontend session id
 	Data          []byte       // save response value
 	Error         string       // error, if any.
 	Route         string       // exists when ResponseType equal RPC_HANDLER_PUSH

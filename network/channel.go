@@ -1,35 +1,35 @@
 package network
 
 import (
+	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/session"
 	"sync"
-	"github.com/chrislonng/starx/log"
 )
 
 type Channel struct {
 	sync.RWMutex
-	name           string                      // channel name
-	uidMap         map[uint64]*session.Session // uid map to session pointer
-	uids           []uint64                    // all user ids
-	count          int                         // current channel contain user count
-	channelServive *channelService             // channel service which contain current channel
+	name           string                     // channel name
+	uidMap         map[int64]*session.Session // uid map to session pointer
+	uids           []int64                    // all user ids
+	count          int                        // current channel contain user count
+	channelServive *channelService            // channel service which contain current channel
 }
 
 func newChannel(n string, cs *channelService) *Channel {
 	return &Channel{
 		name:           n,
 		channelServive: cs,
-		uidMap:         make(map[uint64]*session.Session)}
+		uidMap:         make(map[int64]*session.Session)}
 }
 
-func (c *Channel) Members() []uint64 {
+func (c *Channel) Members() []int64 {
 	c.RLock()
 	defer c.RUnlock()
 
 	return c.uids
 }
 
-func (c *Channel) PushMessageByUids(uids []uint64, route string, data []byte) {
+func (c *Channel) PushMessageByUids(uids []int64, route string, data []byte) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -59,7 +59,7 @@ func (c *Channel) Broadcast(route string, v interface{}) error {
 	return err
 }
 
-func (c *Channel) IsContain(uid uint64) bool {
+func (c *Channel) IsContain(uid int64) bool {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -80,11 +80,11 @@ func (c *Channel) Add(session *session.Session) {
 	c.count++
 }
 
-func (c *Channel) Leave(uid uint64) {
+func (c *Channel) Leave(uid int64) {
 	c.Lock()
 	defer c.Unlock()
 
-	var temp []uint64
+	var temp []int64
 	for i, u := range c.uids {
 		if u == uid {
 			temp = append(temp, c.uids[:i]...)
@@ -99,7 +99,7 @@ func (c *Channel) LeaveAll() {
 	c.Lock()
 	defer c.Unlock()
 
-	c.uids = make([]uint64, 0)
+	c.uids = make([]int64, 0)
 	c.count = 0
 }
 
