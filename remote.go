@@ -15,7 +15,7 @@ import (
 	"github.com/chrislonng/starx/route"
 )
 
-var Remote = newRemote()
+var remote = newRemote()
 
 type remoteService struct {
 	serviceMap map[string]*component.Service // all handler service
@@ -32,9 +32,9 @@ func newRemote() *remoteService {
 	}
 }
 
-func (remote *remoteService) Register(rcvr component.Component) error {
-	if remote.serviceMap == nil {
-		remote.serviceMap = make(map[string]*component.Service)
+func (rs *remoteService) register(rcvr component.Component) error {
+	if rs.serviceMap == nil {
+		rs.serviceMap = make(map[string]*component.Service)
 	}
 
 	s := &component.Service{
@@ -42,7 +42,7 @@ func (remote *remoteService) Register(rcvr component.Component) error {
 		Rcvr: reflect.ValueOf(rcvr),
 	}
 	s.Name = reflect.Indirect(s.Rcvr).Type().Name()
-	if _, present := remote.serviceMap[s.Name]; present {
+	if _, present := rs.serviceMap[s.Name]; present {
 		return errors.New("remote: service already defined: " + s.Name)
 	}
 
@@ -53,12 +53,12 @@ func (remote *remoteService) Register(rcvr component.Component) error {
 	if err := s.ScanRemote(); err != nil {
 		return err
 	}
-	remote.serviceMap[s.Name] = s
+	rs.serviceMap[s.Name] = s
 	return nil
 }
 
 // Server handle request
-func (rs *remoteService) Handle(conn net.Conn) {
+func (rs *remoteService) handle(conn net.Conn) {
 	defer conn.Close()
 	// message buffer
 	requestChan := make(chan *unhandledRequest, packetBufferSize)
@@ -147,7 +147,7 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 
 	switch rr.Kind {
 	case rpc.Sys:
-		m, ok := service.HandlerMethod[route.Method]
+		m, ok := service.HandlerMethods[route.Method]
 		if !ok || m == nil {
 			str := "remote: service " + route.Service + "does not contain method: " + route.Method
 			log.Errorf(str)
@@ -192,7 +192,7 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 			params = append(params, reflect.ValueOf(arg))
 		}
 
-		m, ok := service.RemoteMethod[route.Method]
+		m, ok := service.RemoteMethods[route.Method]
 		if !ok || m == nil {
 			response.Error = "remote: service " + route.Service + " does not contain method: " + route.Method
 			goto WRITE_RESPONSE
@@ -241,13 +241,13 @@ func (rs *remoteService) call(method reflect.Method, args []reflect.Value) (rets
 }
 
 func (rs *remoteService) dumpServiceMap() {
-	for sname, s := range rs.serviceMap {
-		for mname, _ := range s.HandlerMethod {
-			log.Infof("registered service: %s.%s", sname, mname)
+	for sn, s := range rs.serviceMap {
+		for mn := range s.HandlerMethods {
+			log.Infof("registered service: %s.%s", sn, mn)
 		}
 
-		for mname, _ := range s.RemoteMethod {
-			log.Infof("registered service: %s.%s", sname, mname)
+		for mn := range s.RemoteMethods {
+			log.Infof("registered service: %s.%s", sn, mn)
 		}
 	}
 }

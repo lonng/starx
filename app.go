@@ -145,15 +145,15 @@ func (app *starxApp) listenAndServe() {
 			continue
 		}
 		if app.Config.IsFrontend {
-			go Handler.Handle(conn)
+			go handler.handle(conn)
 		} else {
-			go Remote.Handle(conn)
+			go remote.handle(conn)
 		}
 	}
 }
 
 func (app *starxApp) listenAndServeWS() {
-	http.Handle("/", websocket.Handler(Handler.HandleWS))
+	http.Handle("/", websocket.Handler(handler.HandleWS))
 
 	log.Infof("listen at %s:%d(%s)",
 		app.Config.Host,

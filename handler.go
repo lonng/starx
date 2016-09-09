@@ -22,7 +22,7 @@ const (
 	packetBufferSize = 256
 )
 
-var Handler = newHandlerService()
+var handler = newHandlerService()
 
 type unhandledPacket struct {
 	agent  *agent
@@ -39,13 +39,7 @@ func newHandlerService() *handlerService {
 	}
 }
 
-// Register publishes in the service the set of methods of the
-// receiver value that satisfy the following conditions:
-//	- exported method of exported type
-//	- two arguments, both of exported type
-//	- the first argument is *session.Session
-//	- the second argument is []byte or a pointer
-func (hs *handlerService) Register(rcvr component.Component) error {
+func (hs *handlerService) register(rcvr component.Component) error {
 	if hs.serviceMap == nil {
 		hs.serviceMap = make(map[string]*component.Service)
 	}
@@ -71,8 +65,8 @@ func (hs *handlerService) Register(rcvr component.Component) error {
 
 // Handle network connection
 // Read data from Socket file descriptor and decode it, handle message in
-// individual logic routine
-func (hs *handlerService) Handle(conn net.Conn) {
+// individual logic goroutine
+func (hs *handlerService) handle(conn net.Conn) {
 	defer conn.Close()
 
 	// message buffer
@@ -218,7 +212,7 @@ func (hs *handlerService) localProcess(session *session.Session, route *route.Ro
 		return
 	}
 
-	m, ok := s.HandlerMethod[route.Method]
+	m, ok := s.HandlerMethods[route.Method]
 	if !ok || m == nil {
 		log.Infof("handler: " + route.Service + " does not contain method: " + route.Method)
 		return
@@ -254,7 +248,7 @@ func (hs *handlerService) remoteProcess(session *session.Session, route *route.R
 
 func (hs *handlerService) dumpServiceMap() {
 	for sname, s := range hs.serviceMap {
-		for mname, _ := range s.HandlerMethod {
+		for mname := range s.HandlerMethods {
 			log.Infof("registered service: %s.%s", sname, mname)
 		}
 	}

@@ -29,14 +29,14 @@ func startupComps() {
 
 	for _, c := range comps {
 		if App.Config.IsFrontend {
-			Handler.Register(c)
+			handler.register(c)
 		} else {
-			Remote.Register(c)
+			remote.register(c)
 		}
 	}
 
-	Handler.dumpServiceMap()
-	Remote.dumpServiceMap()
+	handler.dumpServiceMap()
+	remote.dumpServiceMap()
 }
 
 func shutdownComps() {

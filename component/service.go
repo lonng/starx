@@ -7,28 +7,34 @@ import (
 )
 
 type HandlerMethod struct {
-	sync.Mutex // protects counters
-	Method     reflect.Method
-	Type       reflect.Type
-	Raw        bool //Whether the data need to serialize
-	numCalls   uint
+	sync.Mutex
+	Method   reflect.Method
+	Type     reflect.Type
+	Raw      bool //Whether the data need to serialize
+	numCalls uint
 }
 
 type RemoteMethod struct {
-	sync.Mutex // protects counters
-	Method     reflect.Method
-	Type       reflect.Type
-	numCalls   uint
+	sync.Mutex
+	Method   reflect.Method
+	Type     reflect.Type
+	numCalls uint
 }
 
 type Service struct {
-	Name          string                    // name of service
-	Rcvr          reflect.Value             // receiver of methods for the service
-	Type          reflect.Type              // type of the receiver
-	HandlerMethod map[string]*HandlerMethod // registered methods
-	RemoteMethod  map[string]*RemoteMethod  // registered methods
+	Name           string                    // name of service
+	Rcvr           reflect.Value             // receiver of methods for the service
+	Type           reflect.Type              // type of the receiver
+	HandlerMethods map[string]*HandlerMethod // registered methods
+	RemoteMethods  map[string]*RemoteMethod  // registered methods
 }
 
+// Register publishes in the service the set of methods of the
+// receiver value that satisfy the following conditions:
+// - exported method of exported type
+// - two arguments, both of exported type
+// - the first argument is *session.Session
+// - the second argument is []byte or a pointer
 func (s *Service) ScanHandler() error {
 	if s.Name == "" {
 		return errors.New("handler.Register: no service name for type " + s.Type.String())
@@ -38,9 +44,9 @@ func (s *Service) ScanHandler() error {
 	}
 
 	// Install the methods
-	s.HandlerMethod = suitableHandlerMethods(s.Type, true)
+	s.HandlerMethods = suitableHandlerMethods(s.Type, true)
 
-	if len(s.HandlerMethod) == 0 {
+	if len(s.HandlerMethods) == 0 {
 		str := ""
 
 		// To help the user, see if a pointer receiver would work.
@@ -55,6 +61,10 @@ func (s *Service) ScanHandler() error {
 	return nil
 }
 
+// Register publishes in the service the set of methods of the
+// receiver value that satisfy the following conditions:
+// - exported method of exported type
+// - two return value, the last one must be error
 func (s *Service) ScanRemote() error {
 	if s.Name == "" {
 		return errors.New("handler.Register: no service name for type " + s.Type.String())
@@ -64,8 +74,8 @@ func (s *Service) ScanRemote() error {
 	}
 
 	// Install the remote methods
-	s.RemoteMethod = suitableRemoteMethods(s.Type, true)
-	if len(s.HandlerMethod) == 0 {
+	s.RemoteMethods = suitableRemoteMethods(s.Type, true)
+	if len(s.HandlerMethods) == 0 {
 		str := ""
 
 		// To help the user, see if a pointer receiver would work.
