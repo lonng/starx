@@ -1,4 +1,4 @@
-package network
+package component
 
 import (
 	"reflect"
@@ -81,8 +81,8 @@ func isRemoteMethod(method reflect.Method) bool {
 
 // suitableMethods returns suitable methods of typ, it will report
 // error using log if reportErr is true.
-func suitableHandlerMethods(typ reflect.Type, reportErr bool) map[string]*handlerMethod {
-	methods := make(map[string]*handlerMethod)
+func suitableHandlerMethods(typ reflect.Type, reportErr bool) map[string]*HandlerMethod {
+	methods := make(map[string]*HandlerMethod)
 	for m := 0; m < typ.NumMethod(); m++ {
 		method := typ.Method(m)
 		mtype := method.Type
@@ -92,7 +92,7 @@ func suitableHandlerMethods(typ reflect.Type, reportErr bool) map[string]*handle
 			if mtype.In(2) == typeOfBytes {
 				raw = true
 			}
-			methods[mname] = &handlerMethod{method: method, dataType: mtype.In(2), raw: raw}
+			methods[mname] = &HandlerMethod{Method: method, Type: mtype.In(2), Raw: raw}
 		}
 	}
 	return methods
@@ -100,13 +100,13 @@ func suitableHandlerMethods(typ reflect.Type, reportErr bool) map[string]*handle
 
 // suitableMethods returns suitable Rpc methods of typ, it will report
 // error using log if reportErr is true.
-func suitableRemoteMethods(typ reflect.Type, reportErr bool) map[string]*remoteMethod {
-	methods := make(map[string]*remoteMethod)
+func suitableRemoteMethods(typ reflect.Type, reportErr bool) map[string]*RemoteMethod {
+	methods := make(map[string]*RemoteMethod)
 	for m := 0; m < typ.NumMethod(); m++ {
 		method := typ.Method(m)
 		mname := method.Name
 		if isRemoteMethod(method) {
-			methods[mname] = &remoteMethod{method: method}
+			methods[mname] = &RemoteMethod{Method: method}
 		}
 	}
 	return methods

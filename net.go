@@ -1,4 +1,4 @@
-package network
+package starx
 
 import (
 	"errors"
@@ -7,8 +7,8 @@ import (
 
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/network/message"
-	"github.com/chrislonng/starx/network/packet"
+	"github.com/chrislonng/starx/message"
+	"github.com/chrislonng/starx/packet"
 	"github.com/chrislonng/starx/session"
 )
 
@@ -158,7 +158,7 @@ func (net *netService) Response(session *session.Session, data []byte) error {
 // Message level method
 // call by all package, the last argument was packaged message
 func (net *netService) Broadcast(route string, data []byte) {
-	if appConfig.IsFrontend {
+	if App.Config.IsFrontend {
 		for _, s := range net.agentMap {
 			net.Push(s.session, route, data)
 		}
@@ -200,7 +200,7 @@ func (net *netService) closeSession(session *session.Session) {
 	}
 	net.sessionCloseCbLock.RUnlock()
 
-	if appConfig.IsFrontend {
+	if App.Config.IsFrontend {
 		net.agentMapLock.Lock()
 		if agent, ok := net.agentMap[session.Entity.ID()]; ok && (agent != nil) {
 			delete(net.agentMap, session.Entity.ID())
@@ -229,7 +229,7 @@ func (net *netService) removeAcceptor(a *acceptor) {
 
 // Send heartbeat packet
 func (net *netService) heartbeat() {
-	if !appConfig.IsFrontend || net.agentMap == nil {
+	if !App.Config.IsFrontend || net.agentMap == nil {
 		return
 	}
 	log.Debugf("heartbeat")

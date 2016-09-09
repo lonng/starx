@@ -1,4 +1,4 @@
-package network
+package starx
 
 import (
 	"golang.org/x/net/websocket"

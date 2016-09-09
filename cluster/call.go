@@ -5,7 +5,7 @@ import (
 
 	"github.com/chrislonng/starx/cluster/rpc"
 	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/network/route"
+	"github.com/chrislonng/starx/route"
 	"github.com/chrislonng/starx/session"
 )
 

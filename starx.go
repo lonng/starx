@@ -4,8 +4,7 @@ import (
 	"strings"
 
 	"github.com/chrislonng/starx/cluster"
-	"github.com/chrislonng/starx/network"
-	"github.com/chrislonng/starx/serialize"
+	"github.com/chrislonng/starx/component"
 	"github.com/chrislonng/starx/session"
 )
 
@@ -27,16 +26,10 @@ func Set(svrTypes string, fn func()) {
 	}
 }
 
-// Register component
-func Register(comp network.Component) {
-	network.Register(comp)
-}
-
-// Set customized serializer
-func Serializer(seri serialize.Serializer) {
-	network.Serializer(seri)
-}
-
 func Router(svrType string, fn func(*session.Session) string) {
 	cluster.Router(svrType, fn)
+}
+
+func Register(c component.Component) {
+	comps = append(comps, c)
 }

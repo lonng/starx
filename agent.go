@@ -1,4 +1,4 @@
-package network
+package starx
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/cluster/rpc"
-	routelib "github.com/chrislonng/starx/network/route"
+	routelib "github.com/chrislonng/starx/route"
 	"github.com/chrislonng/starx/session"
 )
 
@@ -90,7 +90,7 @@ func (a *agent) Call(session *session.Session, route string, reply interface{}, 
 		return err
 	}
 
-	if appConfig.Type == r.ServerType {
+	if App.Config.Type == r.ServerType {
 		return ErrRPCLocal
 	}
 

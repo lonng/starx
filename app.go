@@ -14,7 +14,6 @@ import (
 
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/network"
 	"golang.org/x/net/websocket"
 )
 
@@ -100,12 +99,11 @@ func (app *starxApp) init() {
 	}
 
 	// dependencies initialization
-	network.SetAppConfig(App.Config)
 	cluster.SetAppConfig(App.Config)
 }
 
 func (app *starxApp) start() {
-	network.Startup()
+	startupComps()
 
 	if app.Config.IsWebsocket {
 		app.listenAndServeWS()
@@ -124,7 +122,7 @@ func (app *starxApp) start() {
 		log.Infof("Got signal: %v", s)
 	}
 	log.Infof("server: " + app.Config.Id + " is stopping...")
-	network.Shutdown()
+	shutdownComps()
 	close(endRunning)
 }
 
@@ -147,15 +145,15 @@ func (app *starxApp) listenAndServe() {
 			continue
 		}
 		if app.Config.IsFrontend {
-			go network.Handler.Handle(conn)
+			go Handler.Handle(conn)
 		} else {
-			go network.Remote.Handle(conn)
+			go Remote.Handle(conn)
 		}
 	}
 }
 
 func (app *starxApp) listenAndServeWS() {
-	http.Handle("/", websocket.Handler(network.Handler.HandleWS))
+	http.Handle("/", websocket.Handler(Handler.HandleWS))
 
 	log.Infof("listen at %s:%d(%s)",
 		app.Config.Host,

@@ -1,4 +1,4 @@
-package network
+package starx
 
 import (
 	"bytes"
@@ -10,14 +10,15 @@ import (
 	"runtime/debug"
 
 	"github.com/chrislonng/starx/cluster/rpc"
+	"github.com/chrislonng/starx/component"
 	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/network/route"
+	"github.com/chrislonng/starx/route"
 )
 
 var Remote = newRemote()
 
 type remoteService struct {
-	serviceMap map[string]*service // all handler service
+	serviceMap map[string]*component.Service // all handler service
 }
 
 type unhandledRequest struct {
@@ -27,54 +28,32 @@ type unhandledRequest struct {
 
 func newRemote() *remoteService {
 	return &remoteService{
-		serviceMap: make(map[string]*service),
+		serviceMap: make(map[string]*component.Service),
 	}
 }
 
-func (remote *remoteService) Register(rcvr Component) error {
-	s := &service{
-		typ:  reflect.TypeOf(rcvr),
-		rcvr: reflect.ValueOf(rcvr),
-	}
-	sname := reflect.Indirect(s.rcvr).Type().Name()
-	if !isExported(sname) {
-		return errors.New("remote.Register: type " + sname + " is not exported")
-	}
-	if _, present := remote.serviceMap[sname]; present {
-		return errors.New("remote: service already defined: " + sname)
-	}
-	s.name = sname
-
-	// Install the handler methods
-	s.handlerMethod = suitableHandlerMethods(s.typ, true)
-	if len(s.handlerMethod) == 0 {
-		str := ""
-
-		// To help the user, see if a pointer receiver would work.
-		method := suitableHandlerMethods(reflect.PtrTo(s.typ), false)
-		if len(method) != 0 {
-			str = "remote.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
-		} else {
-			str = "remote.Register: type " + sname + " has no exported methods of suitable type"
-		}
-		return errors.New(str)
+func (remote *remoteService) Register(rcvr component.Component) error {
+	if remote.serviceMap == nil {
+		remote.serviceMap = make(map[string]*component.Service)
 	}
 
-	// Install the remote methods
-	s.remoteMethod = suitableRemoteMethods(s.typ, true)
-	if len(s.handlerMethod) == 0 {
-		str := ""
-
-		// To help the user, see if a pointer receiver would work.
-		method := suitableRemoteMethods(reflect.PtrTo(s.typ), false)
-		if len(method) != 0 {
-			str = "remote.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
-		} else {
-			str = "remote.Register: type " + sname + " has no exported methods of suitable type"
-		}
-		return errors.New(str)
+	s := &component.Service{
+		Type: reflect.TypeOf(rcvr),
+		Rcvr: reflect.ValueOf(rcvr),
 	}
-	remote.serviceMap[s.name] = s
+	s.Name = reflect.Indirect(s.Rcvr).Type().Name()
+	if _, present := remote.serviceMap[s.Name]; present {
+		return errors.New("remote: service already defined: " + s.Name)
+	}
+
+	if err := s.ScanHandler(); err != nil {
+		return err
+	}
+
+	if err := s.ScanRemote(); err != nil {
+		return err
+	}
+	remote.serviceMap[s.Name] = s
 	return nil
 }
 
@@ -141,7 +120,7 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 
 	var (
 		err      error
-		service  *service
+		service  *component.Service
 		ok       bool
 		response = &rpc.Response{
 			ServiceMethod: rr.ServiceMethod,
@@ -168,7 +147,7 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 
 	switch rr.Kind {
 	case rpc.Sys:
-		m, ok := service.handlerMethod[route.Method]
+		m, ok := service.HandlerMethod[route.Method]
 		if !ok || m == nil {
 			str := "remote: service " + route.Service + "does not contain method: " + route.Method
 			log.Errorf(str)
@@ -176,10 +155,10 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 			goto WRITE_RESPONSE
 		}
 		var data interface{}
-		if m.raw {
+		if m.Raw {
 			data = rr.Data
 		} else {
-			data = reflect.New(m.dataType.Elem()).Interface()
+			data = reflect.New(m.Type.Elem()).Interface()
 			err := serializer.Deserialize(rr.Data, data)
 			if err != nil {
 				str := "deserialize error: " + err.Error()
@@ -189,8 +168,8 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 			}
 		}
 
-		ret, err := rs.call(m.method, []reflect.Value{
-			service.rcvr,
+		ret, err := rs.call(m.Method, []reflect.Value{
+			service.Rcvr,
 			reflect.ValueOf(session),
 			reflect.ValueOf(data)})
 		if err != nil {
@@ -205,7 +184,7 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 		}
 	case rpc.User:
 		var args []interface{}
-		var params = []reflect.Value{service.rcvr}
+		var params = []reflect.Value{service.Rcvr}
 		//json.Unmarshal(rr.Data, &args)
 		gob.NewDecoder(bytes.NewReader(rr.Data)).Decode(&args)
 
@@ -213,12 +192,12 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 			params = append(params, reflect.ValueOf(arg))
 		}
 
-		m, ok := service.remoteMethod[route.Method]
+		m, ok := service.RemoteMethod[route.Method]
 		if !ok || m == nil {
 			response.Error = "remote: service " + route.Service + " does not contain method: " + route.Method
 			goto WRITE_RESPONSE
 		}
-		ret, err := rs.call(m.method, params)
+		ret, err := rs.call(m.Method, params)
 		if err != nil {
 			response.Error = err.Error()
 		} else {
@@ -263,11 +242,11 @@ func (rs *remoteService) call(method reflect.Method, args []reflect.Value) (rets
 
 func (rs *remoteService) dumpServiceMap() {
 	for sname, s := range rs.serviceMap {
-		for mname, _ := range s.handlerMethod {
+		for mname, _ := range s.HandlerMethod {
 			log.Infof("registered service: %s.%s", sname, mname)
 		}
 
-		for mname, _ := range s.remoteMethod {
+		for mname, _ := range s.RemoteMethod {
 			log.Infof("registered service: %s.%s", sname, mname)
 		}
 	}

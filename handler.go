@@ -1,4 +1,4 @@
-package network
+package starx
 
 import (
 	"encoding/json"
@@ -8,10 +8,11 @@ import (
 
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/cluster/rpc"
+	"github.com/chrislonng/starx/component"
 	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/network/message"
-	"github.com/chrislonng/starx/network/packet"
-	"github.com/chrislonng/starx/network/route"
+	"github.com/chrislonng/starx/message"
+	"github.com/chrislonng/starx/packet"
+	"github.com/chrislonng/starx/route"
 	"github.com/chrislonng/starx/session"
 )
 
@@ -29,12 +30,12 @@ type unhandledPacket struct {
 }
 
 type handlerService struct {
-	serviceMap map[string]*service
+	serviceMap map[string]*component.Service
 }
 
 func newHandlerService() *handlerService {
 	return &handlerService{
-		serviceMap: make(map[string]*service),
+		serviceMap: make(map[string]*component.Service),
 	}
 }
 
@@ -44,42 +45,27 @@ func newHandlerService() *handlerService {
 //	- two arguments, both of exported type
 //	- the first argument is *session.Session
 //	- the second argument is []byte or a pointer
-func (hs *handlerService) Register(rcvr Component) error {
+func (hs *handlerService) Register(rcvr component.Component) error {
 	if hs.serviceMap == nil {
-		hs.serviceMap = make(map[string]*service)
+		hs.serviceMap = make(map[string]*component.Service)
 	}
-	s := new(service)
-	s.typ = reflect.TypeOf(rcvr)
-	s.rcvr = reflect.ValueOf(rcvr)
-	sname := reflect.Indirect(s.rcvr).Type().Name()
-	if sname == "" {
-		return errors.New("handler.Register: no service name for type " + s.typ.String())
-	}
-	if !isExported(sname) {
-		return errors.New("handler.Register: type " + sname + " is not exported")
 
+	s := &component.Service{
+		Type: reflect.TypeOf(rcvr),
+		Rcvr: reflect.ValueOf(rcvr),
 	}
-	if _, present := hs.serviceMap[sname]; present {
-		return errors.New("handler: service already defined: " + sname)
+	s.Name = reflect.Indirect(s.Rcvr).Type().Name()
+
+	if _, ok := hs.serviceMap[s.Name]; ok {
+		return errors.New("handler: service already defined: " + s.Name)
 	}
-	s.name = sname
 
-	// Install the methods
-	s.handlerMethod = suitableHandlerMethods(s.typ, true)
-
-	if len(s.handlerMethod) == 0 {
-		str := ""
-
-		// To help the user, see if a pointer receiver would work.
-		method := suitableHandlerMethods(reflect.PtrTo(s.typ), false)
-		if len(method) != 0 {
-			str = "handler.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
-		} else {
-			str = "handler.Register: type " + sname + " has no exported methods of suitable type"
-		}
-		return errors.New(str)
+	if err := s.ScanHandler(); err != nil {
+		return err
 	}
-	hs.serviceMap[s.name] = s
+
+	hs.serviceMap[s.Name] = s
+
 	return nil
 }
 
@@ -213,11 +199,11 @@ func (hs *handlerService) processMessage(session *session.Session, msg *message.
 
 	// current server as default server type
 	if r.ServerType == "" {
-		r.ServerType = appConfig.Type
+		r.ServerType = App.Config.Type
 	}
 
 	// message dispatch
-	if r.ServerType == appConfig.Type {
+	if r.ServerType == App.Config.Type {
 		hs.localProcess(session, r, msg)
 	} else {
 		hs.remoteProcess(session, r, msg)
@@ -232,17 +218,17 @@ func (hs *handlerService) localProcess(session *session.Session, route *route.Ro
 		return
 	}
 
-	m, ok := s.handlerMethod[route.Method]
+	m, ok := s.HandlerMethod[route.Method]
 	if !ok || m == nil {
 		log.Infof("handler: " + route.Service + " does not contain method: " + route.Method)
 		return
 	}
 
 	var data interface{}
-	if m.raw {
+	if m.Raw {
 		data = msg.Data
 	} else {
-		data = reflect.New(m.dataType.Elem()).Interface()
+		data = reflect.New(m.Type.Elem()).Interface()
 		err := serializer.Deserialize(msg.Data, data)
 		if err != nil {
 			log.Errorf("deserialize error: %s", err.Error())
@@ -250,7 +236,7 @@ func (hs *handlerService) localProcess(session *session.Session, route *route.Ro
 		}
 	}
 
-	ret := m.method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(session), reflect.ValueOf(data)})
+	ret := m.Method.Func.Call([]reflect.Value{s.Rcvr, reflect.ValueOf(session), reflect.ValueOf(data)})
 	if len(ret) > 0 {
 		err := ret[0].Interface()
 		if err != nil {
@@ -268,7 +254,7 @@ func (hs *handlerService) remoteProcess(session *session.Session, route *route.R
 
 func (hs *handlerService) dumpServiceMap() {
 	for sname, s := range hs.serviceMap {
-		for mname, _ := range s.handlerMethod {
+		for mname, _ := range s.HandlerMethod {
 			log.Infof("registered service: %s.%s", sname, mname)
 		}
 	}

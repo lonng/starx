@@ -1,4 +1,4 @@
-package network
+package component
 
 type Component interface {
 	Init()

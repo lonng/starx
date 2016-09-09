@@ -1,4 +1,4 @@
-package network
+package starx
 
 import (
 	"github.com/chrislonng/starx/serialize"
