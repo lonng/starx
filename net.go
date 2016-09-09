@@ -21,7 +21,7 @@ var (
 
 var (
 	heartbeatPacket, _ = packet.Pack(&packet.Packet{Type: packet.Heartbeat})
-	defaultNetService  = NewNetService()
+	defaultNetService  = newNetService()
 )
 
 type netService struct {
@@ -37,8 +37,8 @@ type netService struct {
 	sessionCloseCb     []func(*session.Session) // callback on session closed
 }
 
-// Create new netservive
-func NewNetService() *netService {
+// Create new net service
+func newNetService() *netService {
 	return &netService{
 		agentMap:    make(map[int64]*agent),
 		acceptorUid: 1,
