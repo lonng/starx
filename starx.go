@@ -33,3 +33,11 @@ func Router(svrType string, fn func(*session.Session) string) {
 func Register(c component.Component) {
 	comps = append(comps, c)
 }
+
+func SetServerID(id string) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		panic("empty server id")
+	}
+	serverID = id
+}

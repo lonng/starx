@@ -19,7 +19,7 @@ var (
 	AppConfigPath    string
 	ServerConfigPath string
 	MasterConfigPath string
-	ServerID         string              // current process server id
+	serverID         string              // current process server id
 	settings         map[string][]func() // all settings
 	endRunning       chan bool           // wait for end application
 )

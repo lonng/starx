@@ -47,11 +47,11 @@ func (app *starxApp) init() {
 
 	// init
 	if App.Standalone {
-		if strings.TrimSpace(ServerID) == "" {
+		if strings.TrimSpace(serverID) == "" {
 			log.Fatal("server running in standalone mode, but not found server id argument")
 		}
 
-		cfg, err := cluster.Server(ServerID)
+		cfg, err := cluster.Server(serverID)
 		if err != nil {
 			log.Fatal(err.Error())
 		}
@@ -85,11 +85,11 @@ func (app *starxApp) init() {
 			log.Fatalf("wrong master server config file(%s)", MasterConfigPath)
 		}
 
-		if strings.TrimSpace(ServerID) == "" {
+		if strings.TrimSpace(serverID) == "" {
 			// not pass server id, running in master mode
 			App.Config = App.Master
 		} else {
-			cfg, err := cluster.Server(ServerID)
+			cfg, err := cluster.Server(serverID)
 			if err != nil {
 				log.Fatal(err.Error())
 			}
