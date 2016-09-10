@@ -10,13 +10,124 @@ Inspired by [Pomelo](https://github.com/NetEase/pomelo), rewrite with golang.
 - C#
   + [starx-client-dotnet](https://github.com/chrislonng/starx-client-dotnet)
 
+## Chat Room Demo
+implement a chat room in 100 lines with golang and websocket [starx-chat-demo](https://github.com/chrislonng/starx-chat-demo)
+
+- server
+  ```
+  package main
+  
+  import (
+  	"github.com/chrislonng/starx"
+  	"github.com/chrislonng/starx/component"
+  	"github.com/chrislonng/starx/serialize/json"
+  	"github.com/chrislonng/starx/session"
+  )
+  
+  type Room struct {
+  	component.Base
+  	channel *starx.Channel
+  }
+  
+  type UserMessage struct {
+  	Name    string `json:"name"`
+  	Content string `json:"content"`
+  }
+  
+  type JoinResponse struct {
+  	Code   int    `json:"code"`
+  	Result string `json:"result"`
+  }
+  
+  func NewRoom() *Room {
+  	return &Room{
+  		channel: starx.ChannelService.NewChannel("room"),
+  	}
+  }
+  
+  func (r *Room) Join(s *session.Session, msg []byte) error {
+  	s.Bind(s.ID)     // binding session uid
+  	r.channel.Add(s) // add session to channel
+  	return s.Response(JoinResponse{Result: "sucess"})
+  }
+  
+  func (r *Room) Message(s *session.Session, msg *UserMessage) error {
+  	return r.channel.Broadcast("onMessage", msg)
+  }
+  
+  func main() {
+  	starx.Register(NewRoom())
+  
+  	starx.SetServerID("demo-server-1")
+  	starx.Serializer(json.NewJsonSerializer())
+  	starx.Run()
+  }
+
+  ```
+  
+- client
+  ```
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+      <meta charset="UTF-8">
+      <title>Chat Demo</title>
+  </head>
+  <body>
+  <div id="container">
+      <ul>
+          <li v-for="msg in messages">[<span style="color:red;">{{msg.name}}</span>]{{msg.content}}</li>
+      </ul>
+      <div class="controls">
+          <input type="text" v-model="nickname">
+          <input type="text" v-model="inputMessage">
+          <input type="button" v-on:click="sendMessage" value="Send">
+      </div>
+  </div>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/vue/1.0.26/vue.min.js" type="text/javascript"></script>
+  <!--[starx websocket library](https://github.com/chrislonng/starx-client-websocket)-->
+  <script src="protocol.js" type="text/javascript"></script>
+  <script src="starx-wsclient.js" type="text/javascript"></script>
+  <script>
+      var v = new Vue({
+          el: "#container",
+          data: {
+              nickname:'guest' + Date.now(),
+              inputMessage:'',
+              messages: []
+          },
+          methods: {
+              sendMessage: function () {
+                  starx.notify('Room.Message', {name: this.nickname, content: this.inputMessage});
+                  this.inputMessage = '';
+              }
+          }
+      });
+  
+      var onMessage = function (msg) {
+          v.messages.push(msg)
+      };
+  
+      var join = function (data) {
+          if(data.code == 0) {
+              v.messages.push({name:'system', content:data.result});
+              starx.on('onMessage', onMessage)
+          }
+      };
+  
+      starx.init({host: '127.0.0.1', port: 3250}, function () {
+          starx.request("Room.Join", {}, join);
+      })
+  </script>
+  </body>
+  </html>
+  ```
+
 ## Demo
 
-Client: [starx-demo-unity](https://github.com/chrislonng/starx-demo-unity)
+- Client: [starx-demo-unity](https://github.com/chrislonng/starx-demo-unity)
 
-Server: [starx-demo-server](https://github.com/chrislonng/starx-demo-server)
-
-Chat Room Demo[starx-chat-demo](https://github.com/chrislonng/starx-chat-demo): implement a chat room in 100 lines with golang and websocket
+- Server: [starx-demo-server](https://github.com/chrislonng/starx-demo-server)
 
 ## Wiki
 
