@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net"
 	"sync"
+	"sync/atomic"
 
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
@@ -25,13 +26,10 @@ var (
 )
 
 type netService struct {
-	agentMapLock sync.RWMutex     // protect agentMap
-	agentMap     map[int64]*agent // agents map
-
-	acceptorUidLock sync.RWMutex        // protect acceptorUid
-	acceptorUid     int64               // acceptor unique id
-	acceptorMapLock sync.RWMutex        // protect acceptorMap
-	acceptorMap     map[int64]*acceptor // acceptor map
+	sync.RWMutex
+	agents      map[int64]*agent    // agents map
+	acceptorUid int64               // acceptor unique id
+	acceptors   map[int64]*acceptor // acceptor map
 
 	sessionCloseCbLock sync.RWMutex             // protect sessionCloseCb
 	sessionCloseCb     []func(*session.Session) // callback on session closed
@@ -40,9 +38,9 @@ type netService struct {
 // Create new net service
 func newNetService() *netService {
 	return &netService{
-		agentMap:    make(map[int64]*agent),
-		acceptorUid: 1,
-		acceptorMap: make(map[int64]*acceptor),
+		agents:      make(map[int64]*agent),
+		acceptorUid: 0,
+		acceptors:   make(map[int64]*acceptor),
 	}
 }
 
@@ -50,18 +48,19 @@ func newNetService() *netService {
 func (net *netService) createAgent(conn net.Conn) *agent {
 	a := newAgent(conn)
 	// add to maps
-	net.agentMapLock.Lock()
-	net.agentMap[a.id] = a
-	net.agentMapLock.Unlock()
+	net.Lock()
+	defer net.Unlock()
+
+	net.agents[a.id] = a
 	return a
 }
 
 // get agent by session id
 func (net *netService) agent(id int64) (*agent, error) {
-	net.agentMapLock.RLock()
-	defer net.agentMapLock.RUnlock()
+	net.RLock()
+	defer net.RUnlock()
 
-	a, ok := net.agentMap[id]
+	a, ok := net.agents[id]
 	if !ok {
 		return nil, errors.New("agent id: " + string(id) + " not exists!")
 	}
@@ -71,23 +70,22 @@ func (net *netService) agent(id int64) (*agent, error) {
 
 // Create acceptor via netService
 func (net *netService) createAcceptor(conn net.Conn) *acceptor {
-	net.acceptorUidLock.Lock()
-	id := net.acceptorUid
-	net.acceptorUid++
-	net.acceptorUidLock.Unlock()
+	id := atomic.AddInt64(&net.acceptorUid, 1)
 	a := newAcceptor(id, conn)
+
 	// add to maps
-	net.acceptorMapLock.Lock()
-	net.acceptorMap[id] = a
-	net.acceptorMapLock.Unlock()
+	net.Lock()
+	defer net.Unlock()
+
+	net.acceptors[id] = a
 	return a
 }
 
 func (net *netService) acceptor(id int64) (*acceptor, error) {
-	net.acceptorMapLock.RLock()
-	defer net.acceptorMapLock.RUnlock()
+	net.RLock()
+	defer net.RUnlock()
 
-	rs, ok := net.acceptorMap[id]
+	rs, ok := net.acceptors[id]
 	if !ok || rs == nil {
 		return nil, errors.New("acceptor id: " + string(id) + " not exists!")
 	}
@@ -159,7 +157,7 @@ func (net *netService) Response(session *session.Session, data []byte) error {
 // call by all package, the last argument was packaged message
 func (net *netService) Broadcast(route string, data []byte) {
 	if App.Config.IsFrontend {
-		for _, s := range net.agentMap {
+		for _, s := range net.agents {
 			net.Push(s.session, route, data)
 		}
 	}
@@ -167,21 +165,21 @@ func (net *netService) Broadcast(route string, data []byte) {
 
 // Multicast message to special agent ids
 func (net *netService) Multicast(aids []int64, route string, data []byte) {
-	net.agentMapLock.RLock()
-	defer net.agentMapLock.RUnlock()
+	net.RLock()
+	defer net.RUnlock()
 
 	for _, aid := range aids {
-		if agent, ok := net.agentMap[aid]; ok && agent != nil {
+		if agent, ok := net.agents[aid]; ok && agent != nil {
 			net.Push(agent.session, route, data)
 		}
 	}
 }
 
 func (net *netService) Session(sid int64) (*session.Session, error) {
-	net.agentMapLock.RLock()
-	defer net.agentMapLock.RUnlock()
+	net.RLock()
+	defer net.RUnlock()
 
-	a, ok := net.agentMap[sid]
+	a, ok := net.agents[sid]
 	if !ok {
 		return nil, ErrSessionNotFound
 	}
@@ -191,75 +189,77 @@ func (net *netService) Session(sid int64) (*session.Session, error) {
 // Close session
 func (net *netService) closeSession(session *session.Session) {
 	net.sessionCloseCbLock.RLock()
-	if len(net.sessionCloseCb) > 0 {
-		for _, cb := range net.sessionCloseCb {
-			if cb != nil {
-				cb(session)
-			}
+	for _, cb := range net.sessionCloseCb {
+		if cb != nil {
+			cb(session)
 		}
 	}
 	net.sessionCloseCbLock.RUnlock()
 
+	net.Lock()
+	defer net.Unlock()
+
 	if App.Config.IsFrontend {
-		net.agentMapLock.Lock()
-		if agent, ok := net.agentMap[session.Entity.ID()]; ok && (agent != nil) {
-			delete(net.agentMap, session.Entity.ID())
+		if agent, ok := net.agents[session.Entity.ID()]; ok && (agent != nil) {
+			delete(net.agents, session.Entity.ID())
 		}
-		net.agentMapLock.Unlock()
 		// notify all backend server, current session has been closed.
 		cluster.SessionClosed(session)
 	} else {
-		net.acceptorMapLock.RLock()
-		if acceptor, ok := net.acceptorMap[session.Entity.ID()]; ok && (acceptor != nil) {
+		if acceptor, ok := net.acceptors[session.Entity.ID()]; ok && (acceptor != nil) {
 			delete(acceptor.sessionMap, session.ID)
 			if fid, ok := acceptor.b2fMap[session.ID]; ok {
 				delete(acceptor.b2fMap, session.ID)
 				delete(acceptor.f2bMap, fid)
 			}
 		}
-		net.acceptorMapLock.RUnlock()
 	}
 }
 
 func (net *netService) removeAcceptor(a *acceptor) {
-	net.acceptorMapLock.Lock()
-	delete(net.acceptorMap, a.id)
-	net.acceptorMapLock.Unlock()
+	net.Lock()
+	defer net.Unlock()
+
+	delete(net.acceptors, a.id)
 }
 
 // Send heartbeat packet
 func (net *netService) heartbeat() {
-	if !App.Config.IsFrontend || net.agentMap == nil {
+	if !App.Config.IsFrontend || net.agents == nil {
 		return
 	}
 	log.Debugf("heartbeat")
-	for _, agent := range net.agentMap {
-		if agent.status == statusWorking {
-			if err := agent.Send(heartbeatPacket); err != nil {
-				agent.close()
-				continue
-			}
-			agent.heartbeat()
+	for _, agent := range net.agents {
+		if agent.status != statusWorking {
+			continue
 		}
+
+		if err := agent.Send(heartbeatPacket); err != nil {
+			agent.close()
+			continue
+		}
+		agent.heartbeat()
 	}
 }
 
 // Dump all agents
 func (net *netService) dumpAgents() {
-	net.agentMapLock.RLock()
-	defer net.agentMapLock.RUnlock()
-	log.Infof("current agent count: %d", len(net.agentMap))
-	for _, ses := range net.agentMap {
+	net.RLock()
+	defer net.RUnlock()
+
+	log.Infof("current agent count: %d", len(net.agents))
+	for _, ses := range net.agents {
 		log.Infof("session: " + ses.String())
 	}
 }
 
 // Dump all acceptor
 func (net *netService) dumpAcceptor() {
-	net.acceptorMapLock.RLock()
-	defer net.acceptorMapLock.RUnlock()
-	log.Infof("current acceptor count: %d", len(net.acceptorMap))
-	for _, ses := range net.acceptorMap {
+	net.RLock()
+	defer net.RUnlock()
+
+	log.Infof("current acceptor count: %d", len(net.acceptors))
+	for _, ses := range net.acceptors {
 		log.Infof("session: " + ses.String())
 	}
 }
@@ -267,6 +267,7 @@ func (net *netService) dumpAcceptor() {
 func (net *netService) sessionClosedCallback(cb func(*session.Session)) {
 	net.sessionCloseCbLock.Lock()
 	defer net.sessionCloseCbLock.Unlock()
+
 	net.sessionCloseCb = append(net.sessionCloseCb, cb)
 }
 

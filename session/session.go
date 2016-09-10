@@ -30,7 +30,7 @@ var (
 // server, correspond frontend session or backend session id as a field
 // will be store in type instance
 //
-// This is user sessions, not contain raw sockets information
+// This is user sessions, does not contain raw sockets information
 type Session struct {
 	ID        int64                  // session global unique id
 	Uid       int64                  // binding user id
