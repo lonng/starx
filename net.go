@@ -102,12 +102,18 @@ func (net *netService) send(session *session.Session, data []byte) {
 
 // Push message to client
 // call by all package, the last argument was packaged message
-func (net *netService) Push(session *session.Session, route string, data []byte) error {
-	m, err := message.Encode(&message.Message{Type: message.MessageType(message.Push), Route: route, Data: data})
+func (net *netService) push(session *session.Session, route string, data []byte) error {
+	m, err := message.Encode(&message.Message{
+		Type:  message.MessageType(message.Push),
+		Route: route,
+		Data:  data,
+	})
+
 	if err != nil {
 		log.Errorf(err.Error())
 		return err
 	}
+
 	p := packet.Packet{
 		Type:   packet.Data,
 		Length: len(m),
@@ -118,13 +124,14 @@ func (net *netService) Push(session *session.Session, route string, data []byte)
 		log.Errorf(err.Error())
 		return err
 	}
+
 	net.send(session, ep)
 	return nil
 }
 
 // Response message to client
 // call by all package, the last argument was packaged message
-func (net *netService) Response(session *session.Session, data []byte) error {
+func (net *netService) response(session *session.Session, data []byte) error {
 	// current message is notify message, can not response
 	if session.LastID <= 0 {
 		return ErrSessionOnNotify
@@ -138,6 +145,7 @@ func (net *netService) Response(session *session.Session, data []byte) error {
 		log.Errorf(err.Error())
 		return err
 	}
+
 	p := packet.Packet{
 		Type:   packet.Data,
 		Length: len(m),
@@ -148,29 +156,33 @@ func (net *netService) Response(session *session.Session, data []byte) error {
 		log.Errorf(err.Error())
 		return err
 	}
+
 	net.send(session, ep)
 	return nil
 }
 
+// TODO: implement backend server broadcast
 // Broadcast message to all sessions
 // Message level method
 // call by all package, the last argument was packaged message
-func (net *netService) Broadcast(route string, data []byte) {
-	if App.Config.IsFrontend {
-		for _, s := range net.agents {
-			net.Push(s.session, route, data)
-		}
+func (net *netService) broadcast(route string, data []byte) {
+	if !App.Config.IsFrontend {
+		return
+	}
+
+	for _, s := range net.agents {
+		net.push(s.session, route, data)
 	}
 }
 
 // Multicast message to special agent ids
-func (net *netService) Multicast(aids []int64, route string, data []byte) {
+func (net *netService) multicast(aids []int64, route string, data []byte) {
 	net.RLock()
 	defer net.RUnlock()
 
 	for _, aid := range aids {
 		if agent, ok := net.agents[aid]; ok && agent != nil {
-			net.Push(agent.session, route, data)
+			net.push(agent.session, route, data)
 		}
 	}
 }

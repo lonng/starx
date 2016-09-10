@@ -35,7 +35,7 @@ func (c *Channel) PushMessageByUids(uids []int64, route string, data []byte) {
 
 	for _, uid := range uids {
 		if s, ok := c.uidMap[uid]; ok && s != nil {
-			defaultNetService.Push(s, route, data)
+			defaultNetService.push(s, route, data)
 		}
 	}
 }
@@ -50,7 +50,7 @@ func (c *Channel) Broadcast(route string, v interface{}) error {
 	defer c.RUnlock()
 
 	for _, s := range c.uidMap {
-		err = defaultNetService.Push(s, route, data)
+		err = defaultNetService.push(s, route, data)
 		if err != nil {
 			log.Error(err.Error())
 		}

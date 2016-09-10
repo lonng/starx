@@ -71,7 +71,7 @@ func (a *agent) Push(session *session.Session, route string, v interface{}) erro
 	if err != nil {
 		return err
 	}
-	return defaultNetService.Push(session, route, data)
+	return defaultNetService.push(session, route, data)
 }
 
 // Response message to session
@@ -81,7 +81,7 @@ func (a *agent) Response(session *session.Session, v interface{}) error {
 		return err
 	}
 
-	return defaultNetService.Response(session, data)
+	return defaultNetService.response(session, data)
 }
 
 func (a *agent) Call(session *session.Session, route string, reply interface{}, args ...interface{}) error {
