@@ -10,15 +10,14 @@ type Channel struct {
 	sync.RWMutex
 	name           string                     // channel name
 	uidMap         map[int64]*session.Session // uid map to session pointer
-	uids           []int64                    // all user ids
-	count          int                        // current channel contain user count
-	channelServive *channelService            // channel service which contain current channel
+	members        []int64                    // all user ids
+	channelService *channelService            // channel service which contain current channel
 }
 
 func newChannel(n string, cs *channelService) *Channel {
 	return &Channel{
 		name:           n,
-		channelServive: cs,
+		channelService: cs,
 		uidMap:         make(map[int64]*session.Session)}
 }
 
@@ -26,10 +25,10 @@ func (c *Channel) Members() []int64 {
 	c.RLock()
 	defer c.RUnlock()
 
-	return c.uids
+	return c.members
 }
 
-func (c *Channel) PushMessageByUids(uids []int64, route string, data []byte) {
+func (c *Channel) Multicast(uids []int64, route string, data []byte) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -63,11 +62,10 @@ func (c *Channel) IsContain(uid int64) bool {
 	c.RLock()
 	defer c.RUnlock()
 
-	for _, u := range c.uids {
-		if u == uid {
-			return true
-		}
+	if _, ok := c.uidMap[uid]; ok {
+		return true
 	}
+
 	return false
 }
 
@@ -76,43 +74,46 @@ func (c *Channel) Add(session *session.Session) {
 	defer c.Unlock()
 
 	c.uidMap[session.Uid] = session
-	c.uids = append(c.uids, session.Uid)
-	c.count++
+	c.members = append(c.members, session.Uid)
 }
 
 func (c *Channel) Leave(uid int64) {
+	if !c.IsContain(uid) {
+		return
+	}
+
 	c.Lock()
 	defer c.Unlock()
 
 	var temp []int64
-	for i, u := range c.uids {
+	for i, u := range c.members {
 		if u == uid {
-			temp = append(temp, c.uids[:i]...)
-			c.uids = append(temp, c.uids[(i+1):]...)
-			c.count--
+			temp = append(temp, c.members[:i]...)
+			c.members = append(temp, c.members[(i+1):]...)
 			break
 		}
 	}
+	delete(c.uidMap, uid)
 }
 
 func (c *Channel) LeaveAll() {
 	c.Lock()
 	defer c.Unlock()
 
-	c.uids = make([]int64, 0)
-	c.count = 0
+	c.uidMap = make(map[int64]*session.Session)
+	c.members = make([]int64, 0)
 }
 
 func (c *Channel) Count() int {
 	c.RLock()
 	defer c.RUnlock()
 
-	return c.count
+	return len(c.uidMap)
 }
 
 func (c *Channel) Destroy() {
-	c.channelServive.Lock()
-	defer c.channelServive.Unlock()
+	c.channelService.Lock()
+	defer c.channelService.Unlock()
 
-	delete(c.channelServive.channels, c.name)
+	delete(c.channelService.channels, c.name)
 }

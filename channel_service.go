@@ -4,14 +4,14 @@ import (
 	"sync"
 )
 
-var ChannelService = newChannelServive()
+var ChannelService = newChannelService()
 
 type channelService struct {
 	channels map[string]*Channel // all server channels
 	sync.RWMutex
 }
 
-func newChannelServive() *channelService {
+func newChannelService() *channelService {
 	return &channelService{
 		channels: make(map[string]*Channel),
 	}
