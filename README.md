@@ -56,10 +56,12 @@ implement a chat room in 100 lines with golang and websocket [starx-chat-demo](h
   }
   
   func main() {
+  	starx.SetAppConfig("configs/app.json")
+	  starx.SetServersConfig("configs/servers.json")
   	starx.Register(NewRoom())
   
   	starx.SetServerID("demo-server-1")
-  	starx.Serializer(json.NewJsonSerializer())
+  	starx.SetSerializer(json.NewJsonSerializer())
   	starx.Run()
   }
 
