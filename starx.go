@@ -41,3 +41,30 @@ func SetServerID(id string) {
 	}
 	serverID = id
 }
+
+// Set the path of app.json
+func SetAppConfig(path string) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		panic("empty app path")
+	}
+	appConfigPath = path
+}
+
+// Set the path of master.json
+func SetMasterConfig(path string) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		panic("empty app path")
+	}
+	masterConfigPath = path
+}
+
+// Set the path of servers.json
+func SetServersConfig( path string){
+	path = strings.TrimSpace(path)
+	if path == "" {
+		panic("empty app path")
+	}
+	serversConfigPath = path
+}

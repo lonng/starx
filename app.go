@@ -60,10 +60,10 @@ func (app *starxApp) init() {
 	} else {
 		// if server running in cluster mode, master server config require
 		// initialize master server config
-		if !fileExist(MasterConfigPath) {
-			log.Fatalf("%s not found", MasterConfigPath)
+		if !fileExist(masterConfigPath) {
+			log.Fatalf("%s not found", masterConfigPath)
 		} else {
-			f, _ := os.Open(MasterConfigPath)
+			f, _ := os.Open(masterConfigPath)
 			defer f.Close()
 
 			reader := json.NewDecoder(f)
@@ -82,7 +82,7 @@ func (app *starxApp) init() {
 			cluster.Register(master)
 		}
 		if App.Master == nil {
-			log.Fatalf("wrong master server config file(%s)", MasterConfigPath)
+			log.Fatalf("wrong master server config file(%s)", masterConfigPath)
 		}
 
 		if strings.TrimSpace(serverID) == "" {
