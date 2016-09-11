@@ -9,6 +9,6 @@ import (
 var serializer serialize.Serializer = protobuf.NewProtobufSerializer()
 
 // Customize serializer
-func Serializer(seri serialize.Serializer) {
+func SetSerializer(seri serialize.Serializer) {
 	serializer = seri
 }
