@@ -26,7 +26,7 @@ func Set(svrTypes string, fn func()) {
 	}
 }
 
-func Router(svrType string, fn func(*session.Session) string) {
+func SetRouter(svrType string, fn func(*session.Session) string) {
 	cluster.Router(svrType, fn)
 }
 
@@ -61,7 +61,7 @@ func SetMasterConfig(path string) {
 }
 
 // Set the path of servers.json
-func SetServersConfig( path string){
+func SetServersConfig(path string) {
 	path = strings.TrimSpace(path)
 	if path == "" {
 		panic("empty app path")
