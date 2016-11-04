@@ -25,7 +25,7 @@ func (c *Channel) Member(uid int64) *session.Session {
 	c.RLock()
 	defer c.RUnlock()
 
-	return c.members[uid]
+	return c.uidMap[uid]
 }
 
 func (c *Channel) Members() []int64 {
@@ -46,9 +46,14 @@ func (c *Channel) Multicast(uids []int64, route string, v interface{}) error {
 
 	for _, uid := range uids {
 		if s, ok := c.uidMap[uid]; ok && s != nil {
-			defaultNetService.push(s, route, data)
+			err := defaultNetService.push(s, route, data)
+			if err != nil {
+				return err
+			}
 		}
 	}
+
+	return nil
 }
 
 func (c *Channel) Broadcast(route string, v interface{}) error {
