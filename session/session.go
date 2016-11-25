@@ -108,6 +108,10 @@ func (s *Session) Call(route string, reply interface{}, args ...interface{}) err
 	return s.Entity.Call(s, route, reply, args...)
 }
 
+func (s *Session) Remove(key string) {
+	delete(s.data, key)
+}
+
 func (s *Session) Set(key string, value interface{}) {
 	s.data[key] = value
 }
