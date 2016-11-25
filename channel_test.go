@@ -15,7 +15,7 @@ func TestChannel_Add(t *testing.T) {
 	for i := 0; i < paraCount; i++ {
 		go func(id int) {
 			s := &session.Session{}
-			s.Bind(int64(id+1))
+			s.Bind(int64(id + 1))
 			c.Add(s)
 			w <- true
 		}(i)
@@ -29,7 +29,7 @@ func TestChannel_Add(t *testing.T) {
 		t.Fail()
 	}
 
-	n := rand.Int63n(int64(paraCount)+1)
+	n := rand.Int63n(int64(paraCount) + 1)
 	if !c.IsContain(n) {
 		t.Fail()
 	}

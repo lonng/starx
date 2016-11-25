@@ -21,6 +21,14 @@ const (
 	LevelFatal
 )
 
+const (
+	LogDebug = "DEBUG"
+	LogInfo  = "INFO"
+	LogWarn  = "WARN"
+	LogError = "ERROR"
+	LogFatal = "FATAL"
+)
+
 var (
 	ErrWrongLogLevel = errors.New("log level not define")
 )
@@ -75,35 +83,35 @@ func Debugf(f string, v ...interface{}) {
 	if logLevel > LevelDebug {
 		return
 	}
-	writeLogf("Debug", f, v...)
+	writeLogf(LogDebug, f, v...)
 }
 
 func Infof(f string, v ...interface{}) {
 	if logLevel > LevelInfo {
 		return
 	}
-	writeLogf("Info", f, v...)
+	writeLogf(LogInfo, f, v...)
 }
 
 func Warnf(f string, v ...interface{}) {
 	if logLevel > LevelWarn {
 		return
 	}
-	writeLogf("Warn", f, v...)
+	writeLogf(LogWarn, f, v...)
 }
 
 func Errorf(f string, v ...interface{}) {
 	if logLevel > LevelError {
 		return
 	}
-	writeLogf("Error", f, v...)
+	writeLogf(LogError, f, v...)
 }
 
 func Fatalf(f string, v ...interface{}) {
 	if logLevel > LevelFatal {
 		return
 	}
-	writeLogf("Fatal", f, v...)
+	writeLogf(LogFatal, f, v...)
 	os.Exit(-1)
 }
 
@@ -122,35 +130,35 @@ func Debug(v ...interface{}) {
 	if logLevel > LevelDebug {
 		return
 	}
-	writeLog("Debug", v...)
+	writeLog(LogDebug, v...)
 }
 
 func Info(v ...interface{}) {
 	if logLevel > LevelInfo {
 		return
 	}
-	writeLog("Info", v...)
+	writeLog(LogInfo, v...)
 }
 
 func Warn(f string, v ...interface{}) {
 	if logLevel > LevelWarn {
 		return
 	}
-	writeLog("Warn", v...)
+	writeLog(LogWarn, v...)
 }
 
 func Error(v ...interface{}) {
 	if logLevel > LevelError {
 		return
 	}
-	writeLog("Error", v...)
+	writeLog(LogError, v...)
 }
 
 func Fatal(v ...interface{}) {
 	if logLevel > LevelFatal {
 		return
 	}
-	writeLog("Fatal", v...)
+	writeLog(LogFatal, v...)
 	os.Exit(-1)
 }
 

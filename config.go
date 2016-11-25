@@ -13,15 +13,15 @@ import (
 var VERSION = "0.0.1"
 
 var (
-	App              *starxApp // starx application
-	appPath          string
-	workPath         string
-	appConfigPath string
+	App               *starxApp // starx application
+	appPath           string
+	workPath          string
+	appConfigPath     string
 	serversConfigPath string
-	masterConfigPath string
-	serverID         string              // current process server id
-	settings         map[string][]func() // all settings
-	endRunning       chan bool           // wait for end application
+	masterConfigPath  string
+	serverID          string              // current process server id
+	settings          map[string][]func() // all settings
+	endRunning        chan bool           // wait for end application
 )
 
 func init() {

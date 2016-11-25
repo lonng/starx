@@ -21,6 +21,13 @@ func newChannel(n string, cs *channelService) *Channel {
 		uidMap:         make(map[int64]*session.Session)}
 }
 
+func (c *Channel) Member(uid int64) *session.Session {
+	c.RLock()
+	defer c.RUnlock()
+
+	return c.uidMap[uid]
+}
+
 func (c *Channel) Members() []int64 {
 	c.RLock()
 	defer c.RUnlock()
@@ -28,15 +35,25 @@ func (c *Channel) Members() []int64 {
 	return c.members
 }
 
-func (c *Channel) Multicast(uids []int64, route string, data []byte) {
+func (c *Channel) Multicast(uids []int64, route string, v interface{}) error {
+	data, err := serializeOrRaw(v)
+	if err != nil {
+		return err
+	}
+
 	c.RLock()
 	defer c.RUnlock()
 
 	for _, uid := range uids {
 		if s, ok := c.uidMap[uid]; ok && s != nil {
-			defaultNetService.push(s, route, data)
+			err := defaultNetService.push(s, route, data)
+			if err != nil {
+				return err
+			}
 		}
 	}
+
+	return nil
 }
 
 func (c *Channel) Broadcast(route string, v interface{}) error {
