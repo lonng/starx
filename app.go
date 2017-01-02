@@ -105,21 +105,22 @@ func (app *starxApp) init() {
 func (app *starxApp) start() {
 	startupComps()
 
-	if app.Config.IsWebsocket {
-		app.listenAndServeWS()
-	} else {
-		app.listenAndServe()
-	}
+	go func(){
+		if app.Config.IsWebsocket {
+			app.listenAndServeWS()
+		} else {
+			app.listenAndServe()
+		}
+	}()
 
-	sg := make(chan os.Signal, 1)
-	signal.Notify(sg, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
+	sg := make(chan os.Signal)
+	signal.Notify(sg, syscall.SIGINT)
 	// stop server
 	select {
 	case <-endRunning:
 		log.Infof("The app will shutdown in a few seconds")
 	case s := <-sg:
-		log.Infof("Got signal: %v", s)
+		log.Infof("got signal: %v", s)
 	}
 	log.Infof("server: " + app.Config.Id + " is stopping...")
 	shutdownComps()
