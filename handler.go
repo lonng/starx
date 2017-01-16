@@ -170,7 +170,7 @@ func (hs *handlerService) processPacket(a *agent, p *packet.Packet) {
 func (hs *handlerService) processMessage(session *session.Session, msg *message.Message) {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorf("processMessage Error: %+v", err)
+			log.Tracef("processMessage Error: %+v", err)
 		}
 	}()
 
