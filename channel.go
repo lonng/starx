@@ -1,10 +1,13 @@
 package starx
 
 import (
+	"sync"
+
 	"github.com/chrislonng/starx/log"
 	"github.com/chrislonng/starx/session"
-	"sync"
 )
+
+type SessionFilter func(*session.Session) bool
 
 type Channel struct {
 	sync.RWMutex
@@ -35,7 +38,8 @@ func (c *Channel) Members() []int64 {
 	return c.members
 }
 
-func (c *Channel) Multicast(uids []int64, route string, v interface{}) error {
+// Push message to partial client, which filter return true
+func (c *Channel) Multicast( route string, v interface{}, filter SessionFilter) error {
 	data, err := serializeOrRaw(v)
 	if err != nil {
 		return err
@@ -44,18 +48,20 @@ func (c *Channel) Multicast(uids []int64, route string, v interface{}) error {
 	c.RLock()
 	defer c.RUnlock()
 
-	for _, uid := range uids {
-		if s, ok := c.uidMap[uid]; ok && s != nil {
-			err := defaultNetService.push(s, route, data)
-			if err != nil {
-				return err
-			}
+	for _, s := range c.uidMap {
+		if !filter(s) {
+			continue
+		}
+		err = defaultNetService.push(s, route, data)
+		if err != nil {
+			log.Error(err.Error())
 		}
 	}
 
 	return nil
 }
 
+// Push message to all client
 func (c *Channel) Broadcast(route string, v interface{}) error {
 	data, err := serializeOrRaw(v)
 	if err != nil {
