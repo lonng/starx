@@ -293,3 +293,13 @@ func (s *Session) String(key string) string {
 func (s *Session) Value(key string) interface{} {
 	return s.data[key]
 }
+
+// Retrieve all session state
+func (s *Session) State() map[string]interface{} {
+	return s.data
+}
+
+// Restore session state after reconnect
+func (s *Session) Restore(data map[string]interface{}) {
+	s.data = data
+}
