@@ -10,6 +10,7 @@ import (
 	"github.com/chrislonng/starx/cluster/rpc"
 	routelib "github.com/chrislonng/starx/route"
 	"github.com/chrislonng/starx/session"
+	"github.com/chrislonng/starx/log"
 )
 
 var (
@@ -71,6 +72,9 @@ func (a *agent) Push(session *session.Session, route string, v interface{}) erro
 	if err != nil {
 		return err
 	}
+
+	log.Debugf("Type=Push, UID=%d, Route=%s, Data=%+v", session.Uid, route, v)
+
 	return defaultNetService.push(session, route, data)
 }
 
@@ -80,6 +84,8 @@ func (a *agent) Response(session *session.Session, v interface{}) error {
 	if err != nil {
 		return err
 	}
+
+	log.Debugf("Type=Response, UID=%d, Data=%+v", session.Uid, v)
 
 	return defaultNetService.response(session, data)
 }

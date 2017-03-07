@@ -85,6 +85,8 @@ func (a *acceptor) Push(session *session.Session, route string, v interface{}) e
 		return err
 	}
 
+	log.Debugf("UID=%d, Type=Push, Route=%s, Data=%+v", session.Uid, route, v)
+
 	rs, err := defaultNetService.acceptor(session.Entity.ID())
 	if err != nil {
 		log.Errorf(err.Error())
@@ -112,6 +114,8 @@ func (a *acceptor) Response(session *session.Session, v interface{}) error {
 	if err != nil {
 		return err
 	}
+
+	log.Debugf("UID=%d, Type=Response, Data=%+v", session.Uid, v)
 
 	rs, err := defaultNetService.acceptor(session.Entity.ID())
 	if err != nil {

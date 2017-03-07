@@ -45,6 +45,8 @@ func (c *Channel) Multicast( route string, v interface{}, filter SessionFilter) 
 		return err
 	}
 
+	log.Debugf("Type=Multicast Route=%s, Data=%+v", route, v)
+
 	c.RLock()
 	defer c.RUnlock()
 
@@ -67,6 +69,8 @@ func (c *Channel) Broadcast(route string, v interface{}) error {
 	if err != nil {
 		return err
 	}
+
+	log.Debugf("Type=Broadcast Route=%s, Data=%+v", route, v)
 
 	c.RLock()
 	defer c.RUnlock()
