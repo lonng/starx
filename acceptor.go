@@ -61,7 +61,7 @@ func (a *acceptor) Session(sid int64) *session.Session {
 	return s
 }
 
-func (a *acceptor) close() {
+func (a *acceptor) Close() {
 	a.status = statusClosed
 	for _, s := range a.sessionMap {
 		defaultNetService.closeSession(s)

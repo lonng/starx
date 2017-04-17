@@ -11,7 +11,6 @@ func serializeOrRaw(v interface{}) ([]byte, error) {
 	if data, ok := v.([]byte); ok {
 		return data, nil
 	}
-
 	data, err := serializer.Serialize(v)
 	if err != nil {
 		log.Errorf(err.Error())

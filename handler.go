@@ -24,11 +24,6 @@ const (
 
 var handler = newHandlerService()
 
-type unhandledPacket struct {
-	agent  *agent
-	packet *packet.Packet
-}
-
 type handlerService struct {
 	serviceMap map[string]*component.Service
 }
@@ -69,54 +64,58 @@ func (hs *handlerService) register(rcvr component.Component) error {
 func (hs *handlerService) handle(conn net.Conn) {
 	defer conn.Close()
 
-	// message buffer
-	packetChan := make(chan *unhandledPacket, packetBufferSize)
-	endChan := make(chan bool, 1)
+	// register new session when new connection connected in
+	agent := defaultNetService.createAgent(conn)
+	log.Debugf("New session established: %s", agent.String())
 
 	// all user logic will be handled in single goroutine
 	// synchronized in below routine
 	go func() {
-	loop:
+	LOOP:
 		for {
 			select {
-			case p := <-packetChan:
-				if p != nil {
-					hs.processPacket(p.agent, p.packet)
+			case p, ok := <-agent.recvBuffer:
+				if ok && p != nil {
+					hs.processPacket(agent, p)
 				}
-			case <-endChan:
-				break loop
+			case m, ok := <-agent.sendBuffer:
+				if ok && m != nil {
+					_, err := agent.socket.Write(m)
+					if err != nil {
+						log.Error(err)
+						agent.Close()
+					}
+				}
+			case <-agent.ending:
+				break LOOP
 			}
 		}
-
 	}()
 
-	// register new session when new connection connected in
-	agent := defaultNetService.createAgent(conn)
-	log.Debugf("new agent(%s)", agent.String())
 	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
-			log.Debugf("session closed, id: %d, ip: %s", agent.session.ID, agent.socket.RemoteAddr())
-			close(packetChan)
-			endChan <- true
-			agent.close()
+			agent.Close()
+			// break read packet loop
 			break
 		}
 		tmp = append(tmp, buf[:n]...)
-		var p *packet.Packet // save decoded packet
+
+		// save decoded packet
+		var p *packet.Packet
 		for len(tmp) >= packet.HeadLength {
 			p, tmp, err = packet.Unpack(tmp)
 			if err != nil {
-				agent.close()
+				agent.Close()
 				break
 			}
 
 			if p == nil {
 				break
 			}
-			packetChan <- &unhandledPacket{agent: agent, packet: p}
+			agent.recvBuffer <- p
 		}
 	}
 }
@@ -142,12 +141,12 @@ func (hs *handlerService) processPacket(a *agent, p *packet.Packet) {
 		resp, err := rp.Pack()
 		if err != nil {
 			log.Errorf(err.Error())
-			a.close()
+			a.Close()
 		}
 
 		if err := a.Send(resp); err != nil {
 			log.Errorf(err.Error())
-			a.close()
+			a.Close()
 		}
 	case packet.HandshakeAck:
 		a.status = statusWorking
@@ -163,7 +162,7 @@ func (hs *handlerService) processPacket(a *agent, p *packet.Packet) {
 		go a.heartbeat()
 	default:
 		log.Infof("invalid packet type")
-		a.close()
+		a.Close()
 	}
 }
 
@@ -184,7 +183,6 @@ func (hs *handlerService) processMessage(session *session.Session, msg *message.
 		return
 	}
 
-	log.Debugf(msg.String())
 	r, err := route.Decode(msg.Route)
 	if err != nil {
 		log.Errorf(err.Error())
@@ -229,6 +227,8 @@ func (hs *handlerService) localProcess(session *session.Session, route *route.Ro
 			return
 		}
 	}
+
+	log.Debugf("Uid=%d, Message={%s}, Data=%+v", session.Uid, msg.String(), data)
 
 	ret := m.Method.Func.Call([]reflect.Value{s.Rcvr, reflect.ValueOf(session), reflect.ValueOf(data)})
 	if len(ret) > 0 {

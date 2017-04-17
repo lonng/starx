@@ -105,7 +105,7 @@ func (app *starxApp) init() {
 func (app *starxApp) start() {
 	startupComps()
 
-	go func(){
+	go func() {
 		if app.Config.IsWebsocket {
 			app.listenAndServeWS()
 		} else {

@@ -86,7 +86,7 @@ func (rs *remoteService) handle(conn net.Conn) {
 		if err != nil {
 			log.Infof("session closed(" + err.Error() + ")")
 			defaultNetService.dumpAcceptor()
-			acceptor.close()
+			acceptor.Close()
 			endChan <- true
 			break
 		}

@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
@@ -240,17 +241,24 @@ func (net *netService) heartbeat() {
 	if !App.Config.IsFrontend || net.agents == nil {
 		return
 	}
-	log.Debugf("heartbeat")
+	dt := time.Now().Add(-2 * heartbeatInternal)
+	dtu := dt.Unix()
+
 	for _, agent := range net.agents {
 		if agent.status != statusWorking {
 			continue
 		}
 
-		if err := agent.Send(heartbeatPacket); err != nil {
-			agent.close()
+		if agent.lastTime < dtu {
+			log.Debugf("Session heartbeat timeout, LastTime=%d, Deadline=%d", agent.lastTime, dtu)
+			agent.Close()
 			continue
 		}
-		agent.heartbeat()
+
+		if err := agent.Send(heartbeatPacket); err != nil {
+			agent.Close()
+			continue
+		}
 	}
 }
 

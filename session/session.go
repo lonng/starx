@@ -16,6 +16,7 @@ type NetworkEntity interface {
 	Push(session *Session, route string, v interface{}) error
 	Response(session *Session, v interface{}) error
 	Call(session *Session, route string, reply interface{}, args ...interface{}) error
+	Close()
 }
 
 var (
@@ -106,6 +107,10 @@ func (s *Session) Call(route string, reply interface{}, args ...interface{}) err
 		return ErrReplyShouldBePtr
 	}
 	return s.Entity.Call(s, route, reply, args...)
+}
+
+func (s *Session) Close() {
+	s.Entity.Close()
 }
 
 func (s *Session) Remove(key string) {
@@ -302,4 +307,9 @@ func (s *Session) State() map[string]interface{} {
 // Restore session state after reconnect
 func (s *Session) Restore(data map[string]interface{}) {
 	s.data = data
+}
+
+func (s *Session) Clear() {
+	log.Debugf("Clear session data: Id=%d, Uid=%d", s.ID, s.Uid)
+	s.data = map[string]interface{}{}
 }

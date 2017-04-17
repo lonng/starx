@@ -6,6 +6,7 @@ import (
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/component"
 	"github.com/chrislonng/starx/session"
+	"time"
 )
 
 // Run server
@@ -67,4 +68,9 @@ func SetServersConfig(path string) {
 		panic("empty app path")
 	}
 	serversConfigPath = path
+}
+
+// Set heartbeat time internal
+func SetHeartbeatInternal(d time.Duration) {
+	heartbeatInternal = d
 }
