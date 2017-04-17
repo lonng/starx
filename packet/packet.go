@@ -27,7 +27,7 @@ type Packet struct {
 	Data   []byte
 }
 
-func NewPacket() *Packet {
+func New() *Packet {
 	return &Packet{}
 }
 

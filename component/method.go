@@ -15,8 +15,8 @@ var (
 )
 
 func isExported(name string) bool {
-	rune, _ := utf8.DecodeRuneInString(name)
-	return unicode.IsUpper(rune)
+	w, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(w)
 }
 
 func isExportedOrBuiltinType(t reflect.Type) bool {
@@ -31,27 +31,27 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
 // IsHandlerMethod
 // decide a method is suitable handler method
 func isHandlerMethod(method reflect.Method) bool {
-	mtype := method.Type
+	mt := method.Type
 	// Method must be exported.
 	if method.PkgPath != "" {
 		return false
 	}
 
 	// Method needs three ins: receiver, *Session, []byte or pointer.
-	if mtype.NumIn() != 3 {
+	if mt.NumIn() != 3 {
 		return false
 	}
 
 	// Method needs one outs: error
-	if mtype.NumOut() != 1 {
+	if mt.NumOut() != 1 {
 		return false
 	}
 
-	if sessType := mtype.In(1); sessType.Kind() != reflect.Ptr || sessType != typeOfSession {
+	if t1 := mt.In(1); t1.Kind() != reflect.Ptr || t1 != typeOfSession {
 		return false
 	}
 
-	if (mtype.In(2).Kind() != reflect.Ptr && mtype.In(2) != typeOfBytes) || mtype.Out(0) != typeOfError {
+	if (mt.In(2).Kind() != reflect.Ptr && mt.In(2) != typeOfBytes) || mt.Out(0) != typeOfError {
 		return false
 	}
 	return true
@@ -60,7 +60,7 @@ func isHandlerMethod(method reflect.Method) bool {
 // IsRemoteMethod
 // decide a method is suitable remote method
 func isRemoteMethod(method reflect.Method) bool {
-	mtype := method.Type
+	mt := method.Type
 
 	// Method must be exported.
 	if method.PkgPath != "" {
@@ -68,11 +68,11 @@ func isRemoteMethod(method reflect.Method) bool {
 	}
 
 	// Method needs one outs: []byte, error
-	if mtype.NumOut() != 2 {
+	if mt.NumOut() != 2 {
 		return false
 	}
 
-	if mtype.Out(0).Kind() != reflect.Interface || mtype.Out(1) != typeOfError {
+	if mt.Out(0).Kind() != reflect.Interface || mt.Out(1) != typeOfError {
 		return false
 	}
 
@@ -85,14 +85,14 @@ func suitableHandlerMethods(typ reflect.Type, reportErr bool) map[string]*Handle
 	methods := make(map[string]*HandlerMethod)
 	for m := 0; m < typ.NumMethod(); m++ {
 		method := typ.Method(m)
-		mtype := method.Type
-		mname := method.Name
+		mt := method.Type
+		mn := method.Name
 		if isHandlerMethod(method) {
 			raw := false
-			if mtype.In(2) == typeOfBytes {
+			if mt.In(2) == typeOfBytes {
 				raw = true
 			}
-			methods[mname] = &HandlerMethod{Method: method, Type: mtype.In(2), Raw: raw}
+			methods[mn] = &HandlerMethod{Method: method, Type: mt.In(2), Raw: raw}
 		}
 	}
 	return methods
@@ -104,9 +104,9 @@ func suitableRemoteMethods(typ reflect.Type, reportErr bool) map[string]*RemoteM
 	methods := make(map[string]*RemoteMethod)
 	for m := 0; m < typ.NumMethod(); m++ {
 		method := typ.Method(m)
-		mname := method.Name
+		mn := method.Name
 		if isRemoteMethod(method) {
-			methods[mname] = &RemoteMethod{Method: method}
+			methods[mn] = &RemoteMethod{Method: method}
 		}
 	}
 	return methods
