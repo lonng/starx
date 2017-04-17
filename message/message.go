@@ -25,6 +25,13 @@ const (
 	msgHeadLength        = 0x03
 )
 
+var types = map[MessageType]string{
+	Request:  "Request",
+	Notify:   "Notify",
+	Response: "Response",
+	Push:     "Push",
+}
+
 var (
 	routeDict = make(map[string]uint16)
 	codeDict  = make(map[uint16]string)
@@ -49,8 +56,8 @@ func NewMessage() *Message {
 }
 
 func (m *Message) String() string {
-	return fmt.Sprintf("Type: %d, ID: %d, Route: %s, Compressed: %t, BodyLength: %d",
-		m.Type,
+	return fmt.Sprintf("Type: %s, ID: %d, Route: %s, Compressed: %t, BodyLength: %d",
+		types[m.Type],
 		m.ID,
 		m.Route,
 		m.compressed,
