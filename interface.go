@@ -1,12 +1,13 @@
 package starx
 
 import (
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/component"
 	"github.com/chrislonng/starx/session"
-	"time"
 )
 
 // Run server
@@ -73,4 +74,9 @@ func SetServersConfig(path string) {
 // Set heartbeat time internal
 func SetHeartbeatInternal(d time.Duration) {
 	heartbeatInternal = d
+}
+
+// SetCheckOriginFunc set the function that check `Origin` in http headers
+func SetCheckOriginFunc(fn func(*http.Request) bool) {
+	checkOrigin = fn
 }
