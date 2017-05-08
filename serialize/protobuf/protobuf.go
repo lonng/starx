@@ -8,13 +8,13 @@ import (
 
 var ErrWrongValueType = errors.New("struct must be able to be converted to proto.Message")
 
-type ProtobufSerialezer struct{}
+type Serializer struct{}
 
-func NewProtobufSerializer() *ProtobufSerialezer {
-	return &ProtobufSerialezer{}
+func NewSerializer() *Serializer {
+	return &Serializer{}
 }
 
-func (s *ProtobufSerialezer) Serialize(v interface{}) ([]byte, error) {
+func (s *Serializer) Serialize(v interface{}) ([]byte, error) {
 	pb, ok := v.(proto.Message)
 	if !ok {
 		return nil, ErrWrongValueType
@@ -22,7 +22,7 @@ func (s *ProtobufSerialezer) Serialize(v interface{}) ([]byte, error) {
 	return proto.Marshal(pb)
 }
 
-func (s *ProtobufSerialezer) Deserialize(data []byte, v interface{}) error {
+func (s *Serializer) Deserialize(data []byte, v interface{}) error {
 	pb, ok := v.(proto.Message)
 	if !ok {
 		return ErrWrongValueType

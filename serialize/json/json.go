@@ -2,16 +2,16 @@ package json
 
 import "encoding/json"
 
-type JsonSerialezer struct{}
+type Serialezer struct{}
 
-func NewJsonSerializer() *JsonSerialezer {
-	return &JsonSerialezer{}
+func NewSerializer() *Serialezer {
+	return &Serialezer{}
 }
 
-func (s *JsonSerialezer) Serialize(v interface{}) ([]byte, error) {
+func (s *Serialezer) Serialize(v interface{}) ([]byte, error) {
 	return json.Marshal(v)
 }
 
-func (s *JsonSerialezer) Deserialize(data []byte, v interface{}) error {
+func (s *Serialezer) Deserialize(data []byte, v interface{}) error {
 	return json.Unmarshal(data, v)
 }

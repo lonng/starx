@@ -17,7 +17,7 @@ func (*Message) ProtoMessage()    {}
 
 func TestProtobufSerialezer_Serialize(t *testing.T) {
 	m := &Message{proto.String("hello")}
-	s := NewProtobufSerializer()
+	s := NewSerializer()
 
 	b, err := s.Serialize(m)
 	if err != nil {
