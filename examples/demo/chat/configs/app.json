@@ -1,0 +1,5 @@
+{
+  "AppName": "chat-demo",
+  "Standalone": true,
+  "LogLevel": "INFO"
+}

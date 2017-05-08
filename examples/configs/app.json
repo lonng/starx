@@ -1,0 +1,5 @@
+{
+  "AppName": "starx-demo",
+  "Standalone": true,
+  "LogLevel": "INFO"
+}

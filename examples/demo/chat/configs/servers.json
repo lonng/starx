@@ -1,0 +1,5 @@
+{
+  "demo": [
+    {"id": "demo-server-1","host": "0.0.0.0", "port": 3250, "is_frontend": true, "is_websocket": true}
+  ]
+}
