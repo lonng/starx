@@ -148,8 +148,10 @@ func (hs *handlerService) processPacket(a *agent, p *packet.Packet) {
 			log.Errorf(err.Error())
 			a.Close()
 		}
+		log.Debugf("Session handshake Id=%d, Remote=%s", a.id, a.socket.RemoteAddr())
 	case packet.HandshakeAck:
 		a.status = statusWorking
+		log.Debugf("Receive handshake ACK Id=%d, Remote=%s", a.id, a.socket.RemoteAddr())
 	case packet.Data:
 		m, err := message.Decode(p.Data)
 		if err != nil {

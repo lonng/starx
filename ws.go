@@ -15,7 +15,6 @@ type wsConn struct {
 	conn   *websocket.Conn
 	typ    int // message type
 	reader io.Reader
-	writer io.WriteCloser
 }
 
 // newWSConn return an initialized *wsConn
@@ -29,13 +28,6 @@ func newWSConn(conn *websocket.Conn) (*wsConn, error) {
 
 	c.typ = t
 	c.reader = r
-
-	w, err := conn.NextWriter(websocket.BinaryMessage)
-	if err != nil {
-		return nil, err
-	}
-
-	c.writer = w
 
 	return c, nil
 }
@@ -61,21 +53,19 @@ func (c *wsConn) Read(b []byte) (int, error) {
 // Write writes data to the connection.
 // Write can be made to time out and return an Error with Timeout() == true
 // after a fixed time limit; see SetDeadline and SetWriteDeadline.
-func (c *wsConn) Write(b []byte) (n int, err error) {
-	w, err := c.conn.NextWriter(websocket.BinaryMessage)
+func (c *wsConn) Write(b []byte) (int, error) {
+	err := c.conn.WriteMessage(websocket.BinaryMessage, b)
 	if err != nil {
 		return 0, err
 	}
 
-	c.writer = w
-
-	return w.Write(b)
+	return len(b), nil
 }
 
 // Close closes the connection.
 // Any blocked Read or Write operations will be unblocked and return errors.
 func (c *wsConn) Close() error {
-	return c.writer.Close()
+	return c.conn.Close()
 }
 
 // LocalAddr returns the local network address.
