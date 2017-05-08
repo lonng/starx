@@ -6,7 +6,7 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-var ErrWrongValueType = errors.New("struct must be converted to proto.Message")
+var ErrWrongValueType = errors.New("struct must be able to be converted to proto.Message")
 
 type ProtobufSerialezer struct{}
 
