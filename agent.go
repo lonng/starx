@@ -85,12 +85,22 @@ func (a *agent) ID() int64 {
 	return a.id
 }
 
-func (a *agent) Send(data []byte) error {
+func (a *agent) Send(data []byte) (err error) {
+	defer func() {
+		if e := recover(); err != nil {
+			if er, ok := e.(error); ok {
+				err = er
+			}
+		}
+	}()
+
 	if a.status < statusClosed {
 		a.sendBuffer <- data
 		return nil
 	}
-	return ErrSendChannelClosed
+
+	err = ErrSendChannelClosed
+	return
 }
 
 func (a *agent) Push(session *session.Session, route string, v interface{}) error {
