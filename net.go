@@ -256,6 +256,7 @@ func (net *netService) heartbeat() {
 		}
 
 		if err := agent.Send(heartbeatPacket); err != nil {
+			log.Error(err)
 			agent.Close()
 			continue
 		}

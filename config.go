@@ -8,6 +8,7 @@ import (
 
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
+	"net/http"
 )
 
 var VERSION = "0.0.1"
@@ -22,6 +23,8 @@ var (
 	serverID          string              // current process server id
 	settings          map[string][]func() // all settings
 	endRunning        chan bool           // wait for end application
+
+	checkOrigin func(*http.Request) bool // check origin when websocket enabled
 )
 
 func init() {

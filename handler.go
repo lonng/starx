@@ -93,13 +93,13 @@ func (hs *handlerService) handle(conn net.Conn) {
 	}()
 
 	tmp := make([]byte, 0) // save truncated data
-	buf := make([]byte, 512)
+	buf := make([]byte, 2048)
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
+			log.Errorf("Read message error: %s, session will be closed immediately", err.Error())
 			agent.Close()
-			// break read packet loop
-			break
+			break // break read packet loop
 		}
 		tmp = append(tmp, buf[:n]...)
 
@@ -148,8 +148,10 @@ func (hs *handlerService) processPacket(a *agent, p *packet.Packet) {
 			log.Errorf(err.Error())
 			a.Close()
 		}
+		log.Debugf("Session handshake Id=%d, Remote=%s", a.id, a.socket.RemoteAddr())
 	case packet.HandshakeAck:
 		a.status = statusWorking
+		log.Debugf("Receive handshake ACK Id=%d, Remote=%s", a.id, a.socket.RemoteAddr())
 	case packet.Data:
 		m, err := message.Decode(p.Data)
 		if err != nil {

@@ -14,7 +14,7 @@ import (
 
 	"github.com/chrislonng/starx/cluster"
 	"github.com/chrislonng/starx/log"
-	"golang.org/x/net/websocket"
+	"github.com/gorilla/websocket"
 )
 
 type starxApp struct {
@@ -154,7 +154,21 @@ func (app *starxApp) listenAndServe() {
 }
 
 func (app *starxApp) listenAndServeWS() {
-	http.Handle("/", websocket.Handler(handler.HandleWS))
+	var upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin:     checkOrigin,
+	}
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		handler.HandleWS(conn)
+	})
 
 	log.Infof("listen at %s:%d(%s)",
 		app.Config.Host,
