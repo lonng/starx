@@ -1,11 +1,8 @@
 package starx
 
-import (
-	"golang.org/x/net/websocket"
-)
+import "github.com/gorilla/websocket"
 
 func (hs *handlerService) HandleWS(conn *websocket.Conn) {
-	conn.PayloadType = websocket.BinaryFrame
 	hs.handle(conn)
 	/*
 		defer conn.Close()
