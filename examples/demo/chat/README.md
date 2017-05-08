@@ -6,3 +6,10 @@ refs: https://github.com/chrislonng/starx
 ## Required
 - golang
 - websocket
+
+## Run
+```
+go run main.go
+```
+
+open web/index.html in you browser.
