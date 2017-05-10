@@ -31,3 +31,29 @@ func TestProtobufSerialezer_Serialize(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func BenchmarkSerializer_Serialize(b *testing.B) {
+	m := &Message{proto.String("hello")}
+	s := NewSerializer()
+
+	for i := 0; i < b.N; i++ {
+		s.Serialize(m)
+	}
+
+	b.ReportAllocs()
+}
+
+func BenchmarkSerializer_Deserialize(b *testing.B) {
+	m := &Message{proto.String("hello")}
+	s := NewSerializer()
+
+	d, err := s.Serialize(m)
+	if err != nil {
+		b.Error(err)
+	}
+
+	for i := 0; i<b.N; i++ {
+		m1 := &Message{}
+		s.Deserialize(d, m1)
+	}
+}
