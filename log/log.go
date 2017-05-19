@@ -19,6 +19,7 @@ const (
 	LevelWarn
 	LevelError
 	LevelFatal
+	LevelClose
 )
 
 const (
@@ -163,7 +164,7 @@ func Fatal(v ...interface{}) {
 }
 
 func SetLevel(l LogLevel) error {
-	if l < LevelDebug || l > LevelFatal {
+	if l < LevelDebug || l > LevelClose {
 		return ErrWrongLogLevel
 	}
 	logLevel = l
