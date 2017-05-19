@@ -12,7 +12,6 @@ import (
 	"github.com/chrislonng/starx/serialize/protobuf"
 	"github.com/chrislonng/starx/session"
 	"github.com/golang/protobuf/proto"
-	"golang.org/x/tools/go/gcimporter15/testdata"
 )
 
 func TestMain(m *testing.M) {
