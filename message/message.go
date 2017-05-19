@@ -51,7 +51,7 @@ type Message struct {
 	compressed bool
 }
 
-func NewMessage() *Message {
+func New() *Message {
 	return &Message{}
 }
 
@@ -136,7 +136,7 @@ func Decode(data []byte) (*Message, error) {
 		log.Infof("invalid message")
 		return nil, ErrInvalidMessage
 	}
-	m := NewMessage()
+	m := New()
 	flag := data[0]
 	offset := 1
 	m.Type = MessageType((flag >> 1) & msgTypeMask)
