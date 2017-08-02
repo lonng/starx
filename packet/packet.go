@@ -3,7 +3,7 @@ package packet
 import (
 	"errors"
 	"fmt"
-	"github.com/chrislonng/starx/log"
+	"github.com/lonnng/starx/log"
 )
 
 type PacketType byte

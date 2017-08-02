@@ -3,16 +3,16 @@ package main
 import (
 	"net/http"
 
-	"github.com/chrislonng/starx"
-	"github.com/chrislonng/starx/component"
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/serialize/json"
-	"github.com/chrislonng/starx/session"
+	"github.com/lonnng/starx"
+	"github.com/lonnng/starx/component"
+	"github.com/lonnng/starx/log"
+	"github.com/lonnng/starx/serialize/json"
+	"github.com/lonnng/starx/session"
 )
 
 type Room struct {
 	component.Base
-	channel *starx.Channel
+	group *starx.Group
 }
 
 type UserMessage struct {
@@ -27,22 +27,21 @@ type JoinResponse struct {
 
 func NewRoom() *Room {
 	return &Room{
-		channel: starx.ChannelService.NewChannel("room"),
+		group: starx.NewGroup("room"),
 	}
 }
 
 func (r *Room) Join(s *session.Session, msg []byte) error {
-	s.Bind(s.ID)     // binding session uid
-	r.channel.Add(s) // add session to channel
+	s.Bind(s.ID)   // binding session uid
+	r.group.Add(s) // add session to group
 	return s.Response(JoinResponse{Result: "sucess"})
 }
 
 func (r *Room) Message(s *session.Session, msg *UserMessage) error {
-	return r.channel.Broadcast("onMessage", msg)
+	return r.group.Broadcast("onMessage", msg)
 }
 
 func main() {
-	starx.SetAppConfig("configs/app.json")
 	starx.SetServersConfig("configs/servers.json")
 	starx.Register(NewRoom())
 

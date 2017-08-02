@@ -3,8 +3,8 @@ package cluster
 import (
 	"encoding/json"
 
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/session"
+	"github.com/lonnng/starx/log"
+	"github.com/lonnng/starx/session"
 )
 
 type Manager struct {

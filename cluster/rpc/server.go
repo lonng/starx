@@ -8,7 +8,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/chrislonng/starx/log"
+	"github.com/lonnng/starx/log"
 )
 
 var (

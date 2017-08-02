@@ -5,23 +5,23 @@ Inspired by [Pomelo](https://github.com/NetEase/pomelo), rewrite with golang.
 ## Client Library
 
 - Javascript
-  + [starx-client-websockt](https://github.com/chrislonng/starx-client-websockt)
+  + [starx-client-websockt](https://github.com/lonnng/starx-client-websockt)
 
 - C#
-  + [starx-client-dotnet](https://github.com/chrislonng/starx-client-dotnet)
+  + [starx-client-dotnet](https://github.com/lonnng/starx-client-dotnet)
 
 ## Chat Room Demo
-implement a chat room in 100 lines with golang and websocket [starx-chat-demo](https://github.com/chrislonng/starx-chat-demo)
+implement a chat room in 100 lines with golang and websocket [starx-chat-demo](https://github.com/lonnng/starx-chat-demo)
 
 - server
   ```
   package main
   
   import (
-  	"github.com/chrislonng/starx"
-  	"github.com/chrislonng/starx/component"
-  	"github.com/chrislonng/starx/serialize/json"
-  	"github.com/chrislonng/starx/session"
+  	"github.com/lonnng/starx"
+  	"github.com/lonnng/starx/component"
+  	"github.com/lonnng/starx/serialize/json"
+  	"github.com/lonnng/starx/session"
   )
   
   type Room struct {
@@ -87,7 +87,7 @@ implement a chat room in 100 lines with golang and websocket [starx-chat-demo](h
       </div>
   </div>
   <script src="http://cdnjs.cloudflare.com/ajax/libs/vue/1.0.26/vue.min.js" type="text/javascript"></script>
-  <!--[starx websocket library](https://github.com/chrislonng/starx-client-websocket)-->
+  <!--[starx websocket library](https://github.com/lonnng/starx-client-websocket)-->
   <script src="protocol.js" type="text/javascript"></script>
   <script src="starx-wsclient.js" type="text/javascript"></script>
   <script>
@@ -127,9 +127,9 @@ implement a chat room in 100 lines with golang and websocket [starx-chat-demo](h
 
 ## Demo
 
-- Client: [starx-demo-unity](https://github.com/chrislonng/starx-demo-unity)
+- Client: [starx-demo-unity](https://github.com/lonnng/starx-demo-unity)
 
-- Server: [starx-demo-server](https://github.com/chrislonng/starx-demo-server)
+- Server: [starx-demo-server](https://github.com/lonnng/starx-demo-server)
 
 ## Wiki
 

@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/chrislonng/starx/packet"
+	"github.com/lonnng/starx/packet"
 )
 
 func Test1(t *testing.T) {

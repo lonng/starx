@@ -1,3 +1,23 @@
+// Copyright (c) starx Author. All Rights Reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 package starx
 
 import (
@@ -6,12 +26,12 @@ import (
 	"net"
 	"time"
 
-	"github.com/chrislonng/starx/cluster"
-	"github.com/chrislonng/starx/cluster/rpc"
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/packet"
-	routelib "github.com/chrislonng/starx/route"
-	"github.com/chrislonng/starx/session"
+	"github.com/lonnng/starx/cluster"
+	"github.com/lonnng/starx/cluster/rpc"
+	"github.com/lonnng/starx/log"
+	"github.com/lonnng/starx/packet"
+	routelib "github.com/lonnng/starx/route"
+	"github.com/lonnng/starx/session"
 )
 
 var (
@@ -29,7 +49,7 @@ type agent struct {
 	session    *session.Session
 	sendBuffer chan []byte
 	recvBuffer chan *packet.Packet
-	ending     chan bool
+	die        chan bool
 	lastTime   int64 // last heartbeat unix time stamp
 }
 
@@ -41,9 +61,9 @@ func newAgent(conn net.Conn) *agent {
 		lastTime:   time.Now().Unix(),
 		sendBuffer: make(chan []byte, packetBufferSize),
 		recvBuffer: make(chan *packet.Packet, packetBufferSize),
-		ending:     make(chan bool, 1),
+		die:        make(chan bool, 1),
 	}
-	s := session.NewSession(a)
+	s := session.New(a)
 	a.session = s
 	a.id = s.ID
 
@@ -70,14 +90,14 @@ func (a *agent) Close() {
 	a.status = statusClosed
 	log.Debugf("Session closed, Id=%d, IP=%s", a.session.ID, a.socket.RemoteAddr())
 
-	a.ending <- true
+	a.die <- true
 
 	// close all channel
-	close(a.ending)
+	close(a.die)
 	close(a.recvBuffer)
 	close(a.sendBuffer)
 
-	defaultNetService.closeSession(a.session)
+	transporter.closeSession(a.session)
 	a.socket.Close()
 }
 
@@ -111,7 +131,7 @@ func (a *agent) Push(session *session.Session, route string, v interface{}) erro
 
 	log.Debugf("Type=Push, UID=%d, Route=%s, Data=%+v", session.Uid, route, v)
 
-	return defaultNetService.push(session, route, data)
+	return transporter.push(session, route, data)
 }
 
 // Response message to session
@@ -123,7 +143,7 @@ func (a *agent) Response(session *session.Session, v interface{}) error {
 
 	log.Debugf("Type=Response, UID=%d, Data=%+v", session.Uid, v)
 
-	return defaultNetService.response(session, data)
+	return transporter.response(session, data)
 }
 
 func (a *agent) Call(session *session.Session, route string, reply interface{}, args ...interface{}) error {
@@ -132,7 +152,7 @@ func (a *agent) Call(session *session.Session, route string, reply interface{}, 
 		return err
 	}
 
-	if App.Config.Type == r.ServerType {
+	if app.config.Type == r.ServerType {
 		return ErrRPCLocal
 	}
 

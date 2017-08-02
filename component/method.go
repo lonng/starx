@@ -5,13 +5,13 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/chrislonng/starx/session"
+	"github.com/lonnng/starx/session"
 )
 
 var (
 	typeOfError   = reflect.TypeOf((*error)(nil)).Elem()
 	typeOfBytes   = reflect.TypeOf(([]byte)(nil))
-	typeOfSession = reflect.TypeOf(session.NewSession(nil))
+	typeOfSession = reflect.TypeOf(session.New(nil))
 )
 
 func isExported(name string) bool {

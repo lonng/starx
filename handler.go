@@ -1,3 +1,23 @@
+// Copyright (c) starx Author. All Rights Reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 package starx
 
 import (
@@ -6,14 +26,14 @@ import (
 	"net"
 	"reflect"
 
-	"github.com/chrislonng/starx/cluster"
-	"github.com/chrislonng/starx/cluster/rpc"
-	"github.com/chrislonng/starx/component"
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/message"
-	"github.com/chrislonng/starx/packet"
-	"github.com/chrislonng/starx/route"
-	"github.com/chrislonng/starx/session"
+	"github.com/lonnng/starx/cluster"
+	"github.com/lonnng/starx/cluster/rpc"
+	"github.com/lonnng/starx/component"
+	"github.com/lonnng/starx/log"
+	"github.com/lonnng/starx/message"
+	"github.com/lonnng/starx/packet"
+	"github.com/lonnng/starx/route"
+	"github.com/lonnng/starx/session"
 )
 
 // Unhandled message buffer size
@@ -65,13 +85,12 @@ func (hs *handlerService) handle(conn net.Conn) {
 	defer conn.Close()
 
 	// register new session when new connection connected in
-	agent := defaultNetService.createAgent(conn)
+	agent := transporter.createAgent(conn)
 	log.Debugf("New session established: %s", agent.String())
 
 	// all user logic will be handled in single goroutine
 	// synchronized in below routine
 	go func() {
-	LOOP:
 		for {
 			select {
 			case p, ok := <-agent.recvBuffer:
@@ -86,8 +105,11 @@ func (hs *handlerService) handle(conn net.Conn) {
 						agent.Close()
 					}
 				}
-			case <-agent.ending:
-				break LOOP
+			case <-agent.die:
+				return
+
+			case <-env.die:
+				return
 			}
 		}
 	}()
@@ -126,7 +148,7 @@ func (hs *handlerService) processPacket(a *agent, p *packet.Packet) {
 		a.status = statusHandshake
 		data, err := json.Marshal(map[string]interface{}{
 			"code": 200,
-			"sys":  map[string]float64{"heartbeat": heartbeatInternal.Seconds()},
+			"sys":  map[string]float64{"heartbeat": env.heartbeatInternal.Seconds()},
 		})
 		if err != nil {
 			log.Infof(err.Error())
@@ -193,11 +215,11 @@ func (hs *handlerService) processMessage(session *session.Session, msg *message.
 
 	// current server as default server type
 	if r.ServerType == "" {
-		r.ServerType = App.Config.Type
+		r.ServerType = app.config.Type
 	}
 
 	// message dispatch
-	if r.ServerType == App.Config.Type {
+	if r.ServerType == app.config.Type {
 		hs.localProcess(session, r, msg)
 	} else {
 		hs.remoteProcess(session, r, msg)

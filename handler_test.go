@@ -4,19 +4,19 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/chrislonng/starx/cluster"
-	"github.com/chrislonng/starx/component"
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/message"
-	"github.com/chrislonng/starx/serialize/json"
-	"github.com/chrislonng/starx/serialize/protobuf"
-	"github.com/chrislonng/starx/session"
 	"github.com/golang/protobuf/proto"
+	"github.com/lonnng/starx/cluster"
+	"github.com/lonnng/starx/component"
+	"github.com/lonnng/starx/log"
+	"github.com/lonnng/starx/message"
+	"github.com/lonnng/starx/serialize/json"
+	"github.com/lonnng/starx/serialize/protobuf"
+	"github.com/lonnng/starx/session"
 )
 
 func TestMain(m *testing.M) {
 	log.SetLevel(log.LevelClose)
-	App.Master = &cluster.ServerConfig{
+	app.master = &cluster.ServerConfig{
 		Type:        "test",
 		Id:          "test-1",
 		Host:        "127.0.0.1",
@@ -26,7 +26,7 @@ func TestMain(m *testing.M) {
 		IsWebsocket: false,
 	}
 
-	App.Config = &cluster.ServerConfig{
+	app.config = &cluster.ServerConfig{
 		Type:        "test",
 		Id:          "test-1",
 		Host:        "127.0.0.1",
@@ -145,7 +145,7 @@ func TestHandlerCallJSON(t *testing.T) {
 	msg.Type = message.Request
 	msg.Data = data
 
-	s := session.NewSession(nil)
+	s := session.New(nil)
 
 	handler.processMessage(s, msg)
 }
@@ -165,7 +165,7 @@ func TestHandlerCallProtobuf(t *testing.T) {
 	msg.Type = message.Request
 	msg.Data = data
 
-	s := session.NewSession(nil)
+	s := session.New(nil)
 
 	handler.processMessage(s, msg)
 }
@@ -185,7 +185,7 @@ func BenchmarkHandlerCallJSON(b *testing.B) {
 	msg.Type = message.Request
 	msg.Data = data
 
-	s := session.NewSession(nil)
+	s := session.New(nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -210,7 +210,7 @@ func BenchmarkHandlerCallProtobuf(b *testing.B) {
 	msg.Type = message.Request
 	msg.Data = data
 
-	s := session.NewSession(nil)
+	s := session.New(nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

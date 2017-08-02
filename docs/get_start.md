@@ -8,7 +8,7 @@
 package main
 
 import (
-	"github.com/chrislonng/starx"
+	"github.com/lonnng/starx"
 )
 
 type HelloWorld struct {}
@@ -57,7 +57,7 @@ func main() {
 
 ## 客户端
 
-目前客户端有一个C#的SDK，包含在[starx-demo-unity](https://github.com/chrislonng/starx-demo-unity)，客户端测试代码可以是一个Unity3D工程，也可以是一个VS的C#工程，这里我们只展示主要的代码，具体代码可以参考`starx-demo-unity`
+目前客户端有一个C#的SDK，包含在[starx-demo-unity](https://github.com/lonnng/starx-demo-unity)，客户端测试代码可以是一个Unity3D工程，也可以是一个VS的C#工程，这里我们只展示主要的代码，具体代码可以参考`starx-demo-unity`
 
 ```
 StarXClient client = new StarXClient();

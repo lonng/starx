@@ -1,120 +1,187 @@
+// Copyright (c) starx Author. All Rights Reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 package starx
 
 import (
 	"encoding/json"
 	"io"
-	"os"
-	"path/filepath"
-
-	"github.com/chrislonng/starx/cluster"
-	"github.com/chrislonng/starx/log"
 	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/lonnng/starx/cluster"
+	"github.com/lonnng/starx/log"
+	"github.com/lonnng/starx/timer"
 )
 
 var VERSION = "0.0.1"
 
 var (
-	App               *starxApp // starx application
-	appPath           string
-	workPath          string
-	appConfigPath     string
-	serversConfigPath string
-	masterConfigPath  string
-	serverID          string              // current process server id
-	settings          map[string][]func() // all settings
-	endRunning        chan bool           // wait for end application
+	// app represents the current server process
+	app = &struct {
+		master     *cluster.ServerConfig // master server config
+		config     *cluster.ServerConfig // current server information
+		name       string                // current application name
+		standalone bool                  // current server is running in standalone mode
+		startAt    time.Time             // startup time
+	}{}
 
-	checkOrigin func(*http.Request) bool // check origin when websocket enabled
+	// env represents the environment of the current process, includes
+	// work path and config path etc.
+	env = &struct {
+		wd                string                      // working path
+		serversConfigPath string                      // servers config path(default: $appPath/configs/servers.json)
+		masterServerId    string                      // master server id
+		serverId          string                      // current process server id
+		settings          map[string][]ServerInitFunc // all settings
+		heartbeatInternal time.Duration               // heartbeat internal
+		die               chan bool                   // wait for end application
+
+		checkOrigin func(*http.Request) bool // check origin when websocket enabled
+	}{}
 )
 
+type ServerInitFunc func()
+
+// init default configs
 func init() {
-	App = newApp()
-	settings = make(map[string][]func())
-	endRunning = make(chan bool, 1)
+	// register session manager for cluster
+	cluster.SetSessionManager(transporter)
 
-	workPath, _ = os.Getwd()
-	workPath, _ = filepath.Abs(workPath)
-	// initialize default configurations
-	appPath, _ = filepath.Abs(filepath.Dir(os.Args[0]))
+	// application initialize
+	app.name = strings.TrimLeft(path.Base(os.Args[0]), "/")
+	app.standalone = true
+	app.startAt = time.Now()
 
-	appConfigPath = filepath.Join(appPath, "configs", "app.json")
-	serversConfigPath = filepath.Join(appPath, "configs", "servers.json")
-	masterConfigPath = filepath.Join(appPath, "configs", "master.json")
-	if workPath != appPath {
-		if fileExist(appConfigPath) {
-			os.Chdir(appPath)
-		} else {
-			appConfigPath = filepath.Join(workPath, "configs", "app.json")
-		}
+	// environment initialize
+	env.settings = make(map[string][]ServerInitFunc)
+	env.die = make(chan bool)
 
-		if fileExist(serversConfigPath) {
-			os.Chdir(appPath)
-		} else {
-			serversConfigPath = filepath.Join(workPath, "configs", "servers.json")
-		}
+	if wd, err := os.Getwd(); err != nil {
+		panic(err)
+	} else {
+		env.wd, _ = filepath.Abs(wd)
 
-		if fileExist(masterConfigPath) {
-			os.Chdir(appPath)
-		} else {
-			masterConfigPath = filepath.Join(workPath, "configs", "master.json")
+		// config file path
+		serversConfigPath := filepath.Join(wd, "configs", "servers.json")
+
+		if fileExists(serversConfigPath) {
+			env.serversConfigPath = serversConfigPath
 		}
 	}
 }
 
-func parseConfig() {
-	// initialize app config
-	if !fileExist(appConfigPath) {
-		log.Fatalf("%s not found", appConfigPath)
-	} else {
-		type appConfig struct {
-			AppName    string `json:"AppName"`
-			Standalone bool   `json:"Standalone"`
-			LogLevel   string `json:"LogLevel"`
-		}
-		f, _ := os.Open(appConfigPath)
-		defer f.Close()
-		reader := json.NewDecoder(f)
-		var cfg appConfig
-		for {
-			if err := reader.Decode(&cfg); err == io.EOF {
-				break
-			} else if err != nil {
-				log.Errorf(err.Error())
-			}
-		}
-		App.AppName = cfg.AppName
-		App.Standalone = cfg.Standalone
-		//log.SetLevelByName(cfg.LogLevel)
-	}
-
+func loadServers() {
 	// initialize servers config
-	if !fileExist(serversConfigPath) {
-		log.Fatalf("%s not found", serversConfigPath)
-	} else {
-		f, _ := os.Open(serversConfigPath)
-		defer f.Close()
-
-		reader := json.NewDecoder(f)
-		var servers map[string][]*cluster.ServerConfig
-		for {
-			if err := reader.Decode(&servers); err == io.EOF {
-				break
-			} else if err != nil {
-				log.Errorf(err.Error())
-			}
-		}
-
-		for svrType, svrs := range servers {
-			for _, svr := range svrs {
-				svr.Type = svrType
-				cluster.Register(svr)
-			}
-		}
-		cluster.DumpSvrTypeMaps()
+	if !fileExists(env.serversConfigPath) {
+		log.Fatalf("%s not found", env.serversConfigPath)
+		return
 	}
+
+	// read config file
+	f, _ := os.Open(env.serversConfigPath)
+	defer f.Close()
+
+	// load config from file
+	reader := json.NewDecoder(f)
+	var servers map[string][]*cluster.ServerConfig
+	for {
+		if err := reader.Decode(&servers); err == io.EOF {
+			break
+		} else if err != nil {
+			log.Errorf(err.Error())
+		}
+	}
+
+	// register server to cluster
+	for typ, svrs := range servers {
+		for _, svr := range svrs {
+			svr.Type = typ
+			cluster.Register(svr)
+		}
+	}
+	cluster.DumpServers()
 }
 
-func fileExist(filename string) bool {
-	_, err := os.Stat(filename)
-	return err == nil || os.IsExist(err)
+func initSetting() {
+	// init
+	if app.standalone {
+		if strings.TrimSpace(env.serverId) == "" {
+			log.Fatal("server running in standalone mode, but not found server id argument")
+		}
+
+		cfg, err := cluster.Server(env.serverId)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+
+		app.config = cfg
+	} else {
+		// if server running in cluster mode, master server config require
+		// initialize master server config
+		if env.masterServerId == "" {
+			log.Fatalf("master server id must be set in cluster mode", env.masterServerId)
+		}
+
+		if server, err := cluster.Server(env.masterServerId); err != nil {
+			log.Fatalf("wrong master server config file(%s)", env.masterServerId)
+		} else {
+			app.master = server
+		}
+
+		if strings.TrimSpace(env.serverId) == "" {
+			// not pass server id, running in master mode
+			app.config = app.master
+		} else {
+			cfg, err := cluster.Server(env.serverId)
+			if err != nil {
+				log.Fatal(err.Error())
+			}
+
+			app.config = cfg
+		}
+	}
+
+	// dependencies initialization
+	cluster.SetAppConfig(app.config)
+}
+
+func initServer() {
+	setting, ok := env.settings[app.config.Type]
+	if !ok {
+		return
+	}
+
+	// call all init function
+	for _, fn := range setting {
+		fn()
+	}
+
+	// register heartbeat service
+	if app.config.IsFrontend {
+		timer.Register(env.heartbeatInternal, func() {
+			transporter.heartbeat()
+		})
+	}
 }

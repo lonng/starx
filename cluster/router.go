@@ -3,7 +3,7 @@ package cluster
 import (
 	"strings"
 
-	"github.com/chrislonng/starx/session"
+	"github.com/lonnng/starx/session"
 )
 
 var router map[string]func(*session.Session) string

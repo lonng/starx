@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/chrislonng/starx/log"
+	"github.com/lonnng/starx/log"
 )
 
 var (

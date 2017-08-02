@@ -1,3 +1,23 @@
+// Copyright (c) starx Author. All Rights Reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 package starx
 
 import (
@@ -9,10 +29,10 @@ import (
 	"reflect"
 	"runtime/debug"
 
-	"github.com/chrislonng/starx/cluster/rpc"
-	"github.com/chrislonng/starx/component"
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/route"
+	"github.com/lonnng/starx/cluster/rpc"
+	"github.com/lonnng/starx/component"
+	"github.com/lonnng/starx/log"
+	"github.com/lonnng/starx/route"
 )
 
 var remote = newRemote()
@@ -77,15 +97,15 @@ func (rs *remoteService) handle(conn net.Conn) {
 		}
 	}()
 
-	acceptor := defaultNetService.createAcceptor(conn)
-	defaultNetService.dumpAcceptor()
+	acceptor := transporter.createAcceptor(conn)
+	transporter.dumpAcceptor()
 	tmp := make([]byte, 0) // save truncated data
 	buf := make([]byte, 512)
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
 			log.Infof("session closed(" + err.Error() + ")")
-			defaultNetService.dumpAcceptor()
+			transporter.dumpAcceptor()
 			acceptor.Close()
 			endChan <- true
 			break
@@ -114,7 +134,7 @@ func (rs *remoteService) processRequest(ac *acceptor, rr *rpc.Request) {
 
 	// session closed notify request
 	if isSessionClosedRequest(rr) {
-		defaultNetService.closeSession(session)
+		transporter.closeSession(session)
 		return
 	}
 

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/service"
+	"github.com/lonnng/starx/log"
+	"github.com/lonnng/starx/service"
 )
 
 type NetworkEntity interface {
@@ -43,7 +43,7 @@ type Session struct {
 }
 
 // Create new session instance
-func NewSession(entity NetworkEntity) *Session {
+func New(entity NetworkEntity) *Session {
 	return &Session{
 		ID:        service.Connections.SessionID(),
 		Entity:    entity,

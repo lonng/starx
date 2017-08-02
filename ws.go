@@ -1,3 +1,23 @@
+// Copyright (c) starx Author. All Rights Reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 package starx
 
 import (
@@ -5,11 +25,11 @@ import (
 	"net"
 	"time"
 
-	"github.com/chrislonng/starx/log"
 	"github.com/gorilla/websocket"
+	"github.com/lonnng/starx/log"
 )
 
-// wsConn is an adapter to net.Conn, which implements all net.Conn
+// wsConn is an adapter to t.Conn, which implements all t.Conn
 // interface base on *websocket.Conn
 type wsConn struct {
 	conn   *websocket.Conn
@@ -124,54 +144,4 @@ func (hs *handlerService) HandleWS(conn *websocket.Conn) {
 		return
 	}
 	hs.handle(c)
-	/*
-		defer conn.Close()
-
-		// message buffer
-		packetChan := make(chan *unhandledPacket, packetBufferSize)
-		endChan := make(chan bool, 1)
-
-		// all user logic will be handled in single goroutine
-		// synchronized in below routine
-		go func() {
-		loop:
-			for {
-				select {
-				case p := <-packetChan:
-					if p != nil {
-						hs.processPacket(p.agent, p.packet)
-					}
-				case <-endChan:
-					break loop
-				}
-			}
-
-		}()
-
-		// register new session when new connection connected in
-		agent := defaultNetService.createAgent(conn)
-		log.Debug("new agent(%s)", agent.String())
-		tmp := make([]byte, 0) // save truncated data
-		buf := make([]byte, 512)
-		for {
-			n, err := conn.Read(buf)
-			if err != nil {
-				log.Debug("session closed, id: %d, ip: %s", agent.session.Id, agent.socket.RemoteAddr())
-				close(packetChan)
-				endChan <- true
-				agent.close()
-				break
-			}
-			tmp = append(tmp, buf[:n]...)
-			var p *packet.Packet // save decoded packet
-			for len(tmp) >= packet.HeadLength {
-				p, tmp, err = packet.Unpack(tmp)
-				if err != nil {
-					agent.close()
-					break
-				}
-				packetChan <- &unhandledPacket{agent: agent, packet: p}
-			}
-		}
-	*/
 }

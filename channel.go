@@ -3,25 +3,21 @@ package starx
 import (
 	"sync"
 
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/session"
+	"github.com/lonnng/starx/log"
+	"github.com/lonnng/starx/session"
 )
-
-type SessionFilter func(*session.Session) bool
 
 type Channel struct {
 	sync.RWMutex
-	name           string                     // channel name
-	uidMap         map[int64]*session.Session // uid map to session pointer
-	members        []int64                    // all user ids
-	channelService *channelService            // channel service which contain current channel
+	name    string                     // channel name
+	uidMap  map[int64]*session.Session // uid map to session pointer
+	members []int64                    // all user ids
 }
 
-func newChannel(n string, cs *channelService) *Channel {
+func newChannel(n string) *Channel {
 	return &Channel{
-		name:           n,
-		channelService: cs,
-		uidMap:         make(map[int64]*session.Session)}
+		name:   n,
+		uidMap: make(map[int64]*session.Session)}
 }
 
 func (c *Channel) Member(uid int64) *session.Session {
@@ -39,7 +35,7 @@ func (c *Channel) Members() []int64 {
 }
 
 // Push message to partial client, which filter return true
-func (c *Channel) Multicast( route string, v interface{}, filter SessionFilter) error {
+func (c *Channel) Multicast(route string, v interface{}, filter SessionFilter) error {
 	data, err := serializeOrRaw(v)
 	if err != nil {
 		return err
@@ -54,7 +50,7 @@ func (c *Channel) Multicast( route string, v interface{}, filter SessionFilter) 
 		if !filter(s) {
 			continue
 		}
-		err = defaultNetService.push(s, route, data)
+		err = transporter.push(s, route, data)
 		if err != nil {
 			log.Error(err.Error())
 		}
@@ -76,7 +72,7 @@ func (c *Channel) Broadcast(route string, v interface{}) error {
 	defer c.RUnlock()
 
 	for _, s := range c.uidMap {
-		err = defaultNetService.push(s, route, data)
+		err = transporter.push(s, route, data)
 		if err != nil {
 			log.Error(err.Error())
 		}
@@ -139,8 +135,5 @@ func (c *Channel) Count() int {
 }
 
 func (c *Channel) Destroy() {
-	c.channelService.Lock()
-	defer c.channelService.Unlock()
-
-	delete(c.channelService.channels, c.name)
+	c.LeaveAll()
 }

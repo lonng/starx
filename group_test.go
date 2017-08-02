@@ -8,7 +8,7 @@ import (
 )
 
 func TestChannel_Add(t *testing.T) {
-	c := ChannelService.NewChannel("test_add")
+	c := NewGroup("test_add")
 
 	var paraCount = 100
 	w := make(chan bool, paraCount)

@@ -3,10 +3,10 @@ package cluster
 import (
 	"errors"
 
-	"github.com/chrislonng/starx/cluster/rpc"
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/route"
-	"github.com/chrislonng/starx/session"
+	"github.com/lonnng/starx/cluster/rpc"
+	"github.com/lonnng/starx/log"
+	"github.com/lonnng/starx/route"
+	"github.com/lonnng/starx/session"
 )
 
 var (

@@ -6,9 +6,9 @@ import (
 	"math/rand"
 	"sync"
 
-	"github.com/chrislonng/starx/cluster/rpc"
-	"github.com/chrislonng/starx/log"
-	"github.com/chrislonng/starx/session"
+	"github.com/lonnng/starx/cluster/rpc"
+	"github.com/lonnng/starx/log"
+	"github.com/lonnng/starx/session"
 )
 
 var (
@@ -47,7 +47,7 @@ func DumpSvrIdMaps() {
 	}
 }
 
-func DumpSvrTypeMaps() {
+func DumpServers() {
 	svrLock.RLock()
 	defer svrLock.RUnlock()
 

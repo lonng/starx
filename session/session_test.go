@@ -3,14 +3,14 @@ package session
 import "testing"
 
 func TestNewSession(t *testing.T) {
-	s := NewSession(nil)
+	s := New(nil)
 	if s.ID < 1 {
 		t.Fail()
 	}
 }
 
 func TestSession_Bind(t *testing.T) {
-	s := NewSession(nil)
+	s := New(nil)
 	uids := []int64{100, 1000, 10000000}
 	for i, uid := range uids {
 		s.Bind(uid)
@@ -21,7 +21,7 @@ func TestSession_Bind(t *testing.T) {
 }
 
 func TestSession_HasKey(t *testing.T) {
-	s := NewSession(nil)
+	s := New(nil)
 	key := "hello"
 	value := "world"
 	s.Set(key, value)
@@ -31,7 +31,7 @@ func TestSession_HasKey(t *testing.T) {
 }
 
 func TestSession_Float32(t *testing.T) {
-	s := NewSession(nil)
+	s := New(nil)
 	key := "hello"
 	value := float32(1.2000)
 	s.Set(key, value)
@@ -41,7 +41,7 @@ func TestSession_Float32(t *testing.T) {
 }
 
 func TestSession_Float64(t *testing.T) {
-	s := NewSession(nil)
+	s := New(nil)
 	key := "hello"
 	value := 1.2000
 	s.Set(key, value)
@@ -51,7 +51,7 @@ func TestSession_Float64(t *testing.T) {
 }
 
 func TestSession_Int(t *testing.T) {
-	s := NewSession(nil)
+	s := New(nil)
 	key := "testkey"
 	value := 234
 	s.Set(key, value)
@@ -61,7 +61,7 @@ func TestSession_Int(t *testing.T) {
 }
 
 func TestSession_Int8(t *testing.T) {
-	s := NewSession(nil)
+	s := New(nil)
 	key := "testkey"
 	value := int8(123)
 	s.Set(key, value)
@@ -71,7 +71,7 @@ func TestSession_Int8(t *testing.T) {
 }
 
 func TestSession_Int16(t *testing.T) {
-	s := NewSession(nil)
+	s := New(nil)
 	key := "testkey"
 	value := int16(3245)
 	s.Set(key, value)
@@ -81,7 +81,7 @@ func TestSession_Int16(t *testing.T) {
 }
 
 func TestSession_Int32(t *testing.T) {
-	s := NewSession(nil)
+	s := New(nil)
 	key := "testkey"
 	value := int32(5454)
 	s.Set(key, value)
@@ -91,7 +91,7 @@ func TestSession_Int32(t *testing.T) {
 }
 
 func TestSession_Int64(t *testing.T) {
-	s := NewSession(nil)
+	s := New(nil)
 	key := "testkey"
 	value := int64(444454)
 	s.Set(key, value)
@@ -101,7 +101,7 @@ func TestSession_Int64(t *testing.T) {
 }
 
 func TestSession_Uint(t *testing.T) {
-	s := NewSession(nil)
+	s := New(nil)
 	key := "testkey"
 	value := uint(24254)
 	s.Set(key, value)
@@ -111,7 +111,7 @@ func TestSession_Uint(t *testing.T) {
 }
 
 func TestSession_Uint8(t *testing.T) {
-	s := NewSession(nil)
+	s := New(nil)
 	key := "testkey"
 	value := uint8(34)
 	s.Set(key, value)
@@ -121,7 +121,7 @@ func TestSession_Uint8(t *testing.T) {
 }
 
 func TestSession_Uint16(t *testing.T) {
-	s := NewSession(nil)
+	s := New(nil)
 	key := "testkey"
 	value := uint16(4645)
 	s.Set(key, value)
@@ -131,7 +131,7 @@ func TestSession_Uint16(t *testing.T) {
 }
 
 func TestSession_Uint32(t *testing.T) {
-	s := NewSession(nil)
+	s := New(nil)
 	key := "testkey"
 	value := uint32(12365)
 	s.Set(key, value)
@@ -141,7 +141,7 @@ func TestSession_Uint32(t *testing.T) {
 }
 
 func TestSession_Uint64(t *testing.T) {
-	s := NewSession(nil)
+	s := New(nil)
 	key := "testkey"
 	value := uint64(1000)
 	s.Set(key, value)
@@ -151,7 +151,7 @@ func TestSession_Uint64(t *testing.T) {
 }
 
 func TestSession_State(t *testing.T) {
-	s := NewSession(nil)
+	s := New(nil)
 	key := "testkey"
 	value := uint64(1000)
 	s.Set(key, value)
@@ -162,8 +162,8 @@ func TestSession_State(t *testing.T) {
 }
 
 func TestSession_Restore(t *testing.T) {
-	s := NewSession(nil)
-	s2 := NewSession(nil)
+	s := New(nil)
+	s2 := New(nil)
 	key := "testkey"
 	value := uint64(1000)
 	s.Set(key, value)
