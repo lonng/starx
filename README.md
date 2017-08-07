@@ -1,4 +1,8 @@
-# Starx -- golang based game server framework
+# DEPRECATED
+
+***Do not use in a production environment***, new project ref: https://github.com/lonnng/nano/
+
+# ~~~Starx -- golang based game server framework~~~
 
 Inspired by [Pomelo](https://github.com/NetEase/pomelo), rewrite with golang.
 
